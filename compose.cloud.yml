@@ -1,0 +1,54 @@
+name: sales-ai-crm-cloud
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sales_ai
+      POSTGRES_USER: sales_ai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD}
+    volumes:
+      - cloud_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sales_ai -d sales_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  app:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: https://${CRM_DOMAIN:?Configure CRM_DOMAIN}
+      DEPLOYMENT_MODE: hybrid
+      TRUST_PROXY: "true"
+      WIDGET_ALLOWED_ORIGINS: ${WIDGET_ALLOWED_ORIGINS:-}
+      DATABASE_URL: postgresql://sales_ai:${POSTGRES_PASSWORD}@postgres:5432/sales_ai?schema=public
+      APP_SECRET: ${APP_SECRET:?Configure APP_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"
+    restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      CRM_DOMAIN: ${CRM_DOMAIN:?Configure CRM_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+volumes:
+  cloud_postgres:
+  caddy_data:
+  caddy_config:

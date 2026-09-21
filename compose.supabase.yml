@@ -1,0 +1,21 @@
+name: sales-ai-crm-supabase
+services:
+  app:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: http://localhost:3000
+      DATABASE_URL: ${DATABASE_URL:?Configure la conexion PostgreSQL privada en .env.supabase}
+      APP_SECRET: ${APP_SECRET:?Configure APP_SECRET en .env.supabase}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped

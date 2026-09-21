@@ -1,0 +1,58 @@
+{
+  "name": "sales-ai-crm-desktop",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Aplicación de escritorio híbrida de Sales AI CRM",
+  "main": "main.cjs",
+  "author": "Sales AI CRM",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist:windows": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg zip",
+    "dist:linux": "electron-builder --linux AppImage"
+  },
+  "devDependencies": {
+    "electron": "^38.1.2",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.salesaicrm.desktop",
+    "productName": "Sales AI CRM",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "setup.html",
+      "assets/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    }
+  }
+}
