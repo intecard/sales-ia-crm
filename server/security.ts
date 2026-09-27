@@ -64,7 +64,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       organizationId,
       membershipId: membership.id,
       roleCode: membership.role.code,
-      permissions: membership.role.permissions.map((item: any) => item.permission.code),
+      permissions: membership.role.permissions.map((item) => item.permission.code),
     };
     next();
   } catch (error) {

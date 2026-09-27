@@ -1,6 +1,6 @@
 export type PlatformMode = 'web' | 'windows' | 'macos' | 'linux' | 'android' | 'ios';
 
-export type UserRole = 
+export type UserRole =
   | 'Admin'
   | 'Supervisor'
   | 'Ventas'
@@ -33,7 +33,7 @@ export type LeadSource =
   | 'API'
   | 'Importación CSV';
 
-export type FunnelStageId = 
+export type FunnelStageId =
   | 'nuevo'
   | 'interesado'
   | 'contactado'
@@ -47,7 +47,8 @@ export type FunnelStageId =
   | 'recompra'
   | 'referido';
 
-export type EmotionState = 'Muy Entusiasta' | 'Interesado' | 'Neutral' | 'Indeciso' | 'Escéptico' | 'Urgente' | 'Molesto';
+export type EmotionState =
+  'Muy Entusiasta' | 'Interesado' | 'Neutral' | 'Indeciso' | 'Escéptico' | 'Urgente' | 'Molesto';
 
 export interface Lead {
   id: string;
@@ -70,7 +71,7 @@ export interface Lead {
   roleTitle?: string;
   interests: string[];
   courseOfInterestId: string;
-  
+
   // Status & Funnel
   funnelId: string;
   stageId: FunnelStageId;
@@ -79,7 +80,7 @@ export interface Lead {
   estimatedValue: number;
   source: LeadSource;
   scoreAI: number; // 0 - 100
-  
+
   // AI Profiling
   personalityAnalysis?: {
     discType: 'Dominante' | 'Influyente' | 'Estable' | 'Concienzudo';
@@ -89,7 +90,7 @@ export interface Lead {
     objectionsHistory: string[];
   };
   currentEmotion: EmotionState;
-  
+
   // Tracking & Tech
   lastInteraction: string;
   nextFollowUp?: string;
@@ -100,11 +101,11 @@ export interface Lead {
   assignedAgentId: string;
   organizationId: string;
   tags: string[];
-  
+
   // Conversation & Docs
   conversationHistory: ConversationMessage[];
   documents: LeadDocument[];
-  
+
   createdAt: string;
   updatedAt: string;
 }
@@ -113,7 +114,20 @@ export interface ConversationMessage {
   id: string;
   sender: 'lead' | 'ai_agent' | 'human_user';
   agentName?: string;
-  channel: 'WhatsApp' | 'WebChat' | 'Email' | 'Instagram' | 'Messenger' | 'Telegram' | 'SMS' | 'CallNote';
+  channel:
+    | 'WhatsApp'
+    | 'WebChat'
+    | 'Email'
+    | 'Instagram'
+    | 'Messenger'
+    | 'Telegram'
+    | 'SMS'
+    | 'CallNote'
+    | 'Facebook Lead Ads'
+    | 'Meta Ads'
+    | 'Google Ads'
+    | 'YouTube'
+    | 'Web Form';
   messageType: 'text' | 'audio' | 'image' | 'pdf' | 'payment_link' | 'video';
   content: string;
   mediaUrl?: string;
@@ -125,7 +139,14 @@ export interface ConversationMessage {
 export interface LeadDocument {
   id: string;
   title: string;
-  type: 'Contrato' | 'Comprobante' | 'PDF Cursos' | 'Grabación' | 'Audio' | 'Certificado' | 'Identificación';
+  type:
+    | 'Contrato'
+    | 'Comprobante'
+    | 'PDF Cursos'
+    | 'Grabación'
+    | 'Audio'
+    | 'Certificado'
+    | 'Identificación';
   url: string;
   fileSize: string;
   uploadedAt: string;
@@ -135,7 +156,13 @@ export interface Course {
   id: string;
   title: string;
   code: string;
-  category: 'Inteligencia Artificial' | 'Marketing & Ventas' | 'Programación' | 'Gestión Empresarial' | 'Diseño & UX';
+  category:
+    | 'Salud'
+    | 'Inteligencia Artificial'
+    | 'Marketing & Ventas'
+    | 'Programación'
+    | 'Gestión Empresarial'
+    | 'Diseño & UX';
   price: number;
   discountPrice?: number;
   description: string;
@@ -146,7 +173,8 @@ export interface Course {
   modulesList: { title: string; topics: string[] }[];
   materialsIncluded: string[];
   bonusesIncluded: string[];
-  certificationType: 'Certificación Oficial INTECA' | 'Diplomado Internacional' | 'Máster Executive';
+  certificationType:
+    'Certificación Oficial INTECA' | 'Diplomado Internacional' | 'Máster Executive';
   videoPreviewUrl?: string;
   brochurePdfUrl?: string;
   activePromotions?: string[];
@@ -158,10 +186,38 @@ export interface AIAgentSpec {
   id: string;
   name: string;
   roleTitle: string;
-  specialty: 'Estrategia' | 'Cierre' | 'Marketing' | 'WhatsApp' | 'Copywriting' | 'Recuperación' | 'Soporte';
+  specialty:
+    | 'Estrategia'
+    | 'Cierre'
+    | 'Marketing'
+    | 'WhatsApp'
+    | 'Copywriting'
+    | 'Recuperación'
+    | 'Soporte'
+    | 'Omnicanal'
+    | 'Creativos'
+    | 'Video'
+    | 'Facturación'
+    | 'Lanzamientos'
+    | 'Operaciones';
   avatar: string;
   description: string;
   systemPrompt: string;
+  autonomyLevel?: 'Supervisado' | 'Semiautónomo' | '24/7 Autónomo';
+  operatingMandate?: string;
+  tacticalArsenal?: string[];
+  kpiTargets?: {
+    dailySalesTarget?: number;
+    responseSlaMinutes?: number;
+    targetRoiPercent?: number;
+    minimumQualifiedLeadsDaily?: number;
+  };
+  approvalPolicy?: {
+    canLaunchCommercialCampaigns: boolean;
+    requiresApprovalForTestimonials: boolean;
+    requiresApprovalForInstitutionalNews: boolean;
+    maxDiscountPercent: number;
+  };
   status: 'Activo' | 'En Pausa' | 'Saturado';
   stats: {
     conversationsHandled: number;
@@ -174,7 +230,15 @@ export interface AIAgentSpec {
 export interface MarketingCampaign {
   id: string;
   title: string;
-  channel: 'WhatsApp' | 'Email' | 'SMS' | 'Facebook/Instagram' | 'TikTok';
+  channel:
+    | 'WhatsApp'
+    | 'Email'
+    | 'SMS'
+    | 'Facebook/Instagram'
+    | 'TikTok'
+    | 'Google Ads'
+    | 'YouTube'
+    | 'Omnicanal';
   status: 'Borrador' | 'Programada' | 'En Ejecución' | 'Completada';
   targetSegment: string;
   sentCount: number;
@@ -192,15 +256,145 @@ export interface PaymentTransaction {
   leadId: string;
   leadName: string;
   courseTitle: string;
+  organizationId?: string;
+  opportunityId?: string;
+  quoteId?: string;
   amount: number;
   currency: string;
-  gateway: 'Stripe' | 'PayPal' | 'Square' | 'Google Pay' | 'Apple Pay' | 'Transferencia' | 'Tarjeta Local';
+  gateway:
+    'Stripe' | 'PayPal' | 'Square' | 'Google Pay' | 'Apple Pay' | 'Transferencia' | 'Tarjeta Local';
   status: 'Completado' | 'Pendiente' | 'Fallido' | 'Reembolsado';
   transactionRef: string;
   invoiceNumber: string;
   invoiceUrl: string;
   courseActivationCode: string;
   createdAt: string;
+}
+
+export type OpportunityStage =
+  'Prospecto' | 'Calificado' | 'Cotización' | 'Negociación' | 'Cierre' | 'Ganado' | 'Perdido';
+
+export type QuoteStatus = 'Borrador' | 'Enviada' | 'Aceptada' | 'Vencida' | 'Convertida a factura';
+
+export type InvoiceFiscalType =
+  | 'Factura de crédito fiscal'
+  | 'Factura de consumo'
+  | 'Nota de crédito'
+  | 'Factura gubernamental'
+  | 'Factura especial';
+
+export type DgiiStatus =
+  | 'No configurada'
+  | 'Lista para enviar'
+  | 'Enviada a DGII'
+  | 'Aceptada'
+  | 'Rechazada'
+  | 'Modo demo';
+
+export interface ProductService {
+  id: string;
+  organizationId: string;
+  name: string;
+  sku: string;
+  category: 'Educación' | 'Salud' | 'Servicios' | 'Retail' | 'Automotriz' | 'Tecnología' | 'Otro';
+  description: string;
+  unitPrice: number;
+  currency: string;
+  billingCycle: 'Único' | 'Mensual' | 'Trimestral' | 'Anual';
+  taxable: boolean;
+  status: 'Activo' | 'Pausado';
+}
+
+export interface SalesOpportunity {
+  id: string;
+  organizationId: string;
+  leadId: string;
+  title: string;
+  companyName: string;
+  stage: OpportunityStage;
+  productServiceId: string;
+  quotedAmount: number;
+  currency: string;
+  probability: number;
+  expectedCloseDate: string;
+  ownerName: string;
+  nextStep: string;
+  riskLevel: 'Bajo' | 'Medio' | 'Alto';
+}
+
+export interface QuoteLineItem {
+  id: string;
+  productServiceId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent: number;
+}
+
+export interface CommercialQuote {
+  id: string;
+  organizationId: string;
+  opportunityId: string;
+  quoteNumber: string;
+  customerName: string;
+  customerTaxId: string;
+  issueDate: string;
+  validUntil: string;
+  status: QuoteStatus;
+  currency: string;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  items: QuoteLineItem[];
+}
+
+export interface ElectronicInvoice {
+  id: string;
+  organizationId: string;
+  transactionId?: string;
+  quoteId?: string;
+  customerName: string;
+  customerTaxId: string;
+  fiscalType: InvoiceFiscalType;
+  ncf: string;
+  eNcf: string;
+  dgiiStatus: DgiiStatus;
+  integrationMode: 'Demo' | 'Producción pendiente' | 'Producción';
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  currency: string;
+  issuedAt: string;
+  dueDate: string;
+  paymentStatus: 'Pendiente' | 'Pagada' | 'Parcial' | 'Anulada';
+  auditTrail: string[];
+}
+
+export interface LicensePlan {
+  id: string;
+  name: string;
+  targetSegment: string;
+  monthlyPrice: number;
+  setupFee: number;
+  includedUsers: number;
+  leadLimit: number;
+  features: string[];
+  status: 'Vendible' | 'Interno' | 'Pausado';
+}
+
+export interface TenantLicense {
+  id: string;
+  organizationId: string;
+  planId: string;
+  billingCycle: 'Mensual' | 'Anual' | 'Gratis permanente';
+  monthlyAmount: number;
+  status: 'Activa' | 'Prueba' | 'Vencida' | 'Suspendida';
+  renewalDate: string;
+  seatsUsed: number;
+  seatsLimit: number;
+  invoiceEmail: string;
+  paymentMethod: 'Tarjeta' | 'Transferencia' | 'Gratis INTECA' | 'Pendiente';
+  isFreeForever?: boolean;
 }
 
 export interface OrganizationTenant {
@@ -229,4 +423,116 @@ export interface FunnelStageConfig {
   color: string;
   order: number;
   autoActionPrompt?: string;
+}
+
+export type IntegrationStatus =
+  | 'Listo para conectar'
+  | 'Requiere credenciales'
+  | 'Webhook preparado'
+  | 'Conectado'
+  | 'Modo demo';
+
+export type IntegrationCategory =
+  | 'Mensajería'
+  | 'Social Ads'
+  | 'Buscadores'
+  | 'Video'
+  | 'Pagos'
+  | 'Facturación'
+  | 'Creativos'
+  | 'Notificaciones'
+  | 'Web';
+
+export interface ExternalIntegration {
+  id: string;
+  name: string;
+  category: IntegrationCategory;
+  status: IntegrationStatus;
+  inboundWebhookPath?: string;
+  outboundCapability: string;
+  requiredEnvVars: string[];
+  ownerAgentId: string;
+  setupNotes: string[];
+}
+
+export type CreativeAssetType = 'Flyer' | 'Video 30s' | 'Video 60s' | 'Carrusel' | 'Landing Hero';
+
+export interface CreativeAsset {
+  id: string;
+  title: string;
+  type: CreativeAssetType;
+  courseId: string;
+  campaignObjective: string;
+  targetAudience: string;
+  status: 'Brief listo' | 'Pendiente generar' | 'En revisión' | 'Aprobado para pauta';
+  imagePrompt?: string;
+  videoScript?: string[];
+  copyBlocks: string[];
+  assignedAgentId: string;
+}
+
+export interface LaunchCampaignPlan {
+  id: string;
+  courseId: string;
+  launchName: string;
+  launchDate: string;
+  relaunchDate?: string;
+  budgetDop: number;
+  dailySalesGoal: number;
+  status: 'Planificado' | 'Preparando audiencia' | 'En promoción' | 'Relanzamiento' | 'Cerrado';
+  channels: MarketingCampaign['channel'][];
+  automationCadence: string[];
+  ownerCheckpoints: string[];
+}
+
+export interface OwnerActionNotification {
+  id: string;
+  priority: 'Alta' | 'Media' | 'Baja';
+  type: 'Llamada requerida' | 'Pago recibido' | 'Bloqueo operativo' | 'Factura pendiente' | 'Campaña lista';
+  title: string;
+  leadName?: string;
+  leadPhone?: string;
+  leadEmail?: string;
+  recommendedAction: string;
+  dueAt: string;
+  assignedAgentId: string;
+  status: 'Pendiente' | 'Notificado' | 'Resuelto';
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  actorType: 'Sistema' | 'Agente IA' | 'Usuario' | 'Webhook' | 'Integración';
+  actorName: string;
+  module:
+    | 'Leads'
+    | 'Chat'
+    | 'Agentes'
+    | 'Marketing'
+    | 'Creativos'
+    | 'Lanzamientos'
+    | 'Pagos'
+    | 'Facturación'
+    | 'Integraciones'
+    | 'Auditoría'
+    | 'Seguridad';
+  action:
+    | 'Creó'
+    | 'Actualizó'
+    | 'Respondió'
+    | 'Calificó'
+    | 'Programó'
+    | 'Generó'
+    | 'Recibió'
+    | 'Validó'
+    | 'Escaló'
+    | 'Notificó'
+    | 'Falló';
+  entityType: string;
+  entityId?: string;
+  summary: string;
+  details: string;
+  sourceChannel?: ConversationMessage['channel'] | LeadSource | 'Sistema' | 'API';
+  severity: 'Info' | 'Éxito' | 'Advertencia' | 'Crítico';
+  status: 'Registrado' | 'Pendiente revisión' | 'Resuelto';
 }

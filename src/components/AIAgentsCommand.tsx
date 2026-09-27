@@ -14,7 +14,7 @@ import {
   DollarSign,
   Edit3,
   Save,
-  Brain
+  Brain,
 } from 'lucide-react';
 import { AIAgentSpec } from '../types';
 
@@ -27,7 +27,7 @@ interface AIAgentsCommandProps {
 export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
   agents,
   onUpdateAgent,
-  onNavigateToChat
+  onNavigateToChat,
 }) => {
   const [selectedAgent, setSelectedAgent] = useState<AIAgentSpec>(agents[0]);
   const [isEditingPrompt, setIsEditingPrompt] = useState(false);
@@ -43,7 +43,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
   const handleSavePrompt = () => {
     const updated = {
       ...selectedAgent,
-      systemPrompt: editedPrompt
+      systemPrompt: editedPrompt,
     };
     onUpdateAgent(updated);
     setSelectedAgent(updated);
@@ -66,9 +66,12 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
             <Bot className="w-3.5 h-3.5 text-cyan-300" />
             <span>Centro de Comando Multi-Agente Vendedor Autónomo</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-white">Agentes de Inteligencia Artificial Especializados</h1>
+          <h1 className="text-2xl font-extrabold text-white">
+            Agentes de Inteligencia Artificial Especializados
+          </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Los agentes colaboran entre sí de forma autónoma. Puedes supervisar, ajustar sus límites de negociación y tomar el control humano en cualquier momento.
+            Los agentes colaboran entre sí de forma autónoma. Puedes supervisar, ajustar sus límites
+            de negociación y tomar el control humano en cualquier momento.
           </p>
         </div>
 
@@ -123,8 +126,14 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
                     </div>
                     <p className="text-xs text-indigo-300 font-medium">{ag.roleTitle}</p>
                     <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                      <span>Cierres: <strong className="text-emerald-400">{ag.stats.dealsClosed}</strong></span>
-                      <span>Conversión: <strong className="text-cyan-300">{ag.stats.conversionRatePercent}%</strong></span>
+                      <span>
+                        Cierres:{' '}
+                        <strong className="text-emerald-400">{ag.stats.dealsClosed}</strong>
+                      </span>
+                      <span>
+                        Conversión:{' '}
+                        <strong className="text-cyan-300">{ag.stats.conversionRatePercent}%</strong>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -166,8 +175,14 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
                       : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                   }`}
                 >
-                  {selectedAgent.status === 'Activo' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  <span>{selectedAgent.status === 'Activo' ? 'Pausar Agente' : 'Activar Agente'}</span>
+                  {selectedAgent.status === 'Activo' ? (
+                    <Pause className="w-3.5 h-3.5" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {selectedAgent.status === 'Activo' ? 'Pausar Agente' : 'Activar Agente'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -175,20 +190,34 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
             {/* Performance Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">Conversaciones</span>
-                <p className="text-base font-extrabold text-white mt-0.5">{selectedAgent.stats.conversationsHandled.toLocaleString()}</p>
+                <span className="text-[10px] text-slate-400 uppercase font-bold">
+                  Conversaciones
+                </span>
+                <p className="text-base font-extrabold text-white mt-0.5">
+                  {selectedAgent.stats.conversationsHandled.toLocaleString()}
+                </p>
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">Ventas Cerradas</span>
-                <p className="text-base font-extrabold text-emerald-400 mt-0.5">{selectedAgent.stats.dealsClosed}</p>
+                <span className="text-[10px] text-slate-400 uppercase font-bold">
+                  Ventas Cerradas
+                </span>
+                <p className="text-base font-extrabold text-emerald-400 mt-0.5">
+                  {selectedAgent.stats.dealsClosed}
+                </p>
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase font-bold">Satisfacción</span>
-                <p className="text-base font-extrabold text-amber-400 mt-0.5">★ {selectedAgent.stats.avgSatisfaction}</p>
+                <p className="text-base font-extrabold text-amber-400 mt-0.5">
+                  ★ {selectedAgent.stats.avgSatisfaction}
+                </p>
               </div>
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">Ratio Conversión</span>
-                <p className="text-base font-extrabold text-cyan-300 mt-0.5">{selectedAgent.stats.conversionRatePercent}%</p>
+                <span className="text-[10px] text-slate-400 uppercase font-bold">
+                  Ratio Conversión
+                </span>
+                <p className="text-base font-extrabold text-cyan-300 mt-0.5">
+                  {selectedAgent.stats.conversionRatePercent}%
+                </p>
               </div>
             </div>
 
@@ -197,14 +226,20 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Parámetros de Autonomía & Descuentos</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Parámetros de Autonomía & Descuentos
+                  </h3>
                 </div>
-                <span className="text-xs text-emerald-400 font-bold">Límite Máximo: {maxDiscountPercent}% OFF</span>
+                <span className="text-xs text-emerald-400 font-bold">
+                  Límite Máximo: {maxDiscountPercent}% OFF
+                </span>
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] text-slate-400">
-                  <span>Descuento máximo autorizado que el agente puede ofrecer autónomamente:</span>
+                  <span>
+                    Descuento máximo autorizado que el agente puede ofrecer autónomamente:
+                  </span>
                   <span className="font-bold text-white">{maxDiscountPercent}%</span>
                 </div>
                 <input
@@ -219,12 +254,121 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
               </div>
             </div>
 
+            {/* Strategic Growth Mandate */}
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Mandato de Crecimiento 24/7
+                  </h3>
+                </div>
+                <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-bold">
+                  {selectedAgent.autonomyLevel || 'Supervisado'}
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {selectedAgent.operatingMandate ||
+                  'Este agente opera bajo supervisión humana y ejecuta tareas asignadas dentro del flujo comercial.'}
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">
+                    Meta ventas/día
+                  </span>
+                  <p className="text-lg font-black text-emerald-400 mt-0.5">
+                    {selectedAgent.kpiTargets?.dailySalesTarget || 0}
+                  </p>
+                </div>
+                <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">
+                    SLA respuesta
+                  </span>
+                  <p className="text-lg font-black text-cyan-300 mt-0.5">
+                    {selectedAgent.kpiTargets?.responseSlaMinutes || 10} min
+                  </p>
+                </div>
+                <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">
+                    Éxito objetivo
+                  </span>
+                  <p className="text-lg font-black text-purple-300 mt-0.5">
+                    {selectedAgent.kpiTargets?.targetRoiPercent || 0}%
+                  </p>
+                </div>
+                <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">
+                    Leads calif./día
+                  </span>
+                  <p className="text-lg font-black text-amber-300 mt-0.5">
+                    {selectedAgent.kpiTargets?.minimumQualifiedLeadsDaily || 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Arsenal táctico
+                  </h4>
+                  <div className="space-y-2">
+                    {(
+                      selectedAgent.tacticalArsenal || [
+                        'Responder conversaciones',
+                        'Actualizar CRM',
+                      ]
+                    ).map((item) => (
+                      <div key={item} className="flex items-start gap-2 text-xs text-slate-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Reglas de aprobación
+                  </h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                      <span className="text-slate-400">Campañas comerciales</span>
+                      <strong className="text-emerald-400">
+                        {selectedAgent.approvalPolicy?.canLaunchCommercialCampaigns
+                          ? 'Puede lanzar y notificar'
+                          : 'Requiere aprobación'}
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                      <span className="text-slate-400">Testimonios/noticias</span>
+                      <strong className="text-amber-300">
+                        {selectedAgent.approvalPolicy?.requiresApprovalForTestimonials ||
+                        selectedAgent.approvalPolicy?.requiresApprovalForInstitutionalNews
+                          ? 'Aprobación previa'
+                          : 'Automático'}
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                      <span className="text-slate-400">Descuento máximo</span>
+                      <strong className="text-cyan-300">
+                        {selectedAgent.approvalPolicy?.maxDiscountPercent ?? maxDiscountPercent}%
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* System Prompt Customizer */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-indigo-400" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Prompt del Sistema (Personalidad & Instrucciones)</h3>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Prompt del Sistema (Personalidad & Instrucciones)
+                  </h3>
                 </div>
 
                 {!isEditingPrompt ? (

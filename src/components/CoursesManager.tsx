@@ -14,7 +14,7 @@ import {
   Check,
   X,
   Clock,
-  Calendar
+  Calendar,
 } from 'lucide-react';
 import { Course } from '../types';
 
@@ -27,7 +27,7 @@ interface CoursesManagerProps {
 export const CoursesManager: React.FC<CoursesManagerProps> = ({
   courses,
   onAddCourse,
-  onUpdateCourse
+  onUpdateCourse,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -35,9 +35,9 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
   // Form states
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
-  const [category, setCategory] = useState<Course['category']>('Inteligencia Artificial');
-  const [price, setPrice] = useState<number>(499);
-  const [discountPrice, setDiscountPrice] = useState<number>(299);
+  const [category, setCategory] = useState<Course['category']>('Salud');
+  const [price, setPrice] = useState<number>(12500);
+  const [discountPrice, setDiscountPrice] = useState<number>(2500);
   const [description, setDescription] = useState('');
   const [durationHours, setDurationHours] = useState<number>(120);
   const [schedule, setSchedule] = useState('');
@@ -47,13 +47,13 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
     setSelectedCourse(null);
     setTitle('');
     setCode(`INT-CR-${Math.floor(Math.random() * 900 + 100)}`);
-    setCategory('Inteligencia Artificial');
-    setPrice(499);
-    setDiscountPrice(299);
+    setCategory('Salud');
+    setPrice(12500);
+    setDiscountPrice(2500);
     setDescription('');
     setDurationHours(120);
-    setSchedule('Martes y Jueves 19:00 GMT-5');
-    setInstructors('Dr. Carlos Alarcón');
+    setSchedule('Virtual · 1 día por semana');
+    setInstructors('Facilitador especializado');
     setIsModalOpen(true);
   };
 
@@ -87,13 +87,16 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
       instructors: instructors.split(',').map((s) => s.trim()),
       modulesCount: selectedCourse?.modulesCount || 6,
       modulesList: selectedCourse?.modulesList || [
-        { title: 'Módulo 1: Fundamentos Prácticos', topics: ['Introducción', 'Instalación', 'Primeros Pasos'] }
+        {
+          title: 'Módulo 1: Fundamentos Prácticos',
+          topics: ['Introducción', 'Instalación', 'Primeros Pasos'],
+        },
       ],
       materialsIncluded: ['Campus Virtual 24/7', 'Manuales PDF', 'Ejercicios Resueltos'],
       bonusesIncluded: ['Masterclass Especial de Estrategia'],
       certificationType: 'Diplomado Internacional',
       enrolledStudents: selectedCourse?.enrolledStudents || 150,
-      status: 'Disponible'
+      status: 'Disponible',
     };
 
     if (selectedCourse) {
@@ -112,11 +115,14 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
         <div>
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-1">
             <GraduationCap className="w-3.5 h-3.5 text-cyan-300" />
-            <span>Catálogo Académico & Oferta Educativa INTECA</span>
+            <span>Catálogo Comercial Configurable</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-white">Programas, Diplomados y Especializaciones</h1>
+          <h1 className="text-2xl font-extrabold text-white">
+            Productos, Servicios, Cursos y Programas
+          </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Administra precios, promociones activas, becas, horarios, módulos y materiales entregados automáticamente tras el pago.
+            Administra precios, promociones, horarios, módulos, beneficios y materiales que
+            alimentan marketing, ventas y facturación.
           </p>
         </div>
 
@@ -125,7 +131,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
           className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Registrar Nuevo Programa</span>
+          <span>+ Registrar Nuevo Producto</span>
         </button>
       </div>
 
@@ -155,7 +161,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Alumnos: {course.enrolledStudents}</span>
+                  <span>Estado: {course.status}</span>
                 </div>
                 <div className="flex items-center gap-1.5 col-span-2">
                   <Calendar className="w-3.5 h-3.5 text-purple-400" />
@@ -172,8 +178,12 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
             {/* Price & Action */}
             <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-500 line-through mr-2">${course.price} USD</span>
-                <span className="text-xl font-black text-emerald-400">${course.discountPrice} USD</span>
+                <span className="text-xs text-slate-500 line-through mr-2">
+                  RD${course.price.toLocaleString()}
+                </span>
+                <span className="text-xl font-black text-emerald-400">
+                  RD${(course.discountPrice || course.price).toLocaleString()}
+                </span>
               </div>
 
               <button
@@ -181,7 +191,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
                 className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs px-3 py-1.5 rounded-xl transition-all cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Editar Programa</span>
+                <span>Editar</span>
               </button>
             </div>
           </div>
@@ -200,12 +210,14 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
             </button>
 
             <h2 className="text-lg font-bold text-white">
-              {selectedCourse ? 'Editar Programa Académico' : 'Crear Nuevo Programa INTECA'}
+              {selectedCourse ? 'Editar Producto / Programa' : 'Crear Nuevo Producto / Programa'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="text-slate-300 font-medium">Nombre del Programa *</label>
+                <label className="text-slate-300 font-medium">
+                  Nombre del producto, servicio o programa *
+                </label>
                 <input
                   type="text"
                   required
@@ -223,6 +235,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
                     onChange={(e) => setCategory(e.target.value as any)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white mt-1"
                   >
+                    <option value="Salud">Salud</option>
                     <option value="Inteligencia Artificial">Inteligencia Artificial</option>
                     <option value="Marketing & Ventas">Marketing & Ventas</option>
                     <option value="Programación">Programación</option>
@@ -243,7 +256,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-300 font-medium">Precio Regular ($ USD)</label>
+                  <label className="text-slate-300 font-medium">Precio regular (RD$)</label>
                   <input
                     type="number"
                     value={price}
@@ -252,7 +265,9 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-slate-300 font-medium">Precio Con Oferta Beca ($ USD)</label>
+                  <label className="text-slate-300 font-medium">
+                    Precio oferta / inscripción (RD$)
+                  </label>
                   <input
                     type="number"
                     value={discountPrice}
@@ -263,7 +278,9 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
               </div>
 
               <div>
-                <label className="text-slate-300 font-medium">Descripción del Programa</label>
+                <label className="text-slate-300 font-medium">
+                  Descripción y propuesta de valor
+                </label>
                 <textarea
                   rows={3}
                   value={description}
@@ -294,7 +311,9 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
               </div>
 
               <div>
-                <label className="text-slate-300 font-medium">Profesores / Docentes (separados por coma)</label>
+                <label className="text-slate-300 font-medium">
+                  Facilitadores, responsables o equipo (separados por coma)
+                </label>
                 <input
                   type="text"
                   value={instructors}
@@ -315,7 +334,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl"
                 >
-                  Guardar Programa
+                  Guardar
                 </button>
               </div>
             </form>

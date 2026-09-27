@@ -18,7 +18,7 @@ import {
   Brain,
   ShieldCheck,
   DollarSign,
-  Play
+  Play,
 } from 'lucide-react';
 import { Lead, AIAgentSpec, Course, ConversationMessage } from '../types';
 
@@ -28,7 +28,11 @@ interface AIChatStudioProps {
   courses: Course[];
   selectedLead: Lead;
   onSelectLead: (lead: Lead) => void;
-  onSendMessageToLead: (leadId: string, messageContent: string, isHumanOverride: boolean) => Promise<void>;
+  onSendMessageToLead: (
+    leadId: string,
+    messageContent: string,
+    isHumanOverride: boolean,
+  ) => Promise<void>;
   onGeneratePaymentLink: (lead: Lead, courseId: string, discount: number) => void;
 }
 
@@ -39,14 +43,15 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
   selectedLead,
   onSelectLead,
   onSendMessageToLead,
-  onGeneratePaymentLink
+  onGeneratePaymentLink,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isHumanOverride, setIsHumanOverride] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
 
-  const selectedCourse = courses.find((c) => c.id === selectedLead.courseOfInterestId) || courses[0];
+  const selectedCourse =
+    courses.find((c) => c.id === selectedLead.courseOfInterestId) || courses[0];
   const assignedAgent = agents.find((a) => a.id === selectedLead.assignedAgentId) || agents[0];
 
   const handleSend = async (e: React.FormEvent) => {
@@ -84,7 +89,8 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
               </span>
             </h1>
             <p className="text-xs text-slate-400">
-              Interacción directa por WhatsApp / WebChat con respuestas humanas de Gemini API y links de pago automáticos.
+              Interacción por WhatsApp / WebChat con agente IA, seguimiento 24/7 y solicitudes de
+              pago pendientes de validación.
             </p>
           </div>
         </div>
@@ -124,12 +130,18 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
                   key={lead.id}
                   onClick={() => onSelectLead(lead)}
                   className={`p-3.5 cursor-pointer transition-all ${
-                    isSelected ? 'bg-slate-800/80 border-l-4 border-blue-500' : 'hover:bg-slate-800/40'
+                    isSelected
+                      ? 'bg-slate-800/80 border-l-4 border-blue-500'
+                      : 'hover:bg-slate-800/40'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-white">{lead.firstName} {lead.lastName}</span>
-                    <span className="text-[10px] text-emerald-400 font-bold">${lead.estimatedValue} USD</span>
+                    <span className="font-bold text-xs text-white">
+                      {lead.firstName} {lead.lastName}
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold">
+                      RD${lead.estimatedValue.toLocaleString()}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[11px] text-cyan-300 font-medium">{lead.source}</span>
@@ -155,9 +167,12 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
                 {selectedLead.firstName[0]}
               </div>
               <div>
-                <h2 className="font-bold text-sm text-white">{selectedLead.firstName} {selectedLead.lastName}</h2>
+                <h2 className="font-bold text-sm text-white">
+                  {selectedLead.firstName} {selectedLead.lastName}
+                </h2>
                 <span className="text-[11px] text-slate-400">
-                  {selectedLead.whatsapp} • {selectedLead.country} • <strong className="text-amber-400">{selectedLead.currentEmotion}</strong>
+                  {selectedLead.whatsapp} • {selectedLead.country} •{' '}
+                  <strong className="text-amber-400">{selectedLead.currentEmotion}</strong>
                 </span>
               </div>
             </div>
@@ -200,19 +215,28 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
                       <div className="mt-2.5 p-2 bg-black/40 rounded-xl border border-emerald-400/40 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <CreditCard className="w-4 h-4 text-emerald-400" />
-                          <span className="font-bold text-emerald-300">Pasarela de Pago Habilitada</span>
+                          <span className="font-bold text-emerald-300">
+                            Pasarela de Pago Habilitada
+                          </span>
                         </div>
                         <button
                           onClick={() => onGeneratePaymentLink(selectedLead, selectedCourse.id, 40)}
                           className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] px-2.5 py-1 rounded-lg"
                         >
-                          Pagar $299 USD
+                          Solicitar pago
                         </button>
                       </div>
                     )}
 
-                    <div className={`text-[9px] mt-1.5 flex items-center justify-end gap-1 ${isLead ? 'text-slate-400' : 'text-indigo-200'}`}>
-                      <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <div
+                      className={`text-[9px] mt-1.5 flex items-center justify-end gap-1 ${isLead ? 'text-slate-400' : 'text-indigo-200'}`}
+                    >
+                      <span>
+                        {new Date(msg.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
                       {!isLead && <CheckCheck className="w-3 h-3 text-cyan-300" />}
                     </div>
                   </div>
@@ -225,21 +249,33 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
           <div className="p-2 bg-slate-950 border-t border-slate-800 flex items-center gap-2 overflow-x-auto text-xs">
             <button
               type="button"
-              onClick={() => handleQuickAction('¿Me podrías enviar el temario completo del curso con la beca del 40% OFF?')}
+              onClick={() =>
+                handleQuickAction(
+                  '¿Me podrías enviar el temario completo, qué funciones aprenderé y cómo me ayudaría laboralmente?',
+                )
+              }
               className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-2.5 py-1 rounded-lg flex-shrink-0"
             >
               📄 Pedir Temario
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction('Acepto la oferta. Envíame el enlace seguro de pago para inscribirme hoy mismo.')}
+              onClick={() =>
+                handleQuickAction(
+                  'Acepto la oferta. Envíame los pasos para pagar y validar mi inscripción hoy.',
+                )
+              }
               className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-2.5 py-1 rounded-lg flex-shrink-0"
             >
               💳 Pedir Enlace Pago
             </button>
             <button
               type="button"
-              onClick={() => handleQuickAction('¿Cuentan con facilidades de pago en cuotas o descuento adicional?')}
+              onClick={() =>
+                handleQuickAction(
+                  '¿Cuentan con facilidades de pago en cuotas o descuento adicional?',
+                )
+              }
               className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-2.5 py-1 rounded-lg flex-shrink-0"
             >
               🏷️ Preguntar Cuotas
@@ -247,7 +283,10 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
           </div>
 
           {/* Chat Input */}
-          <form onSubmit={handleSend} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+          <form
+            onSubmit={handleSend}
+            className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2"
+          >
             <input
               type="text"
               value={inputText}
@@ -284,8 +323,12 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
               </span>
               <h4 className="font-bold text-xs text-white">{selectedCourse.title}</h4>
               <div className="flex items-baseline gap-2">
-                <span className="text-xs text-slate-500 line-through">${selectedCourse.price} USD</span>
-                <span className="text-base font-black text-emerald-400">${selectedCourse.discountPrice} USD</span>
+                <span className="text-xs text-slate-500 line-through">
+                  ${selectedCourse.price} USD
+                </span>
+                <span className="text-base font-black text-emerald-400">
+                  ${selectedCourse.discountPrice} USD
+                </span>
               </div>
             </div>
 
