@@ -190,6 +190,11 @@ export interface AIAgentSpec {
     | 'Estrategia'
     | 'Cierre'
     | 'Marketing'
+    | 'Publicidad'
+    | 'Embudos'
+    | 'Prospección'
+    | 'Ventas'
+    | 'CRO'
     | 'WhatsApp'
     | 'Copywriting'
     | 'Recuperación'
@@ -198,6 +203,7 @@ export interface AIAgentSpec {
     | 'Creativos'
     | 'Video'
     | 'Facturación'
+    | 'Contabilidad'
     | 'Lanzamientos'
     | 'Operaciones';
   avatar: string;
@@ -348,11 +354,46 @@ export interface CommercialQuote {
   items: QuoteLineItem[];
 }
 
+export interface FiscalParty {
+  legalName: string;
+  taxId: string;
+  fiscalAddress: string;
+  commercialName?: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface EcfLineItem {
+  id: string;
+  quantity: number;
+  description: string;
+  unitPrice: number;
+  discountAmount: number;
+  taxableAmount: number;
+  exemptAmount: number;
+  itbisAmount: number;
+  iscAmount?: number;
+  otherTaxAmount?: number;
+  total: number;
+}
+
+export interface EcfTaxBreakdown {
+  taxableAmount: number;
+  exemptAmount: number;
+  itbisRate: number;
+  itbisAmount: number;
+  iscAmount: number;
+  otherChargesAmount: number;
+  grandTotal: number;
+}
+
 export interface ElectronicInvoice {
   id: string;
   organizationId: string;
   transactionId?: string;
   quoteId?: string;
+  issuer: FiscalParty;
+  receiver: FiscalParty;
   customerName: string;
   customerTaxId: string;
   fiscalType: InvoiceFiscalType;
@@ -367,7 +408,94 @@ export interface ElectronicInvoice {
   issuedAt: string;
   dueDate: string;
   paymentStatus: 'Pendiente' | 'Pagada' | 'Parcial' | 'Anulada';
+  lineItems: EcfLineItem[];
+  taxBreakdown: EcfTaxBreakdown;
+  xmlStatus: 'Pendiente generar' | 'XML generado' | 'Firmado' | 'Enviado' | 'Aceptado' | 'Rechazado';
+  pdfStatus: 'Pendiente generar' | 'Representación PDF generada' | 'Enviada al cliente';
+  digitalSignatureHash: string;
+  qrVerificationUrl: string;
+  qrPayload: string;
   auditTrail: string[];
+}
+
+export type AccountingReportType =
+  | 'Estado de resultados'
+  | 'Balance general'
+  | 'Estado de flujo de efectivo';
+
+export interface AccountingReport {
+  id: string;
+  organizationId: string;
+  type: AccountingReportType;
+  period: string;
+  status: 'Generado' | 'En revisión' | 'Pendiente datos' | 'Aprobado';
+  generatedByAgentId: string;
+  highlights: string[];
+  totals: {
+    ingresos?: number;
+    costos?: number;
+    gastos?: number;
+    utilidadNeta?: number;
+    activos?: number;
+    pasivos?: number;
+    patrimonio?: number;
+    entradasEfectivo?: number;
+    salidasEfectivo?: number;
+    flujoNeto?: number;
+  };
+  nifReference?: string;
+  nextAction: string;
+}
+
+export interface PurchaseRequest {
+  id: string;
+  organizationId: string;
+  requestNumber: string;
+  supplierName: string;
+  requesterName: string;
+  description: string;
+  amount: number;
+  currency: string;
+  status: 'Borrador' | 'Solicitada' | 'En revisión' | 'Aprobada' | 'Recibida' | 'Rechazada';
+  requiredBy: string;
+}
+
+export interface CashReceipt {
+  id: string;
+  organizationId: string;
+  receiptNumber: string;
+  payerName: string;
+  concept: string;
+  amount: number;
+  currency: string;
+  paymentMethod: 'Efectivo' | 'Transferencia' | 'Tarjeta' | 'Cheque';
+  receivedAt: string;
+  linkedTransactionId?: string;
+}
+
+export interface BankReconciliation {
+  id: string;
+  organizationId: string;
+  bankName: string;
+  accountMask: string;
+  period: string;
+  internalBalance: number;
+  bankStatementBalance: number;
+  difference: number;
+  status: 'Cuadrada' | 'Diferencia pendiente' | 'En revisión';
+  pendingItems: string[];
+}
+
+export interface DailyInventoryReport {
+  id: string;
+  organizationId: string;
+  reportDate: string;
+  itemName: string;
+  openingStock: number;
+  entries: number;
+  exits: number;
+  closingStock: number;
+  alertLevel: 'Normal' | 'Bajo' | 'Crítico';
 }
 
 export interface LicensePlan {
@@ -430,6 +558,7 @@ export type IntegrationStatus =
   | 'Requiere credenciales'
   | 'Webhook preparado'
   | 'Conectado'
+  | 'Producción pendiente'
   | 'Modo demo';
 
 export type IntegrationCategory =
@@ -513,6 +642,7 @@ export interface AuditLogEntry {
     | 'Lanzamientos'
     | 'Pagos'
     | 'Facturación'
+    | 'Contabilidad'
     | 'Integraciones'
     | 'Auditoría'
     | 'Seguridad';

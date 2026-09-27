@@ -31,6 +31,7 @@ interface HeaderProps {
   onOpenManuals?: () => void;
   onOpenDocumentation?: () => void;
   isAiActive?: boolean;
+  deploymentMode?: 'production' | 'trial';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,8 +49,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenManuals,
   onOpenDocumentation,
   isAiActive = true,
+  deploymentMode = 'production',
 }) => {
   const activePlatform = currentPlatform || currentOS || 'web';
+  const isTrialMode = deploymentMode === 'trial';
   const handlePlatformChange = (p: any) => {
     if (onPlatformChange) onPlatformChange(p);
     else if (onOSChange) onOSChange(p);
@@ -101,6 +104,17 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <span>IA Vendedora 24/7 Activa</span>
+        </div>
+
+        <div
+          className={`hidden xl:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border ${
+            isTrialMode
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>{isTrialMode ? 'Modo prueba' : 'Versión original'}</span>
         </div>
       </div>
 

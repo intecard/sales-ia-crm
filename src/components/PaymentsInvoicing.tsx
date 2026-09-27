@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   Building2,
+  Calculator as CalculatorIcon,
   CheckCircle2,
   CreditCard,
   Download,
+  FileCode2,
   FileText,
+  KeyRound,
+  QrCode,
   ShieldCheck,
   X,
   Zap,
@@ -27,6 +31,7 @@ interface PaymentsInvoicingProps {
   quotes: CommercialQuote[];
   electronicInvoices: ElectronicInvoice[];
   onAddTransaction: (tx: PaymentTransaction) => void;
+  deploymentMode?: 'production' | 'trial';
 }
 
 const formatMoney = (amount: number, currency = 'DOP') =>
@@ -42,7 +47,9 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
   opportunities,
   quotes,
   electronicInvoices,
+  deploymentMode = 'production',
 }) => {
+  const isTrialMode = deploymentMode === 'trial';
   const [selectedInvoice, setSelectedInvoice] = useState<ElectronicInvoice | null>(null);
 
   const totalCollected = transactions.reduce(
@@ -66,8 +73,8 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-3xl">
             Convierte oportunidades en cotizaciones, cotizaciones en facturas e-CF y pagos en
-            reportes. DGII, bancos y pasarelas permanecen en modo demo hasta conectar credenciales
-            oficiales.
+            reportes. DGII, bancos y pasarelas quedan listos para producción cuando conectes
+            credenciales oficiales, certificados y webhooks.
           </p>
         </div>
 
@@ -89,7 +96,7 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
             tone: 'text-emerald-400',
           },
           {
-            label: 'Facturado demo e-CF',
+            label: isTrialMode ? 'Facturado prueba e-CF' : 'Facturado e-CF',
             value: formatMoney(totalInvoiced),
             icon: FileText,
             tone: 'text-cyan-300',
@@ -138,6 +145,69 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
         ))}
       </div>
 
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-2">
+              <FileCode2 className="w-3.5 h-3.5" />
+              <span>Agente IA Sofía e-CF</span>
+            </div>
+            <h2 className="text-lg font-black text-white">
+              Facturación electrónica completa: XML oficial + PDF + firma + QR
+            </h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+              El agente prepara encabezado fiscal, número e-CF, detalle comercial, impuestos
+              desglosados, firma digital, código QR, representación PDF, auditoría y envío al
+              proveedor fiscal cuando estén conectadas las credenciales DGII.
+            </p>
+          </div>
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 max-w-md">
+            <strong className="text-amber-300">Regla de seguridad:</strong> el agente no firma ni
+            envía facturas fiscales reales sin certificado digital, secuencia autorizada y proveedor
+            e-CF conectado.
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-5 text-xs">
+          {[
+            {
+              title: '1. Encabezado fiscal',
+              text: 'Emisor, receptor, RNC, dirección fiscal y fecha.',
+              icon: Building2,
+            },
+            {
+              title: '2. Número e-CF',
+              text: 'Secuencia autorizada por DGII según tipo fiscal.',
+              icon: FileText,
+            },
+            {
+              title: '3. Detalle comercial',
+              text: 'Cantidad, descripción, precio unitario y descuentos.',
+              icon: CreditCard,
+            },
+            {
+              title: '4. Impuestos',
+              text: 'ITBIS, ISC, exentos, gravados y total final.',
+              icon: CalculatorIcon,
+            },
+            {
+              title: '5. Firma y QR',
+              text: 'Firma digital y QR verificable desde celular.',
+              icon: QrCode,
+            },
+          ].map((step) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.title} className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                <Icon className="w-4 h-4 text-cyan-300 mb-2" />
+                <p className="font-black text-white">{step.title}</p>
+                <p className="text-slate-400 mt-1">{step.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
@@ -181,7 +251,7 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">
               Facturas electrónicas e-CF
             </h2>
-            <span className="text-xs text-slate-400">{electronicInvoices.length} demo</span>
+            <span className="text-xs text-slate-400">{electronicInvoices.length} e-CF</span>
           </div>
           <div className="divide-y divide-slate-800">
             {electronicInvoices.map((invoice) => (
@@ -279,7 +349,7 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
           { name: 'WhatsApp Business', status: 'Configurable' },
           { name: 'Meta Ads Lead Forms', status: 'Pendiente credenciales' },
           { name: 'Google Ads', status: 'Pendiente credenciales' },
-          { name: 'DGII e-CF', status: 'Modo demo seguro' },
+          { name: 'DGII e-CF', status: isTrialMode ? 'Modo prueba seguro' : 'Producción pendiente' },
         ].map((integration) => (
           <div
             key={integration.name}
@@ -306,7 +376,7 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
 
             <div className="flex items-start justify-between border-b border-slate-800 pb-4 gap-4">
               <div>
-                <h3 className="font-black text-lg text-white">Factura electrónica demo</h3>
+                <h3 className="font-black text-lg text-white">Factura electrónica e-CF</h3>
                 <p className="text-slate-400">
                   NCF: {selectedInvoice.ncf} · e-NCF: {selectedInvoice.eNcf}
                 </p>
@@ -318,9 +388,23 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-500 uppercase font-bold">Cliente</span>
-                <p className="font-bold text-white mt-1">{selectedInvoice.customerName}</p>
-                <p className="text-slate-400">RNC/Cédula: {selectedInvoice.customerTaxId}</p>
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Emisor</span>
+                <p className="font-bold text-white mt-1">{selectedInvoice.issuer.legalName}</p>
+                <p className="text-slate-400">RNC: {selectedInvoice.issuer.taxId}</p>
+                <p className="text-slate-500 mt-1">{selectedInvoice.issuer.fiscalAddress}</p>
+              </div>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Receptor</span>
+                <p className="font-bold text-white mt-1">{selectedInvoice.receiver.legalName}</p>
+                <p className="text-slate-400">RNC/Cédula: {selectedInvoice.receiver.taxId}</p>
+                <p className="text-slate-500 mt-1">{selectedInvoice.receiver.fiscalAddress}</p>
+              </div>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-500 uppercase font-bold">
+                  XML / Representación PDF
+                </span>
+                <p className="font-bold text-cyan-300 mt-1">{selectedInvoice.xmlStatus}</p>
+                <p className="text-slate-400">{selectedInvoice.pdfStatus}</p>
               </div>
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
                 <span className="text-[10px] text-slate-500 uppercase font-bold">
@@ -332,19 +416,101 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
             </div>
 
             <div className="border border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-950 p-3 text-slate-400 font-bold uppercase text-[10px]">
+                Detalle comercial obligatorio
+              </div>
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-950/70 text-slate-500 uppercase text-[10px]">
+                  <tr>
+                    <th className="p-3">Cant.</th>
+                    <th className="p-3">Descripción</th>
+                    <th className="p-3 text-right">Unitario</th>
+                    <th className="p-3 text-right">Descuento</th>
+                    <th className="p-3 text-right">ITBIS</th>
+                    <th className="p-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {selectedInvoice.lineItems.map((item) => (
+                    <tr key={item.id}>
+                      <td className="p-3 text-slate-300">{item.quantity}</td>
+                      <td className="p-3 text-white font-semibold">{item.description}</td>
+                      <td className="p-3 text-right">
+                        {formatMoney(item.unitPrice, selectedInvoice.currency)}
+                      </td>
+                      <td className="p-3 text-right">
+                        {formatMoney(item.discountAmount, selectedInvoice.currency)}
+                      </td>
+                      <td className="p-3 text-right text-amber-300">
+                        {formatMoney(item.itbisAmount, selectedInvoice.currency)}
+                      </td>
+                      <td className="p-3 text-right text-emerald-300 font-black">
+                        {formatMoney(item.total, selectedInvoice.currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border border-slate-800 rounded-xl overflow-hidden">
               <div className="bg-slate-950 p-3 flex justify-between text-slate-400 font-bold">
-                <span>Subtotal</span>
-                <span>{formatMoney(selectedInvoice.subtotal, selectedInvoice.currency)}</span>
+                <span>Monto gravado</span>
+                <span>
+                  {formatMoney(selectedInvoice.taxBreakdown.taxableAmount, selectedInvoice.currency)}
+                </span>
               </div>
               <div className="p-3 flex justify-between text-slate-300 border-t border-slate-800">
-                <span>ITBIS / Impuestos</span>
-                <span>{formatMoney(selectedInvoice.taxAmount, selectedInvoice.currency)}</span>
+                <span>Monto exento</span>
+                <span>
+                  {formatMoney(selectedInvoice.taxBreakdown.exemptAmount, selectedInvoice.currency)}
+                </span>
+              </div>
+              <div className="p-3 flex justify-between text-slate-300 border-t border-slate-800">
+                <span>ITBIS {selectedInvoice.taxBreakdown.itbisRate}%</span>
+                <span>
+                  {formatMoney(selectedInvoice.taxBreakdown.itbisAmount, selectedInvoice.currency)}
+                </span>
+              </div>
+              <div className="p-3 flex justify-between text-slate-300 border-t border-slate-800">
+                <span>ISC / Otros cargos</span>
+                <span>
+                  {formatMoney(
+                    selectedInvoice.taxBreakdown.iscAmount +
+                      selectedInvoice.taxBreakdown.otherChargesAmount,
+                    selectedInvoice.currency,
+                  )}
+                </span>
               </div>
               <div className="p-3 flex justify-between text-white font-black border-t border-slate-800">
                 <span>Total</span>
                 <span className="text-emerald-400">
                   {formatMoney(selectedInvoice.total, selectedInvoice.currency)}
                 </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold">
+                  <KeyRound className="w-4 h-4" />
+                  <span>Firma digital</span>
+                </div>
+                <p className="font-mono text-[11px] text-slate-400 mt-2 break-all">
+                  {selectedInvoice.digitalSignatureHash}
+                </p>
+              </div>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold">
+                  <QrCode className="w-4 h-4" />
+                  <span>Código QR verificable</span>
+                </div>
+                <p className="font-mono text-[11px] text-slate-400 mt-2 break-all">
+                  {selectedInvoice.qrPayload}
+                </p>
+                <p className="font-mono text-[11px] text-indigo-300 mt-2 break-all">
+                  {selectedInvoice.qrVerificationUrl}
+                </p>
               </div>
             </div>
 
@@ -360,11 +526,11 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
 
             <div className="pt-2 border-t border-slate-800 flex justify-end">
               <button
-                onClick={() => alert(`Descarga demo preparada: ${selectedInvoice.eNcf}.pdf`)}
+                onClick={() => alert(`Descarga preparada: ${selectedInvoice.eNcf}.pdf`)}
                 className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5"
               >
                 <Download className="w-4 h-4" />
-                <span>Descargar representación PDF demo</span>
+                <span>Descargar representación PDF</span>
               </button>
             </div>
           </div>

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sales-ia-crm
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/server.cjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOYMENT_MODE
+        value: production
+      - key: VITE_DEPLOYMENT_MODE
+        value: production
+      - key: PORT
+        value: 10000
+      - key: APP_URL
+        value: https://sales.ia.crm.inteca.com.do
+      - key: META_WEBHOOK_VERIFY_TOKEN
+        value: sales_ai_crm_whatsapp_verify_2026

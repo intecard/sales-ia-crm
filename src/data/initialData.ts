@@ -18,6 +18,11 @@ import {
   LaunchCampaignPlan,
   OwnerActionNotification,
   AuditLogEntry,
+  AccountingReport,
+  PurchaseRequest,
+  CashReceipt,
+  BankReconciliation,
+  DailyInventoryReport,
 } from '../types';
 
 export const INITIAL_ORGANIZATIONS: OrganizationTenant[] = [
@@ -154,7 +159,7 @@ export const FUNNEL_STAGES: FunnelStageConfig[] = [
     color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     order: 9,
     autoActionPrompt:
-      'Emitir recibo/factura demo, registrar cobro y notificar pago validado al dueño.',
+      'Emitir recibo/factura e-CF, registrar cobro y notificar pago validado al dueño.',
   },
   {
     id: 'cliente',
@@ -520,12 +525,26 @@ export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [
     id: 'einvoice_7001',
     organizationId: 'org_clinica_santa_luz',
     quoteId: 'quote_5002',
+    issuer: {
+      legalName: 'Clínica Santa Luz SRL',
+      commercialName: 'Clínica Santa Luz',
+      taxId: '131-9000000-2',
+      fiscalAddress: 'Av. Salud Integral 45, Santo Domingo, República Dominicana',
+      email: 'facturacion@clinicasantaluz.com',
+      phone: '809-000-2000',
+    },
+    receiver: {
+      legalName: 'Distribuidora Caribe Norte SRL',
+      taxId: '132-0000001-5',
+      fiscalAddress: 'Calle Principal 18, Santiago, República Dominicana',
+      email: 'cuentas@caribenorte.com',
+    },
     customerName: 'Distribuidora Caribe Norte SRL',
     customerTaxId: '132-0000001-5',
     fiscalType: 'Factura de crédito fiscal',
     ncf: 'B0100000042',
     eNcf: 'E310000000042',
-    dgiiStatus: 'Modo demo',
+    dgiiStatus: 'Lista para enviar',
     integrationMode: 'Producción pendiente',
     subtotal: 85000,
     taxAmount: 15300,
@@ -534,9 +553,40 @@ export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [
     issuedAt: '2026-09-26T09:30:00-04:00',
     dueDate: '2026-10-11',
     paymentStatus: 'Pendiente',
+    lineItems: [
+      {
+        id: 'ecf_line_7001_1',
+        quantity: 1,
+        description: 'Plan corporativo de consultas preventivas - primer mes',
+        unitPrice: 85000,
+        discountAmount: 0,
+        taxableAmount: 85000,
+        exemptAmount: 0,
+        itbisAmount: 15300,
+        iscAmount: 0,
+        otherTaxAmount: 0,
+        total: 100300,
+      },
+    ],
+    taxBreakdown: {
+      taxableAmount: 85000,
+      exemptAmount: 0,
+      itbisRate: 18,
+      itbisAmount: 15300,
+      iscAmount: 0,
+      otherChargesAmount: 0,
+      grandTotal: 100300,
+    },
+    xmlStatus: 'XML generado',
+    pdfStatus: 'Representación PDF generada',
+    digitalSignatureHash: 'PENDIENTE_CERTIFICADO_DIGITAL_DGII',
+    qrVerificationUrl:
+      'https://ecf.dgii.gov.do/test/verificacion?encf=E310000000042&rnc=13190000002',
+    qrPayload:
+      'RNCEmisor=13190000002&ENCF=E310000000042&MontoTotal=100300.00&FechaEmision=2026-09-26',
     auditTrail: [
       'Cotización aceptada por el cliente',
-      'Factura electrónica generada en modo demo',
+      'Factura electrónica generada y pendiente de conexión fiscal DGII',
       'Pendiente conectar certificado digital, secuencia NCF real y endpoint DGII',
     ],
   },
@@ -544,13 +594,27 @@ export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [
     id: 'einvoice_7002',
     organizationId: 'org_autoprime_rd',
     transactionId: 'tx_8802',
+    issuer: {
+      legalName: 'AutoPrime RD SRL',
+      commercialName: 'AutoPrime RD',
+      taxId: '131-8000000-1',
+      fiscalAddress: 'Av. Automotriz 12, Santo Domingo, República Dominicana',
+      email: 'facturacion@autoprimerd.com',
+      phone: '809-000-3000',
+    },
+    receiver: {
+      legalName: 'Guillermo Restrepo',
+      taxId: '001-0000000-1',
+      fiscalAddress: 'Santo Domingo, República Dominicana',
+      email: 'cliente@example.com',
+    },
     customerName: 'Guillermo Restrepo',
     customerTaxId: '001-0000000-1',
     fiscalType: 'Factura de consumo',
     ncf: 'B0200000090',
     eNcf: 'E320000000090',
-    dgiiStatus: 'Modo demo',
-    integrationMode: 'Demo',
+    dgiiStatus: 'Lista para enviar',
+    integrationMode: 'Producción pendiente',
     subtotal: 38135.59,
     taxAmount: 6864.41,
     total: 45000,
@@ -558,11 +622,204 @@ export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [
     issuedAt: '2026-09-25T16:20:00-04:00',
     dueDate: '2026-09-25',
     paymentStatus: 'Pagada',
+    lineItems: [
+      {
+        id: 'ecf_line_7002_1',
+        quantity: 1,
+        description: 'Servicio de gestión comercial automotriz',
+        unitPrice: 38135.59,
+        discountAmount: 0,
+        taxableAmount: 38135.59,
+        exemptAmount: 0,
+        itbisAmount: 6864.41,
+        iscAmount: 0,
+        otherTaxAmount: 0,
+        total: 45000,
+      },
+    ],
+    taxBreakdown: {
+      taxableAmount: 38135.59,
+      exemptAmount: 0,
+      itbisRate: 18,
+      itbisAmount: 6864.41,
+      iscAmount: 0,
+      otherChargesAmount: 0,
+      grandTotal: 45000,
+    },
+    xmlStatus: 'XML generado',
+    pdfStatus: 'Representación PDF generada',
+    digitalSignatureHash: 'PENDIENTE_CERTIFICADO_DIGITAL_DGII',
+    qrVerificationUrl:
+      'https://ecf.dgii.gov.do/test/verificacion?encf=E320000000090&rnc=13180000001',
+    qrPayload:
+      'RNCEmisor=13180000001&ENCF=E320000000090&MontoTotal=45000.00&FechaEmision=2026-09-25',
     auditTrail: [
-      'Pago marcado como completado en datos demo',
+      'Pago marcado como completado en datos operativos',
       'Factura de consumo generada',
       'No enviada a DGII por falta de credenciales de producción',
     ],
+  },
+];
+
+export const INITIAL_ACCOUNTING_REPORTS: AccountingReport[] = [
+  {
+    id: 'acct_report_income_2026_09',
+    organizationId: 'org_inteca_main',
+    type: 'Estado de resultados',
+    period: 'Septiembre 2026',
+    status: 'Generado',
+    generatedByAgentId: 'agent_accounting',
+    highlights: [
+      'Ingresos concentrados en inscripciones y mensualidades.',
+      'Gastos principales: pauta digital, herramientas y soporte operativo.',
+      'Utilidad neta positiva si se mantiene disciplina de cobro y seguimiento.',
+    ],
+    totals: {
+      ingresos: 142500,
+      costos: 27500,
+      gastos: 38500,
+      utilidadNeta: 76500,
+    },
+    nextAction:
+      'Conciliar cobros confirmados con comprobantes bancarios y separar gastos por campaña.',
+  },
+  {
+    id: 'acct_report_balance_2026_09',
+    organizationId: 'org_inteca_main',
+    type: 'Balance general',
+    period: 'Corte 30/09/2026',
+    status: 'En revisión',
+    generatedByAgentId: 'agent_accounting',
+    highlights: [
+      'Activos principales: efectivo, cuentas por cobrar y licencias CRM.',
+      'Pasivos principales: servicios por pagar y gastos acumulados.',
+      'Patrimonio actualizado con resultado acumulado del periodo.',
+    ],
+    totals: {
+      activos: 385000,
+      pasivos: 128000,
+      patrimonio: 257000,
+    },
+    nifReference:
+      'NIF B-6: estructura para Estado de Situación Financiera en forma de reporte o cuenta.',
+    nextAction:
+      'Validar cuentas por cobrar, obligaciones pendientes y clasificación de activos/pasivos.',
+  },
+  {
+    id: 'acct_report_cashflow_2026_09',
+    organizationId: 'org_inteca_main',
+    type: 'Estado de flujo de efectivo',
+    period: 'Septiembre 2026',
+    status: 'Pendiente datos',
+    generatedByAgentId: 'agent_accounting',
+    highlights: [
+      'Entradas por pagos de inscripción y mensualidades.',
+      'Salidas por anuncios, herramientas, producción de contenidos y gastos administrativos.',
+      'Pendiente importar extracto bancario para cerrar conciliación.',
+    ],
+    totals: {
+      entradasEfectivo: 97500,
+      salidasEfectivo: 41200,
+      flujoNeto: 56300,
+    },
+    nextAction:
+      'Importar extracto bancario, asociar comprobantes y emitir flujo final del periodo.',
+  },
+];
+
+export const INITIAL_PURCHASE_REQUESTS: PurchaseRequest[] = [
+  {
+    id: 'pr_2026_0001',
+    organizationId: 'org_inteca_main',
+    requestNumber: 'OC-INTECA-2026-0001',
+    supplierName: 'Proveedor de pauta digital',
+    requesterName: 'Camila Growth Copy',
+    description: 'Presupuesto para campaña de relanzamiento de Autorizaciones Médicas',
+    amount: 10000,
+    currency: 'DOP',
+    status: 'Solicitada',
+    requiredBy: '2026-10-01',
+  },
+  {
+    id: 'pr_2026_0002',
+    organizationId: 'org_inteca_main',
+    requestNumber: 'OC-INTECA-2026-0002',
+    supplierName: 'Herramientas de automatización',
+    requesterName: 'Sofía e-CF',
+    description: 'Proveedor para firma digital, QR y e-CF',
+    amount: 18500,
+    currency: 'DOP',
+    status: 'En revisión' as PurchaseRequest['status'],
+    requiredBy: '2026-10-05',
+  },
+];
+
+export const INITIAL_CASH_RECEIPTS: CashReceipt[] = [
+  {
+    id: 'cash_receipt_001',
+    organizationId: 'org_inteca_main',
+    receiptNumber: 'REC-INTECA-2026-0001',
+    payerName: 'Alejandro Gómez',
+    concept: 'Inscripción Técnico en Autorizaciones Médicas',
+    amount: 2500,
+    currency: 'DOP',
+    paymentMethod: 'Transferencia',
+    receivedAt: '2026-09-27T10:35:00-04:00',
+    linkedTransactionId: 'tx_8801',
+  },
+  {
+    id: 'cash_receipt_002',
+    organizationId: 'org_inteca_main',
+    receiptNumber: 'REC-INTECA-2026-0002',
+    payerName: 'María Castillo',
+    concept: 'Mensualidad curso sector salud',
+    amount: 2000,
+    currency: 'DOP',
+    paymentMethod: 'Efectivo',
+    receivedAt: '2026-09-27T11:10:00-04:00',
+  },
+];
+
+export const INITIAL_BANK_RECONCILIATIONS: BankReconciliation[] = [
+  {
+    id: 'bank_rec_2026_09',
+    organizationId: 'org_inteca_main',
+    bankName: 'Banco principal',
+    accountMask: '****-5502',
+    period: 'Septiembre 2026',
+    internalBalance: 97500,
+    bankStatementBalance: 95000,
+    difference: 2500,
+    status: 'Diferencia pendiente',
+    pendingItems: [
+      'Transferencia de Alejandro Gómez pendiente de confirmar en extracto.',
+      'Comisión bancaria pendiente de clasificar.',
+    ],
+  },
+];
+
+export const INITIAL_DAILY_INVENTORY_REPORTS: DailyInventoryReport[] = [
+  {
+    id: 'inv_daily_001',
+    organizationId: 'org_inteca_main',
+    reportDate: '2026-09-27',
+    itemName: 'Cupos Técnico en Autorizaciones Médicas',
+    openingStock: 200,
+    entries: 0,
+    exits: 14,
+    closingStock: 186,
+    alertLevel: 'Normal',
+  },
+  {
+    id: 'inv_daily_002',
+    organizationId: 'org_inteca_main',
+    reportDate: '2026-09-27',
+    itemName: 'Cupos Taller Ley 87-01',
+    openingStock: 35,
+    entries: 0,
+    exits: 28,
+    closingStock: 7,
+    alertLevel: 'Bajo',
   },
 ];
 
@@ -575,7 +832,7 @@ export const INITIAL_LICENSE_PLANS: LicensePlan[] = [
     setupFee: 0,
     includedUsers: 10,
     leadLimit: 10000,
-    features: ['CRM completo', 'Agentes IA', 'Facturación demo', 'Soporte interno'],
+    features: ['CRM completo', 'Agentes IA', 'Facturación e-CF', 'Soporte interno'],
     status: 'Interno',
   },
   {
@@ -599,7 +856,7 @@ export const INITIAL_LICENSE_PLANS: LicensePlan[] = [
     leadLimit: 10000,
     features: [
       'Embudo completo',
-      'Facturación electrónica demo',
+      'Facturación electrónica e-CF',
       'Automatizaciones',
       'Roles y permisos',
     ],
@@ -786,6 +1043,246 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
     },
   },
   {
+    id: 'agent_growth_master',
+    name: 'Máximo Growth Strategist',
+    roleTitle: 'Arquitecto de Crecimiento, Nichos y Oferta Obvia',
+    specialty: 'Estrategia',
+    avatar:
+      'https://images.unsplash.com/photo-1556157382-97eda2d62296?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Define nicho, propuesta de valor, ventaja injusta, posicionamiento, promesa permitida, precio, oferta y plan de adquisición/conversión/aceleración para vender cualquier producto o servicio.',
+    systemPrompt: `Eres Máximo Growth Strategist, arquitecto de crecimiento del CRM. Puedes trabajar con educación, salud, servicios, retail, automotriz, tecnología o cualquier negocio. Tu misión es convertir un producto o servicio en una oferta obvia para su nicho: investigar necesidad, dolor, deseo, objeción, competencia, ventaja injusta, promesa permitida, ángulos de venta, embudo, métricas y plan de escala. No inventas garantías ni resultados; transformas beneficios reales en una estrategia comercial agresiva, ética y medible.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Diseñar el sistema comercial completo para que marketing, publicidad y ventas trabajen como una sola máquina.',
+    tacticalArsenal: [
+      'Mapa de nicho, dolor y deseo',
+      'Oferta irresistible con promesa permitida',
+      'Ventaja injusta y posicionamiento',
+      'Plan adquisición-conversión-aceleración',
+      'Modelo de metas, presupuesto, CPL, CAC, ROAS y cierre',
+      'Checklist de cuello de botella y solución operativa',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 10,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 4900,
+      dealsClosed: 1360,
+      avgSatisfaction: 4.94,
+      conversionRatePercent: 39.8,
+    },
+  },
+  {
+    id: 'agent_media_buyer',
+    name: 'Marco Media Buyer',
+    roleTitle: 'Experto en Publicidad Meta, Google, YouTube y Retargeting',
+    specialty: 'Publicidad',
+    avatar:
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Construye campañas de pauta, estructura de anuncios, públicos, presupuesto, pruebas A/B, remarketing, control de CPL/CAC/ROAS y escalamiento de ganadores.',
+    systemPrompt: `Eres Marco Media Buyer, experto en publicidad digital. Preparas campañas en Meta Ads, Google Ads, YouTube Ads, TikTok y remarketing. Diseñas públicos, palabras clave, ofertas, anuncios, presupuesto, pruebas A/B, métricas, reglas de pausa y reglas de escalamiento. Tu meta es comprar atención rentable y enviar tráfico calificado al embudo sin quemar presupuesto.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Convertir presupuesto publicitario en conversaciones calificadas, oportunidades y pagos medibles.',
+    tacticalArsenal: [
+      'Estructura de campaña TOFU/MOFU/BOFU',
+      'Audiencias frías, similares, retargeting y lookalikes',
+      'Matrices de hooks, creativos y copys',
+      'Control CPL, CTR, CPA, ROAS y frecuencia',
+      'Reglas para pausar, duplicar o escalar anuncios',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 15,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 3600,
+      dealsClosed: 890,
+      avgSatisfaction: 4.86,
+      conversionRatePercent: 31.5,
+    },
+  },
+  {
+    id: 'agent_funnel_architect',
+    name: 'Alicia Funnel Architect',
+    roleTitle: 'Arquitecta de Embudos, Automatizaciones y Conversión',
+    specialty: 'Embudos',
+    avatar:
+      'https://images.unsplash.com/photo-1551836022-8b2858c9c69b?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Diseña el embudo completo desde anuncio hasta pago: landing, WhatsApp, lead magnet, calificación, nutrición, oferta, cierre, cobro, onboarding y referidos.',
+    systemPrompt: `Eres Alicia Funnel Architect. Construyes embudos completos para vender cualquier producto o servicio: atracción, captura, diagnóstico, calificación, nutrición, prueba de valor, oferta, cierre, pago, onboarding, upsell y referidos. Cada etapa tiene mensaje, canal, agente responsable, automatización, métrica y acción de rescate.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Preparar embudos medibles que conviertan tráfico frío en pagos y reduzcan dependencia del dueño.',
+    tacticalArsenal: [
+      'Embudo WhatsApp-first',
+      'Landing de conversión y formularios',
+      'Lead scoring y calificación automática',
+      'Secuencias 0h, 24h, 72h, 7d y reactivación',
+      'Upsell, referidos y recuperación de pagos pendientes',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 20,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 5100,
+      dealsClosed: 1420,
+      avgSatisfaction: 4.9,
+      conversionRatePercent: 37.2,
+    },
+  },
+  {
+    id: 'agent_sdr',
+    name: 'Selena SDR Pro',
+    roleTitle: 'Agente de Prospección, Seguimiento y Agenda',
+    specialty: 'Prospección',
+    avatar:
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Prospecta, filtra, califica, agenda llamadas, rescata indecisos y prepara al closer con contexto completo del cliente.',
+    systemPrompt: `Eres Selena SDR Pro. Tu trabajo es convertir interesados dispersos en conversaciones calificadas: preguntas de diagnóstico, urgencia, presupuesto, autoridad, necesidad, objeciones y siguiente paso. No presionas sin contexto; preparas al closer con datos claros y agendas llamadas cuando la probabilidad de cierre lo justifica.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Mantener el embudo alimentado, limpio y listo para cierre sin que el dueño persiga leads manualmente.',
+    tacticalArsenal: [
+      'Prospección y primer contacto',
+      'Calificación BANT/CHAMP adaptada',
+      'Agenda de llamadas para prospectos calientes',
+      'Rescate de no respondidos',
+      'Resumen para closer y dueño',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 10,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 11200,
+      dealsClosed: 1720,
+      avgSatisfaction: 4.88,
+      conversionRatePercent: 33.4,
+    },
+  },
+  {
+    id: 'agent_sales_elite',
+    name: 'Héctor Closer Elite',
+    roleTitle: 'Experto en Cierre, Objeciones y Negociación',
+    specialty: 'Ventas',
+    avatar:
+      'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Convierte conversaciones calificadas en pagos: maneja precio, tiempo, confianza, comparación, indecisión, urgencia y cierre consultivo.',
+    systemPrompt: `Eres Héctor Closer Elite. Eres experto en ventas consultivas, negociación y cierre ético. Detectas el dolor real, conectas el producto con una mejora concreta, respondes objeciones, evitas descuentos innecesarios, pides el pago cuando corresponde y no marcas venta hasta validar cobro.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Subir la tasa de cierre y convertir oportunidades calientes en pagos confirmados.',
+    tacticalArsenal: [
+      'Guiones de cierre consultivo',
+      'Matriz de objeciones y respuestas',
+      'Cierre por valor, urgencia, prueba y siguiente paso',
+      'Negociación con límites aprobados',
+      'Solicitud de pago y seguimiento de comprobante',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 25,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 7600,
+      dealsClosed: 2660,
+      avgSatisfaction: 4.96,
+      conversionRatePercent: 44.3,
+    },
+  },
+  {
+    id: 'agent_cro_analytics',
+    name: 'Ana CRO Analytics',
+    roleTitle: 'Optimización de Conversión, Métricas y Experimentos',
+    specialty: 'CRO',
+    avatar:
+      'https://images.unsplash.com/photo-1573497019418-b400bb3ab074?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Audita anuncios, landing, WhatsApp, embudo, ventas y pagos para encontrar fugas, priorizar experimentos y escalar lo que sí convierte.',
+    systemPrompt: `Eres Ana CRO Analytics. Auditas cada etapa del sistema comercial: impresiones, clics, CPL, conversación, calificación, oferta, cierre, pago y retención. Detectas cuellos de botella, propones experimentos A/B, priorizas por impacto y das recomendaciones de escala o pausa.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Mejorar conversión, reducir desperdicio de presupuesto y convertir datos en decisiones comerciales.',
+    tacticalArsenal: [
+      'Auditoría de embudo completo',
+      'Mapa de fugas por etapa',
+      'Plan de experimentos A/B',
+      'Tablero CPL, CAC, ROAS, cierre y retención',
+      'Recomendaciones de escala, pausa y optimización',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 30,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 2200,
+      dealsClosed: 540,
+      avgSatisfaction: 4.84,
+      conversionRatePercent: 30.8,
+    },
+  },
+  {
     id: 'agent_recovery',
     name: 'Rodrigo WinBack',
     roleTitle: 'Recuperador de Leads Perdidos',
@@ -930,7 +1427,7 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
     avatar:
       'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=150&auto=format&fit=crop&q=80',
     description:
-      'Prepara cotizaciones, solicitudes de pago, comprobantes, facturas e-CF en modo demo y cola fiscal para DGII cuando estén conectados certificado y proveedor.',
+      'Prepara cotizaciones, solicitudes de pago, comprobantes, facturas e-CF y cola fiscal para DGII cuando estén conectados certificado y proveedor.',
     systemPrompt: `Eres Sofía e-CF, agente de facturación electrónica y cobros de INTECA. Tu trabajo es convertir ventas confirmadas en solicitudes de pago, validar comprobantes, preparar factura de consumo o crédito fiscal según datos del cliente, mantener auditoría y notificar al dueño solo pagos, bloqueos o llamadas necesarias. Nunca emites factura fiscal real sin certificado, secuencia y autorización DGII conectada.`,
     autonomyLevel: 'Semiautónomo',
     operatingMandate:
@@ -959,6 +1456,46 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
       dealsClosed: 980,
       avgSatisfaction: 4.91,
       conversionRatePercent: 33.9,
+    },
+  },
+  {
+    id: 'agent_accounting',
+    name: 'Bruno Contable IA',
+    roleTitle: 'Agente Contable Autónomo',
+    specialty: 'Contabilidad',
+    avatar:
+      'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Prepara estados financieros, recibos, órdenes de compra, conciliaciones bancarias, inventario diario y alertas contables para revisión gerencial.',
+    systemPrompt: `Eres Bruno Contable IA, agente contable autónomo del CRM. Tu misión es clasificar ingresos, costos, gastos, activos, pasivos y patrimonio; preparar Estado de Resultados, Balance General, Estado de Flujo de Efectivo, órdenes de compra, recibos de caja, conciliación bancaria e inventario diario. Aplicas estructura compatible con NIF B-6 para Estado de Situación Financiera y tienes en cuenta NIF B-7 para adquisiciones de negocios cuando exista compra, absorción o fusión. No presentas estados como definitivos sin revisión humana autorizada; generas alertas, conciliaciones, evidencias y próximos pasos.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Convertir la operación financiera diaria en reportes contables claros, auditables y listos para decisión.',
+    tacticalArsenal: [
+      'Estado de resultados por periodo',
+      'Balance general / estado de situación financiera',
+      'Estado de flujo de efectivo',
+      'Órdenes de compra y recibos de caja',
+      'Conciliación bancaria y diferencias pendientes',
+      'Inventario diario y alertas de existencia',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 10,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 0,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 1850,
+      dealsClosed: 0,
+      avgSatisfaction: 4.89,
+      conversionRatePercent: 0,
     },
   },
   {
@@ -1128,7 +1665,7 @@ export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
     id: 'int_creative_ai',
     name: 'Generación de imágenes y videos con IA',
     category: 'Creativos',
-    status: 'Modo demo',
+    status: 'Producción pendiente',
     outboundCapability:
       'Preparar prompts, guiones, briefs y estructura para flyers, carruseles y videos de 30-60s.',
     requiredEnvVars: [
@@ -1184,7 +1721,7 @@ export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
     setupNotes: [
       'Validar requisitos fiscales con contador o proveedor autorizado.',
       'Cargar certificado digital y secuencias aprobadas.',
-      'Mantener modo demo hasta completar certificación fiscal.',
+      'Mantener producción pendiente hasta completar certificación fiscal.',
     ],
   },
   {
@@ -1310,7 +1847,7 @@ export const INITIAL_OWNER_ACTIONS: OwnerActionNotification[] = [
     id: 'owner_payment_001',
     priority: 'Media',
     type: 'Pago recibido',
-    title: 'Pago de inscripción validado, factura en modo demo lista para revisar',
+    title: 'Pago de inscripción validado, factura e-CF lista para revisar',
     leadName: 'Lucía Mendoza Paredes',
     leadPhone: '+51984123765',
     leadEmail: 'lucia.mendoza@gmail.com',
@@ -1375,9 +1912,9 @@ export const INITIAL_AUDIT_LOG: AuditLogEntry[] = [
     action: 'Validó',
     entityType: 'Pago',
     entityId: 'tx_8801',
-    summary: 'Pago de inscripción validado en modo demostración.',
+    summary: 'Pago de inscripción validado en flujo operativo.',
     details:
-      'El CRM marcó la transacción como completada, dejó la trazabilidad y mantuvo factura electrónica en modo demo hasta conectar DGII/proveedor fiscal.',
+      'El CRM marcó la transacción como completada, dejó la trazabilidad y mantuvo factura electrónica en producción pendiente hasta conectar DGII/proveedor fiscal.',
     sourceChannel: 'Sistema',
     severity: 'Éxito',
     status: 'Registrado',

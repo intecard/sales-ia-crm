@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { PlatformFrame } from './components/PlatformFrame';
 import { Sidebar, NavTab } from './components/Sidebar';
@@ -12,8 +11,10 @@ import { AIAgentsCommand } from './components/AIAgentsCommand';
 import { CoursesManager } from './components/CoursesManager';
 import { SalesFunnelsEditor } from './components/SalesFunnelsEditor';
 import { MarketingAutomation } from './components/MarketingAutomation';
+import { GrowthRevenueCommandCenter } from './components/GrowthRevenueCommandCenter';
 import { AutonomousGrowthOps } from './components/AutonomousGrowthOps';
 import { PaymentsInvoicing } from './components/PaymentsInvoicing';
+import { AccountingAutopilot } from './components/AccountingAutopilot';
 import { DocumentVault } from './components/DocumentVault';
 import { PredictiveAnalytics } from './components/PredictiveAnalytics';
 import { AuditTrailCenter } from './components/AuditTrailCenter';
@@ -40,6 +41,11 @@ import {
   INITIAL_LAUNCH_PLANS,
   INITIAL_OWNER_ACTIONS,
   INITIAL_AUDIT_LOG,
+  INITIAL_ACCOUNTING_REPORTS,
+  INITIAL_PURCHASE_REQUESTS,
+  INITIAL_CASH_RECEIPTS,
+  INITIAL_BANK_RECONCILIATIONS,
+  INITIAL_DAILY_INVENTORY_REPORTS,
 } from './data/initialData';
 
 import {
@@ -58,9 +64,19 @@ import {
   LicensePlan,
   TenantLicense,
   AuditLogEntry,
+  AccountingReport,
+  PurchaseRequest,
+  CashReceipt,
+  BankReconciliation,
+  DailyInventoryReport,
 } from './types';
 
 export function App() {
+  const deploymentMode =
+    ((import.meta.env.VITE_DEPLOYMENT_MODE as 'production' | 'trial' | undefined) ||
+      'production');
+  const isTrialMode = deploymentMode === 'trial';
+
   // Navigation active tab
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
 
@@ -83,6 +99,11 @@ export function App() {
   const [electronicInvoices] = useState<ElectronicInvoice[]>(INITIAL_ELECTRONIC_INVOICES);
   const [licensePlans] = useState<LicensePlan[]>(INITIAL_LICENSE_PLANS);
   const [tenantLicenses] = useState<TenantLicense[]>(INITIAL_TENANT_LICENSES);
+  const [accountingReports] = useState<AccountingReport[]>(INITIAL_ACCOUNTING_REPORTS);
+  const [purchaseRequests] = useState<PurchaseRequest[]>(INITIAL_PURCHASE_REQUESTS);
+  const [cashReceipts] = useState<CashReceipt[]>(INITIAL_CASH_RECEIPTS);
+  const [bankReconciliations] = useState<BankReconciliation[]>(INITIAL_BANK_RECONCILIATIONS);
+  const [dailyInventoryReports] = useState<DailyInventoryReport[]>(INITIAL_DAILY_INVENTORY_REPORTS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
     try {
       const stored = localStorage.getItem('sales-ai-crm-audit-log');
@@ -402,7 +423,9 @@ export function App() {
       agentName: 'Valeria Sotomayor (Closer IA)',
       channel: 'WhatsApp' as const,
       messageType: 'payment_link' as const,
-      content: `Se creó una solicitud de pago en modo demostración por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o conectar una pasarela con webhook real.`,
+      content: isTrialMode
+        ? `Se creó una solicitud de pago de prueba por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o conectar una pasarela con webhook real.`
+        : `Se creó una solicitud de pago por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o recibir confirmación de una pasarela con webhook real.`,
       timestamp: new Date().toISOString(),
     };
 
@@ -428,6 +451,7 @@ export function App() {
           leadsCount={leads.length}
           activeAgentsCount={agents.filter((a) => a.status === 'Activo').length}
           pendingPaymentsCount={transactions.filter((t) => t.status === 'Pendiente').length}
+          deploymentMode={deploymentMode}
         />
 
         {/* Right Main Content Panel */}
@@ -442,6 +466,7 @@ export function App() {
             currentUser={currentUser}
             onRoleChange={(newRole) => setCurrentUser((prev) => ({ ...prev, role: newRole }))}
             onOpenDocumentation={() => setIsDocumentationModalOpen(true)}
+            deploymentMode={deploymentMode}
           />
 
           {/* Dynamic View Container */}
@@ -460,6 +485,7 @@ export function App() {
                 onNavigateToAgents={() => setActiveTab('agents')}
                 onNavigateToChat={() => setActiveTab('chat')}
                 onNavigateToMarketing={() => setActiveTab('marketing')}
+                deploymentMode={deploymentMode}
               />
             )}
 
@@ -514,6 +540,10 @@ export function App() {
               />
             )}
 
+            {activeTab === 'growth' && (
+              <GrowthRevenueCommandCenter agents={agents} courses={courses} />
+            )}
+
             {activeTab === 'operations' && (
               <AutonomousGrowthOps
                 integrations={EXTERNAL_INTEGRATIONS_READINESS}
@@ -534,6 +564,17 @@ export function App() {
                 quotes={quotes}
                 electronicInvoices={electronicInvoices}
                 onAddTransaction={handleAddTransaction}
+                deploymentMode={deploymentMode}
+              />
+            )}
+
+            {activeTab === 'accounting' && (
+              <AccountingAutopilot
+                reports={accountingReports}
+                purchaseRequests={purchaseRequests}
+                cashReceipts={cashReceipts}
+                bankReconciliations={bankReconciliations}
+                inventoryReports={dailyInventoryReports}
               />
             )}
 

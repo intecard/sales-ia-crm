@@ -1,11 +1,8 @@
 node_modules
 dist
-coverage
-.git
 .env
-.env.*
-!.env.example
-*.log
-
-.env*
-respaldos
+.env.local
+.git
+*.zip
+coverage
+npm-debug.log

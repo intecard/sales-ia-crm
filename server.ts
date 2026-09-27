@@ -11,6 +11,7 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const DEPLOYMENT_MODE = process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
 
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -63,6 +64,18 @@ const marketingRequestSchema = z.object({
   tacticalMode: z.enum(['adquisicion', 'conversion', 'aceleracion', 'completo']).optional(),
 });
 
+const growthSystemRequestSchema = z.object({
+  organizationName: z.string().max(150).optional(),
+  productName: z.string().min(1).max(250),
+  targetMarket: z.string().min(1).max(1_000),
+  offerPromise: z.string().max(1_000).optional(),
+  adBudget: z.number().min(0).optional(),
+  dailySalesGoal: z.number().min(0).optional(),
+  closeRatePercent: z.number().min(0).max(100).optional(),
+  bottleneck: z.string().max(1_500).optional(),
+  channels: z.array(z.string().max(80)).max(20).optional(),
+});
+
 const creativeBriefRequestSchema = z.object({
   organizationName: z.string().max(150).optional(),
   courseTitle: z.string().max(250),
@@ -72,6 +85,33 @@ const creativeBriefRequestSchema = z.object({
   launchDate: z.string().max(40).optional(),
   relaunchDate: z.string().max(40).optional(),
   brandInstructions: z.string().max(1_000).optional(),
+});
+
+const ecfInvoiceRequestSchema = z.object({
+  organizationName: z.string().max(150).optional(),
+  issuer: z.record(z.string(), z.unknown()),
+  receiver: z.record(z.string(), z.unknown()),
+  invoiceType: z.string().max(120),
+  items: z.array(z.record(z.string(), z.unknown())).min(1).max(50),
+  currency: z.string().max(10).default('DOP'),
+  paymentStatus: z.string().max(40).optional(),
+  notes: z.string().max(2_000).optional(),
+});
+
+const accountingReportRequestSchema = z.object({
+  organizationName: z.string().max(150).optional(),
+  period: z.string().max(80),
+  reportType: z.enum([
+    'Estado de resultados',
+    'Balance general',
+    'Estado de flujo de efectivo',
+    'Orden de compra',
+    'Recibo de caja',
+    'Conciliación bancaria',
+    'Inventario diario',
+  ]),
+  sourceData: z.record(z.string(), z.unknown()),
+  notes: z.string().max(2_000).optional(),
 });
 
 const auditEventSchema = z.object({
@@ -133,8 +173,42 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'Sales AI CRM',
+    deploymentMode: DEPLOYMENT_MODE,
     timestamp: new Date().toISOString(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    integrations: {
+      whatsappConfigured: Boolean(
+        process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
+      ),
+      metaConfigured: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),
+      googleAdsConfigured: Boolean(
+        process.env.GOOGLE_ADS_DEVELOPER_TOKEN && process.env.GOOGLE_ADS_REFRESH_TOKEN,
+      ),
+      paymentsConfigured: Boolean(
+        process.env.PAYMENT_PROVIDER && process.env.PAYMENT_WEBHOOK_SECRET,
+      ),
+      dgiiConfigured: Boolean(
+        process.env.DGII_ECF_PROVIDER_API_KEY || process.env.DGII_ECF_CERTIFICATE_PATH,
+      ),
+    },
+  });
+});
+
+app.get('/api/runtime/config', (_req, res) => {
+  res.json({
+    app: 'Sales AI CRM',
+    deploymentMode: DEPLOYMENT_MODE,
+    appUrl: process.env.APP_URL || `http://localhost:${PORT}`,
+    whatsappWebhookPath: '/api/webhooks/meta/whatsapp',
+    metaLeadWebhookPath: '/api/webhooks/meta/leadgen',
+    googleAdsWebhookPath: '/api/webhooks/google-ads/leads',
+    youtubeWebhookPath: '/api/webhooks/youtube/events',
+    webFormsWebhookPath: '/api/webhooks/web/forms',
+    paymentsWebhookPath: '/api/webhooks/payments',
+    dgiiWebhookPath: '/api/webhooks/dgii/ecf-status',
+    growthSystemAiPath: '/api/ai/generate-growth-system',
+    ecfInvoiceAiPath: '/api/ai/generate-ecf-invoice',
+    accountingReportAiPath: '/api/ai/generate-accounting-report',
   });
 });
 
@@ -202,7 +276,8 @@ app.get('/api/audit/events', (_req, res) => {
   res.json({
     success: true,
     events: serverAuditEvents,
-    persistence: 'memory-demo',
+    persistence: process.env.DATABASE_URL ? 'database-ready' : 'memory-runtime',
+    deploymentMode: DEPLOYMENT_MODE,
   });
 });
 
@@ -374,7 +449,7 @@ app.post('/api/ai/chat-agent', async (req, res) => {
     const promptInstruction = `
 ${systemPrompt || 'Eres un asesor comercial profesional. No inventes precios, promociones, disponibilidad ni condiciones.'}
 
-ORGANIZACIÓN: ${organizationName || 'Organización de demostración'}
+ORGANIZACIÓN: ${organizationName || 'Organización principal'}
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
 CONTEXTO DEL LEAD:
@@ -530,7 +605,7 @@ app.post('/api/ai/generate-marketing', async (req, res) => {
     const ai = getGeminiClient();
 
     const prompt = `
-Eres especialista de marketing de ${organizationName || 'una organización en modo demostración'}. Genera contenido publicitario sin inventar beneficios, certificaciones, precios ni promociones.
+Eres especialista de marketing de ${organizationName || 'una organización comercial'}. Genera contenido publicitario sin inventar beneficios, certificaciones, precios ni promociones.
 
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
@@ -620,7 +695,132 @@ Proporciona el resultado estructurado en JSON con los campos:
   }
 });
 
-// 4. AI Creative Brief Generator (flyers, images, video scripts and launch assets)
+// 4. AI Growth, Marketing, Advertising and Sales System Generator
+app.post('/api/ai/generate-growth-system', async (req, res) => {
+  try {
+    const parsed = growthSystemRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
+    }
+
+    const {
+      organizationName,
+      productName,
+      targetMarket,
+      offerPromise,
+      adBudget,
+      dailySalesGoal,
+      closeRatePercent,
+      bottleneck,
+      channels,
+    } = parsed.data;
+    const ai = getGeminiClient();
+
+    const prompt = `
+Eres un director senior de crecimiento, marketing, publicidad, embudos y ventas para ${organizationName || 'la empresa'}.
+Tu trabajo es preparar un sistema comercial completo para vender cualquier producto o servicio con ejecucion 24/7, medicion, auditoria y enfoque a resultados.
+
+PRODUCTO / SERVICIO: ${productName}
+NICHO / MERCADO: ${targetMarket}
+PROMESA AUTORIZADA: ${offerPromise || 'No especificada'}
+PRESUPUESTO DE PAUTA: ${adBudget || 0}
+META DE VENTAS DIARIAS: ${dailySalesGoal || 5}
+TASA DE CIERRE ESTIMADA: ${closeRatePercent || 12}%
+CUELLO DE BOTELLA: ${bottleneck || 'No especificado'}
+CANALES: ${(channels || ['Meta Ads', 'Google Ads', 'YouTube', 'WhatsApp', 'Landing Page']).join(', ')}
+
+Reglas:
+1. Trata las metas de ventas, ROAS o 80% como objetivos operativos, nunca como garantias.
+2. No inventes avales, testimonios, descuentos, fechas, certificaciones ni resultados que no fueron suministrados.
+3. Crea necesidad de forma etica: dolor real, oportunidad, costo de no actuar y siguiente paso claro.
+4. Explica funcion practica, resultado esperado, mejora de vida, empleo, ingresos u operacion.
+5. Incluye adquisicion, conversion y aceleracion con tacticas accionables.
+6. Debe servir para Meta Ads, Google Ads, YouTube, WhatsApp, landing, email y retargeting.
+7. Indica que debe aprobar el dueno y que puede ejecutar cada agente de IA.
+8. Incluye plan para romper el cuello de botella y escalar sin depender de trabajo manual del dueno.
+
+Devuelve JSON estricto con:
+- marketDiagnosis: diagnostico del nicho, dolores, deseos, disparadores y objeciones.
+- unfairAdvantage: ventaja injusta o diferenciador defendible.
+- offerArchitecture: promesa, stack de valor, urgencia, bonos permitidos, prueba de valor y CTA.
+- acquisitionPlan: acciones de pauta, contenido y segmentacion por canal.
+- adAngles: angulos de anuncio imposibles de ignorar para frio, tibio y caliente.
+- creativeBriefs: briefs para flyer, carrusel, Reels/Shorts y video 30-60 segundos.
+- funnelStages: etapas anuncio -> landing/WhatsApp -> diagnostico -> oferta -> pago -> onboarding -> referidos.
+- salesScripts: guiones de prospeccion, calificacion, cierre y recuperacion.
+- objectionMap: objeciones principales y respuestas consultivas.
+- followUpCadence: secuencia 0h, 24h, 72h, 7 dias y reactivacion.
+- kpiPlan: CPL, CAC, ROAS, CTR, tasa de conversion, tasa de cierre, ventas diarias y alertas.
+- bottleneckBreakers: acciones para desbloquear el principal cuello de botella.
+- ownerNotifications: exactamente que debe recibir el dueno: pagos, llamadas a realizar, bloqueos y aprobaciones.
+- implementationChecklist: pasos de ejecucion para dejar el sistema listo.
+`;
+
+    const response = await ai.models.generateContent({
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            marketDiagnosis: { type: Type.OBJECT },
+            unfairAdvantage: { type: Type.STRING },
+            offerArchitecture: { type: Type.OBJECT },
+            acquisitionPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
+            adAngles: { type: Type.ARRAY, items: { type: Type.STRING } },
+            creativeBriefs: { type: Type.ARRAY, items: { type: Type.STRING } },
+            funnelStages: { type: Type.ARRAY, items: { type: Type.STRING } },
+            salesScripts: { type: Type.ARRAY, items: { type: Type.STRING } },
+            objectionMap: { type: Type.ARRAY, items: { type: Type.STRING } },
+            followUpCadence: { type: Type.ARRAY, items: { type: Type.STRING } },
+            kpiPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
+            bottleneckBreakers: { type: Type.ARRAY, items: { type: Type.STRING } },
+            ownerNotifications: { type: Type.ARRAY, items: { type: Type.STRING } },
+            implementationChecklist: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: [
+            'marketDiagnosis',
+            'unfairAdvantage',
+            'offerArchitecture',
+            'funnelStages',
+            'salesScripts',
+            'kpiPlan',
+            'ownerNotifications',
+          ],
+        },
+      },
+    });
+
+    const parsedJson = JSON.parse(response.text || '{}');
+    recordServerAudit({
+      actorType: 'Agente IA',
+      actorName: 'Máximo Growth Strategist',
+      module: 'Marketing',
+      action: 'Generó',
+      entityType: 'GrowthSystem',
+      summary: `Sistema de marketing, publicidad y ventas generado para ${productName}.`,
+      details: `Mercado: ${targetMarket}. Presupuesto: ${adBudget || 0}. Meta diaria: ${dailySalesGoal || 5}. Canales: ${(channels || []).join(', ') || 'No especificados'}.`,
+      sourceChannel: 'Sistema',
+      severity: 'Éxito',
+      status: 'Registrado',
+    });
+
+    res.json({ success: true, growthSystem: parsedJson });
+  } catch (error: unknown) {
+    console.error('Error in /api/ai/generate-growth-system:', error);
+    const notConfigured = error instanceof Error && error.message === 'AI_NOT_CONFIGURED';
+    res.status(notConfigured ? 503 : 500).json({
+      success: false,
+      error: notConfigured ? 'AI_NOT_CONFIGURED' : 'AI_GROWTH_SYSTEM_FAILED',
+      requiresHumanReview: true,
+    });
+  }
+});
+
+// 5. AI Creative Brief Generator (flyers, images, video scripts and launch assets)
 app.post('/api/ai/generate-creative-brief', async (req, res) => {
   try {
     const parsed = creativeBriefRequestSchema.safeParse(req.body);
@@ -748,6 +948,181 @@ Devuelve JSON estricto con:
     res.status(notConfigured ? 503 : 500).json({
       success: false,
       error: notConfigured ? 'AI_NOT_CONFIGURED' : 'AI_CREATIVE_BRIEF_FAILED',
+    });
+  }
+});
+
+// 6. AI e-CF Invoice Builder
+app.post('/api/ai/generate-ecf-invoice', async (req, res) => {
+  try {
+    const parsed = ecfInvoiceRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
+    }
+
+    const { organizationName, issuer, receiver, invoiceType, items, currency, paymentStatus, notes } =
+      parsed.data;
+    const ai = getGeminiClient();
+
+    const prompt = `
+Eres Sofía e-CF, agente de facturación electrónica para ${organizationName || 'la empresa'}.
+Debes preparar la estructura de una factura electrónica e-CF dominicana lista para XML, PDF, firma digital y QR.
+
+EMISOR:
+${JSON.stringify(issuer, null, 2)}
+
+RECEPTOR:
+${JSON.stringify(receiver, null, 2)}
+
+TIPO DE COMPROBANTE: ${invoiceType}
+MONEDA: ${currency}
+ESTADO DE PAGO: ${paymentStatus || 'Pendiente'}
+NOTAS: ${notes || 'Sin notas'}
+
+ITEMS:
+${JSON.stringify(items, null, 2)}
+
+Reglas:
+1. Incluye encabezado fiscal con emisor, receptor, RNC, dirección fiscal y fecha.
+2. Incluye número e-CF pendiente de secuencia real si no fue suministrado.
+3. Incluye detalle comercial: cantidad, descripción, precio unitario, descuentos y total.
+4. Desglosa impuestos: gravado, exento, ITBIS, ISC, otros cargos y total.
+5. Incluye campos de firma digital y QR como pendientes si no hay certificado conectado.
+6. No afirmes envío a DGII sin credenciales reales.
+7. Devuelve JSON estricto y auditable.
+`;
+
+    const response = await ai.models.generateContent({
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            fiscalHeader: { type: Type.OBJECT },
+            eCfNumber: { type: Type.STRING },
+            lineItems: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+            taxBreakdown: { type: Type.OBJECT },
+            xmlDraft: { type: Type.STRING },
+            pdfSummary: { type: Type.STRING },
+            digitalSignatureStatus: { type: Type.STRING },
+            qrPayload: { type: Type.STRING },
+            requiredApprovals: { type: Type.ARRAY, items: { type: Type.STRING } },
+            auditNotes: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ['fiscalHeader', 'eCfNumber', 'lineItems', 'taxBreakdown', 'auditNotes'],
+        },
+      },
+    });
+
+    const parsedJson = JSON.parse(response.text || '{}');
+    recordServerAudit({
+      actorType: 'Agente IA',
+      actorName: 'Sofía e-CF',
+      module: 'Facturación',
+      action: 'Generó',
+      entityType: 'ElectronicInvoiceDraft',
+      summary: `Factura e-CF preparada para ${String(receiver?.legalName || receiver?.name || 'cliente')}.`,
+      details: `Tipo: ${invoiceType}. Items: ${items.length}. Moneda: ${currency}.`,
+      sourceChannel: 'Sistema',
+      severity: 'Éxito',
+      status: 'Pendiente revisión',
+    });
+
+    res.json({ success: true, invoiceDraft: parsedJson });
+  } catch (error: unknown) {
+    console.error('Error in /api/ai/generate-ecf-invoice:', error);
+    const notConfigured = error instanceof Error && error.message === 'AI_NOT_CONFIGURED';
+    res.status(notConfigured ? 503 : 500).json({
+      success: false,
+      error: notConfigured ? 'AI_NOT_CONFIGURED' : 'AI_ECF_INVOICE_FAILED',
+      requiresHumanReview: true,
+    });
+  }
+});
+
+// 7. AI Accounting Report Builder
+app.post('/api/ai/generate-accounting-report', async (req, res) => {
+  try {
+    const parsed = accountingReportRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
+    }
+
+    const { organizationName, period, reportType, sourceData, notes } = parsed.data;
+    const ai = getGeminiClient();
+
+    const prompt = `
+Eres Bruno Contable IA, agente contable autónomo para ${organizationName || 'la empresa'}.
+Debes preparar un documento contable estructurado, auditable y listo para revisión.
+
+TIPO DE REPORTE/DOCUMENTO: ${reportType}
+PERIODO: ${period}
+NOTAS: ${notes || 'Sin notas'}
+
+DATOS FUENTE:
+${JSON.stringify(sourceData, null, 2)}
+
+Reglas:
+1. Para Estado de resultados, resume ingresos, costos, gastos y utilidad.
+2. Para Balance general, presenta activos, pasivos y patrimonio. Usa estructura compatible con NIF B-6.
+3. Para Flujo de efectivo, separa entradas, salidas y flujo neto.
+4. Para órdenes de compra, recibos, conciliaciones e inventarios, genera campos completos y estado.
+5. Si aplica adquisición de negocios, menciona NIF B-7 y los puntos de valuación.
+6. No marques documento como aprobado sin revisión humana autorizada.
+7. Devuelve JSON estricto con resumen, tablas, alertas y próximos pasos.
+`;
+
+    const response = await ai.models.generateContent({
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            reportTitle: { type: Type.STRING },
+            period: { type: Type.STRING },
+            executiveSummary: { type: Type.STRING },
+            totals: { type: Type.OBJECT },
+            tableRows: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+            alerts: { type: Type.ARRAY, items: { type: Type.STRING } },
+            nifReferences: { type: Type.ARRAY, items: { type: Type.STRING } },
+            nextActions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            approvalStatus: { type: Type.STRING },
+          },
+          required: ['reportTitle', 'period', 'executiveSummary', 'totals', 'nextActions'],
+        },
+      },
+    });
+
+    const parsedJson = JSON.parse(response.text || '{}');
+    recordServerAudit({
+      actorType: 'Agente IA',
+      actorName: 'Bruno Contable IA',
+      module: 'Contabilidad',
+      action: 'Generó',
+      entityType: 'AccountingReport',
+      summary: `${reportType} preparado para ${period}.`,
+      details: `Reporte generado con datos fuente y pendiente de revisión/aprobación autorizada.`,
+      sourceChannel: 'Sistema',
+      severity: 'Éxito',
+      status: 'Pendiente revisión',
+    });
+
+    res.json({ success: true, accountingReport: parsedJson });
+  } catch (error: unknown) {
+    console.error('Error in /api/ai/generate-accounting-report:', error);
+    const notConfigured = error instanceof Error && error.message === 'AI_NOT_CONFIGURED';
+    res.status(notConfigured ? 503 : 500).json({
+      success: false,
+      error: notConfigured ? 'AI_NOT_CONFIGURED' : 'AI_ACCOUNTING_REPORT_FAILED',
+      requiresHumanReview: true,
     });
   }
 });
