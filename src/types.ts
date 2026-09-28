@@ -545,6 +545,16 @@ export interface UserProfile {
   avatarUrl: string;
 }
 
+export interface CRMAuthSession {
+  mode: 'real' | 'demo';
+  userName: string;
+  email: string;
+  role: UserRole;
+  organizationName: string;
+  token: string;
+  loginAt: string;
+}
+
 export interface FunnelStageConfig {
   id: FunnelStageId;
   name: string;

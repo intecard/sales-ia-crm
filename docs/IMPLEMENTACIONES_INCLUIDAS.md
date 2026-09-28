@@ -34,6 +34,10 @@
 
 ## CRM comercial
 
+- Acceso real protegido por usuario y contrasena.
+- Boton separado para entrar y salir de la version demo.
+- Cierre de sesion real y salida de demo desde el encabezado.
+- Tema claro/oscuro persistente en login y dentro del CRM.
 - Leads CRM 360.
 - Chat Sales Studio.
 - Productos / servicios.

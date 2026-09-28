@@ -1,1 +1,87 @@
 @import 'tailwindcss';
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  background: #f5f7fc;
+}
+
+html[data-theme='light'] body {
+  background: #f5f7fc;
+}
+
+html[data-theme='light'] #root [class*='bg-slate-950'],
+html[data-theme='light'] #root [class*='bg-slate-900'] {
+  background-color: #f5f7fc !important;
+  color: #17263d;
+}
+
+html[data-theme='light'] #root [class*='bg-slate-800'] {
+  background-color: #e5eaf4 !important;
+}
+
+html[data-theme='light'] #root [class*='bg-slate-700'] {
+  background-color: #d7e0ef !important;
+}
+
+html[data-theme='light'] #root [class*='text-slate-100'],
+html[data-theme='light'] #root [class*='text-slate-200'],
+html[data-theme='light'] #root [class*='text-white'] {
+  color: #19263e !important;
+}
+
+html[data-theme='light'] #root [class*='text-slate-300'],
+html[data-theme='light'] #root [class*='text-slate-400'],
+html[data-theme='light'] #root [class*='text-slate-500'] {
+  color: #4c5d79 !important;
+}
+
+html[data-theme='light'] #root [class*='border-slate-'] {
+  border-color: #ccd6e7 !important;
+}
+
+html[data-theme='light'] #root input,
+html[data-theme='light'] #root textarea,
+html[data-theme='light'] #root select {
+  color: #17263d !important;
+}
+
+html[data-theme='light'] #root input::placeholder,
+html[data-theme='light'] #root textarea::placeholder {
+  color: #7a8aa3 !important;
+}
+
+html[data-theme='light'] #root button[class*='bg-gradient'],
+html[data-theme='light'] #root button[class*='bg-indigo-600'],
+html[data-theme='light'] #root button[class*='bg-blue-600'],
+html[data-theme='light'] #root button[class*='bg-rose-600'],
+html[data-theme='light'] #root button[class*='bg-purple-600'] {
+  color: #ffffff !important;
+}
+
+html[data-theme='light'] #root [class*='text-emerald-'],
+html[data-theme='light'] #root [class*='text-green-'] {
+  color: #00735c !important;
+}
+
+html[data-theme='light'] #root [class*='text-cyan-'],
+html[data-theme='light'] #root [class*='text-blue-400'] {
+  color: #056a9b !important;
+}
+
+html[data-theme='light'] #root [class*='text-purple-'],
+html[data-theme='light'] #root [class*='text-indigo-400'] {
+  color: #6342b8 !important;
+}
+
+html[data-theme='light'] #root [class*='text-amber-'],
+html[data-theme='light'] #root [class*='text-yellow-'] {
+  color: #8e5b00 !important;
+}
+
+html[data-theme='light'] #root [class*='shadow-'] {
+  --tw-shadow-color: rgb(99 102 241 / 0.16) !important;
+}

@@ -13,8 +13,9 @@ import {
   RefreshCw,
   Zap,
   Bot,
+  LogOut,
 } from 'lucide-react';
-import { PlatformMode, UserRole, OrganizationTenant, UserProfile } from '../types';
+import { CRMAuthSession, PlatformMode, UserRole, OrganizationTenant, UserProfile } from '../types';
 
 interface HeaderProps {
   currentOS?: 'windows' | 'mac' | 'linux' | 'android' | 'ios' | 'web' | PlatformMode;
@@ -32,6 +33,8 @@ interface HeaderProps {
   onOpenDocumentation?: () => void;
   isAiActive?: boolean;
   deploymentMode?: 'production' | 'trial';
+  authSession?: CRMAuthSession;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -50,6 +53,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDocumentation,
   isAiActive = true,
   deploymentMode = 'production',
+  authSession,
+  onLogout,
 }) => {
   const activePlatform = currentPlatform || currentOS || 'web';
   const isTrialMode = deploymentMode === 'trial';
@@ -116,6 +121,13 @@ export const Header: React.FC<HeaderProps> = ({
           <ShieldCheck className="w-3.5 h-3.5" />
           <span>{isTrialMode ? 'Modo prueba' : 'Versión original'}</span>
         </div>
+
+        {authSession && (
+          <div className="hidden 2xl:flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/80 rounded-full px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+            <UserCheck className="w-3.5 h-3.5 text-emerald-300" />
+            <span>{authSession.mode === 'demo' ? 'Sesión demo' : authSession.userName}</span>
+          </div>
+        )}
       </div>
 
       {/* Center: Environment / Platform Mode Simulator */}
@@ -265,6 +277,19 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <Moon className="w-4 h-4 text-slate-200" />
             )}
+          </button>
+        )}
+
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-rose-600/30 text-slate-300 hover:text-rose-200 rounded-lg transition-colors border border-slate-700 hover:border-rose-500/40 text-xs font-bold"
+            title={authSession?.mode === 'demo' ? 'Salir de la demo' : 'Cerrar sesión real'}
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden xl:inline">
+              {authSession?.mode === 'demo' ? 'Salir demo' : 'Cerrar sesión'}
+            </span>
           </button>
         )}
       </div>

@@ -58,7 +58,14 @@ APP_SECRET=usa_un_valor_largo_y_privado
 GEMINI_API_KEY=tu_clave_gemini
 GEMINI_MODEL=gemini-3.6-flash
 META_WEBHOOK_VERIFY_TOKEN=sales_ai_crm_whatsapp_verify_2026
+ADMIN_EMAIL=admin@inteca.com.do
+ADMIN_PASSWORD=usa_una_contrasena_privada_y_larga
+ADMIN_NAME=Admin General
+ADMIN_ORGANIZATION=INTECA SRL
 ```
+
+`ADMIN_EMAIL` y `ADMIN_PASSWORD` son los datos para entrar a la version real.
+La demo no usa esas credenciales; se entra desde el boton **Entrar como demo**.
 
 ## 5. WhatsApp Cloud API en Meta
 
@@ -175,6 +182,8 @@ https://sales.ia.crm.inteca.com.do/api/runtime/config
 Endpoints IA internos para los nuevos agentes:
 
 ```text
+https://sales.ia.crm.inteca.com.do/api/auth/login
+https://sales.ia.crm.inteca.com.do/api/auth/logout
 https://sales.ia.crm.inteca.com.do/api/ai/generate-growth-system
 https://sales.ia.crm.inteca.com.do/api/ai/generate-ecf-invoice
 https://sales.ia.crm.inteca.com.do/api/ai/generate-accounting-report

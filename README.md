@@ -19,6 +19,9 @@ INTECA SRL queda configurada como empresa principal con licencia gratis permanen
 - Facturacion electronica e-CF completa con encabezado fiscal, e-NCF, detalle comercial, impuestos, XML, PDF, firma digital y QR.
 - Contabilidad Autonoma con agente IA para estados financieros, compras, recibos, conciliacion bancaria e inventario diario.
 - Auditoria & Historial para registrar acciones del sistema, usuarios, agentes, webhooks e integraciones.
+- Login real por defecto: el dashboard de produccion no abre hasta validar usuario y contrasena; la demo queda como boton separado.
+- Entrada y salida independiente: puedes cerrar sesion real, entrar a demo, salir de demo y volver al acceso real.
+- Tema claro/oscuro persistente en login y dentro del CRM.
 - Multiempresa, roles y licencia gratis permanente para INTECA.
 - Webhooks listos para WhatsApp Cloud API, Meta Lead Ads, Google Ads, YouTube, formularios web, pagos y DGII/e-CF.
 
@@ -101,6 +104,10 @@ APP_SECRET=usa_un_valor_largo_y_privado
 GEMINI_API_KEY=tu_clave_gemini
 GEMINI_MODEL=gemini-3.6-flash
 META_WEBHOOK_VERIFY_TOKEN=sales_ai_crm_whatsapp_verify_2026
+ADMIN_EMAIL=admin@inteca.com.do
+ADMIN_PASSWORD=usa_una_contrasena_privada_y_larga
+ADMIN_NAME=Admin General
+ADMIN_ORGANIZATION=INTECA SRL
 ```
 
 ## Webhooks principales
@@ -116,6 +123,8 @@ Usa tu dominio real delante de cada ruta:
 /api/webhooks/payments
 /api/webhooks/dgii/ecf-status
 /api/audit/events
+/api/auth/login
+/api/auth/logout
 /api/ai/generate-growth-system
 /api/ai/generate-ecf-invoice
 /api/ai/generate-accounting-report

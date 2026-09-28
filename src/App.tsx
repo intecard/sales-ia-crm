@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PlatformFrame } from './components/PlatformFrame';
 import { Sidebar, NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
+import { AuthGate } from './components/AuthGate';
 
 // View Modules
 import { DashboardOverview } from './components/DashboardOverview';
@@ -69,13 +70,40 @@ import {
   CashReceipt,
   BankReconciliation,
   DailyInventoryReport,
+  CRMAuthSession,
 } from './types';
+
+const AUTH_SESSION_STORAGE_KEY = 'sales-ai-crm-auth-session-v121';
+const THEME_STORAGE_KEY = 'sales-ai-crm-theme';
+type ThemeMode = 'dark' | 'light';
 
 export function App() {
   const deploymentMode =
     ((import.meta.env.VITE_DEPLOYMENT_MODE as 'production' | 'trial' | undefined) ||
       'production');
-  const isTrialMode = deploymentMode === 'trial';
+
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const stored = localStorage.getItem(THEME_STORAGE_KEY);
+      if (stored === 'light' || stored === 'dark') return stored;
+    } catch (error) {
+      console.warn('No se pudo cargar el tema local:', error);
+    }
+    return 'dark';
+  });
+
+  const [authSession, setAuthSession] = useState<CRMAuthSession | null>(() => {
+    try {
+      const stored = sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+      if (stored) return JSON.parse(stored) as CRMAuthSession;
+    } catch (error) {
+      console.warn('No se pudo cargar la sesión local:', error);
+    }
+    return null;
+  });
+
+  const effectiveDeploymentMode = authSession?.mode === 'demo' ? 'trial' : deploymentMode;
+  const isTrialMode = effectiveDeploymentMode === 'trial';
 
   // Navigation active tab
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -86,6 +114,29 @@ export function App() {
   // Multi-tenant organization & user state
   const [currentOrg, setCurrentOrg] = useState<OrganizationTenant>(INITIAL_ORGANIZATIONS[0]);
   const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_USERS[0]);
+
+  const handleAuthenticated = (session: CRMAuthSession) => {
+    setAuthSession(session);
+    setCurrentUser((prev) => ({
+      ...prev,
+      name: session.userName,
+      email: session.email,
+      role: session.role,
+    }));
+    setActiveTab('dashboard');
+  };
+
+  const handleLogout = () => {
+    void fetch('/api/auth/logout', { method: 'POST' }).catch((error) =>
+      console.warn('No se pudo notificar cierre de sesión al servidor:', error),
+    );
+    setAuthSession(null);
+    setActiveTab('dashboard');
+  };
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Master Data States
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -122,11 +173,43 @@ export function App() {
 
   useEffect(() => {
     try {
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+      console.warn('No se pudo guardar el tema local:', error);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    try {
+      if (authSession) {
+        sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(authSession));
+      } else {
+        sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('No se pudo guardar la sesión local:', error);
+    }
+  }, [authSession]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem('sales-ai-crm-audit-log', JSON.stringify(auditLogs.slice(0, 1000)));
     } catch (error) {
       console.warn('No se pudo guardar auditoría local:', error);
     }
   }, [auditLogs]);
+
+  if (!authSession) {
+    return (
+      <AuthGate
+        deploymentMode={deploymentMode}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onAuthenticated={handleAuthenticated}
+      />
+    );
+  }
 
   const recordAudit = (entry: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
     const randomPart =
@@ -451,7 +534,7 @@ export function App() {
           leadsCount={leads.length}
           activeAgentsCount={agents.filter((a) => a.status === 'Activo').length}
           pendingPaymentsCount={transactions.filter((t) => t.status === 'Pendiente').length}
-          deploymentMode={deploymentMode}
+          deploymentMode={effectiveDeploymentMode}
         />
 
         {/* Right Main Content Panel */}
@@ -465,8 +548,12 @@ export function App() {
             onOrgChange={setCurrentOrg}
             currentUser={currentUser}
             onRoleChange={(newRole) => setCurrentUser((prev) => ({ ...prev, role: newRole }))}
+            isDarkMode={theme === 'dark'}
+            onToggleTheme={handleToggleTheme}
             onOpenDocumentation={() => setIsDocumentationModalOpen(true)}
-            deploymentMode={deploymentMode}
+            deploymentMode={effectiveDeploymentMode}
+            authSession={authSession}
+            onLogout={handleLogout}
           />
 
           {/* Dynamic View Container */}
@@ -485,7 +572,7 @@ export function App() {
                 onNavigateToAgents={() => setActiveTab('agents')}
                 onNavigateToChat={() => setActiveTab('chat')}
                 onNavigateToMarketing={() => setActiveTab('marketing')}
-                deploymentMode={deploymentMode}
+                deploymentMode={effectiveDeploymentMode}
               />
             )}
 
@@ -564,7 +651,7 @@ export function App() {
                 quotes={quotes}
                 electronicInvoices={electronicInvoices}
                 onAddTransaction={handleAddTransaction}
-                deploymentMode={deploymentMode}
+                deploymentMode={effectiveDeploymentMode}
               />
             )}
 

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
@@ -51,6 +52,11 @@ const chatRequestSchema = z.object({
 
 const qualifyRequestSchema = z.object({
   leadData: z.record(z.string(), z.unknown()),
+});
+
+const authLoginRequestSchema = z.object({
+  email: z.string().email().max(200),
+  password: z.string().min(1).max(200),
 });
 
 const marketingRequestSchema = z.object({
@@ -176,6 +182,7 @@ app.get('/api/health', (req, res) => {
     deploymentMode: DEPLOYMENT_MODE,
     timestamp: new Date().toISOString(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    authConfigured: Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD),
     integrations: {
       whatsappConfigured: Boolean(
         process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
@@ -199,6 +206,8 @@ app.get('/api/runtime/config', (_req, res) => {
     app: 'Sales AI CRM',
     deploymentMode: DEPLOYMENT_MODE,
     appUrl: process.env.APP_URL || `http://localhost:${PORT}`,
+    authLoginPath: '/api/auth/login',
+    authLogoutPath: '/api/auth/logout',
     whatsappWebhookPath: '/api/webhooks/meta/whatsapp',
     metaLeadWebhookPath: '/api/webhooks/meta/leadgen',
     googleAdsWebhookPath: '/api/webhooks/google-ads/leads',
@@ -210,6 +219,97 @@ app.get('/api/runtime/config', (_req, res) => {
     ecfInvoiceAiPath: '/api/ai/generate-ecf-invoice',
     accountingReportAiPath: '/api/ai/generate-accounting-report',
   });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const parsed = authLoginRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ success: false, error: 'INVALID_LOGIN_REQUEST', details: parsed.error.flatten() });
+  }
+
+  const configuredEmail = process.env.ADMIN_EMAIL || process.env.CRM_ADMIN_EMAIL;
+  const configuredPassword = process.env.ADMIN_PASSWORD || process.env.CRM_ADMIN_PASSWORD;
+  const isProductionLike = process.env.NODE_ENV === 'production' || DEPLOYMENT_MODE === 'production';
+
+  if (!configuredEmail || !configuredPassword) {
+    if (isProductionLike) {
+      return res.status(503).json({
+        success: false,
+        error: 'AUTH_NOT_CONFIGURED',
+        message: 'Configura ADMIN_EMAIL y ADMIN_PASSWORD en Render Environment.',
+      });
+    }
+  }
+
+  const expectedEmail = configuredEmail || 'admin@inteca.com.do';
+  const expectedPassword = configuredPassword || 'Inteca2026!';
+  const emailMatches = parsed.data.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
+  const passwordMatches = parsed.data.password === expectedPassword;
+
+  if (!emailMatches || !passwordMatches) {
+    recordServerAudit({
+      actorType: 'Usuario',
+      actorName: parsed.data.email,
+      module: 'Seguridad',
+      action: 'Falló',
+      entityType: 'LoginAttempt',
+      summary: 'Intento de inicio de sesión rechazado.',
+      details: `Correo: ${parsed.data.email}.`,
+      sourceChannel: 'Web',
+      severity: 'Advertencia',
+      status: 'Registrado',
+    });
+
+    return res.status(401).json({
+      success: false,
+      error: 'INVALID_CREDENTIALS',
+      message: 'Correo o contraseña incorrectos.',
+    });
+  }
+
+  const session = {
+    mode: 'real',
+    userName: process.env.ADMIN_NAME || 'Admin General',
+    email: expectedEmail,
+    role: 'Admin',
+    organizationName: process.env.ADMIN_ORGANIZATION || 'INTECA SRL',
+    token: `crm_${crypto.randomBytes(24).toString('hex')}`,
+    loginAt: new Date().toISOString(),
+  };
+
+  recordServerAudit({
+    actorType: 'Usuario',
+    actorName: session.userName,
+    module: 'Seguridad',
+    action: 'Validó',
+    entityType: 'LoginSession',
+    summary: 'Inicio de sesión real aprobado.',
+    details: `Organización: ${session.organizationName}. Correo: ${session.email}.`,
+    sourceChannel: 'Web',
+    severity: 'Éxito',
+    status: 'Registrado',
+  });
+
+  return res.json({ success: true, session });
+});
+
+app.post('/api/auth/logout', (_req, res) => {
+  recordServerAudit({
+    actorType: 'Usuario',
+    actorName: 'Usuario CRM',
+    module: 'Seguridad',
+    action: 'Cerró',
+    entityType: 'LoginSession',
+    summary: 'Sesión cerrada desde la interfaz del CRM.',
+    details: 'El cliente limpió la sesión local. No se conservaron credenciales en el navegador.',
+    sourceChannel: 'Web',
+    severity: 'Info',
+    status: 'Registrado',
+  });
+
+  return res.json({ success: true });
 });
 
 // Meta WhatsApp Cloud API webhook verification.
