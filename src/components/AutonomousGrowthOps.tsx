@@ -42,8 +42,6 @@ const statusTone = (status: string) => {
   if (status === 'Webhook preparado')
     return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
   if (status === 'Modo demo') return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
-  if (status === 'Producción pendiente')
-    return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
   if (status === 'Listo para conectar')
     return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
   return 'bg-amber-500/20 text-amber-300 border-amber-500/30';

@@ -38,7 +38,6 @@ interface DashboardOverviewProps {
   onNavigateToAgents: () => void;
   onNavigateToChat: () => void;
   onNavigateToMarketing: () => void;
-  deploymentMode?: 'production' | 'trial';
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -54,9 +53,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onNavigateToAgents,
   onNavigateToChat,
   onNavigateToMarketing,
-  deploymentMode = 'production',
 }) => {
-  const isTrialMode = deploymentMode === 'trial';
   const totalRevenue = transactions.reduce(
     (sum, t) => sum + (t.status === 'Completado' ? t.amount : 0),
     0,
@@ -84,18 +81,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 className="w-3.5 h-3.5 text-cyan-300 animate-spin"
                 style={{ animationDuration: '5s' }}
               />
-              <span>
-                CRM comercial multiempresa · {isTrialMode ? 'Modo prueba' : 'Versión original'}
-              </span>
+              <span>CRM comercial multiempresa · Datos de demostración</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Panel Ejecutivo de Inteligencia Comercial
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl">
               Plataforma configurable para administrar prospectos, productos, servicios y ventas.
-              {isTrialMode
-                ? ' Estás viendo un entorno de prueba seguro para ensayar campañas, agentes y cobros.'
-                : ' Entorno principal listo para operar y conectar integraciones externas reales.'}
+              Las integraciones externas permanecen en modo demostración hasta ser configuradas.
             </p>
           </div>
 
@@ -124,7 +117,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-blue-500/50 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {isTrialMode ? 'Cobros de Prueba' : 'Cobros Confirmados'}
+              Cobros Confirmados Demo
             </span>
             <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
               <DollarSign className="w-5 h-5" />
@@ -136,11 +129,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </span>
             <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium mt-1">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {isTrialMode
-                  ? 'Pagos simulados sin pasarela real conectada'
-                  : 'Pagos registrados y listos para conciliación'}
-              </span>
+              <span>Pagos registrados sin pasarela real conectada</span>
             </div>
           </div>
         </div>
@@ -219,8 +208,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Flujo comercial completo del CRM
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              El CRM separa embudo, cotización, factura electrónica, cobro, seguimiento y licencias
-              por empresa.
+              La demo ya separa embudo, cotización, factura electrónica, cobro, seguimiento y
+              licencias por empresa.
             </p>
           </div>
           <button
@@ -242,7 +231,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             { title: '3. Cotización', value: `${quotes.length} emitidas`, tone: 'text-amber-300' },
             {
               title: '4. Factura e-CF',
-              value: `${electronicInvoices.length} e-CF`,
+              value: `${electronicInvoices.length} demo`,
               tone: 'text-cyan-300',
             },
             {
@@ -322,7 +311,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <span>
               Disponibilidad: <strong className="text-emerald-400">24/7 configurable</strong>
             </span>
-            <span className="text-cyan-400 font-semibold">{agents.length} especialistas</span>
+            <span className="text-cyan-400 font-semibold">5 Especialistas</span>
           </div>
         </div>
 
@@ -332,11 +321,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-amber-400 animate-pulse" />
               <h2 className="text-base font-bold text-white">
-                Feed de Operaciones Comerciales
+                Feed de Operaciones Comerciales Demo
               </h2>
             </div>
             <span className="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">
-              {isTrialMode ? 'Datos de prueba' : 'Datos operativos'} · WebSockets pendiente
+              Datos demo · WebSockets pendiente
             </span>
           </div>
 
@@ -348,7 +337,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-emerald-300">
-                    Venta Cerrada & Factura e-CF Emitida
+                    Venta Cerrada & Factura Demo Emitida
                   </span>
                   <span className="text-[10px] text-slate-500">Hace 2 minutos</span>
                 </div>
@@ -360,7 +349,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
                   <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                    Recibo: REC-INTECA-2026-0001
+                    Recibo demo: REC-INTECA-2026-0001
                   </span>
                   <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 text-amber-400">
                     Validación pendiente
@@ -419,7 +408,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Catálogo de Productos, Servicios y Programas
             </h2>
           </div>
-          <span className="text-xs text-slate-400">Catálogo configurable por empresa</span>
+          <span className="text-xs text-slate-400">Catálogo demo configurable por empresa</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

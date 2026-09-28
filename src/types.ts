@@ -115,19 +115,7 @@ export interface ConversationMessage {
   sender: 'lead' | 'ai_agent' | 'human_user';
   agentName?: string;
   channel:
-    | 'WhatsApp'
-    | 'WebChat'
-    | 'Email'
-    | 'Instagram'
-    | 'Messenger'
-    | 'Telegram'
-    | 'SMS'
-    | 'CallNote'
-    | 'Facebook Lead Ads'
-    | 'Meta Ads'
-    | 'Google Ads'
-    | 'YouTube'
-    | 'Web Form';
+    'WhatsApp' | 'WebChat' | 'Email' | 'Instagram' | 'Messenger' | 'Telegram' | 'SMS' | 'CallNote';
   messageType: 'text' | 'audio' | 'image' | 'pdf' | 'payment_link' | 'video';
   content: string;
   mediaUrl?: string;
@@ -187,25 +175,7 @@ export interface AIAgentSpec {
   name: string;
   roleTitle: string;
   specialty:
-    | 'Estrategia'
-    | 'Cierre'
-    | 'Marketing'
-    | 'Publicidad'
-    | 'Embudos'
-    | 'Prospección'
-    | 'Ventas'
-    | 'CRO'
-    | 'WhatsApp'
-    | 'Copywriting'
-    | 'Recuperación'
-    | 'Soporte'
-    | 'Omnicanal'
-    | 'Creativos'
-    | 'Video'
-    | 'Facturación'
-    | 'Contabilidad'
-    | 'Lanzamientos'
-    | 'Operaciones';
+    'Estrategia' | 'Cierre' | 'Marketing' | 'WhatsApp' | 'Copywriting' | 'Recuperación' | 'Soporte';
   avatar: string;
   description: string;
   systemPrompt: string;
@@ -236,15 +206,7 @@ export interface AIAgentSpec {
 export interface MarketingCampaign {
   id: string;
   title: string;
-  channel:
-    | 'WhatsApp'
-    | 'Email'
-    | 'SMS'
-    | 'Facebook/Instagram'
-    | 'TikTok'
-    | 'Google Ads'
-    | 'YouTube'
-    | 'Omnicanal';
+  channel: 'WhatsApp' | 'Email' | 'SMS' | 'Facebook/Instagram' | 'TikTok';
   status: 'Borrador' | 'Programada' | 'En Ejecución' | 'Completada';
   targetSegment: string;
   sentCount: number;
@@ -354,46 +316,11 @@ export interface CommercialQuote {
   items: QuoteLineItem[];
 }
 
-export interface FiscalParty {
-  legalName: string;
-  taxId: string;
-  fiscalAddress: string;
-  commercialName?: string;
-  email?: string;
-  phone?: string;
-}
-
-export interface EcfLineItem {
-  id: string;
-  quantity: number;
-  description: string;
-  unitPrice: number;
-  discountAmount: number;
-  taxableAmount: number;
-  exemptAmount: number;
-  itbisAmount: number;
-  iscAmount?: number;
-  otherTaxAmount?: number;
-  total: number;
-}
-
-export interface EcfTaxBreakdown {
-  taxableAmount: number;
-  exemptAmount: number;
-  itbisRate: number;
-  itbisAmount: number;
-  iscAmount: number;
-  otherChargesAmount: number;
-  grandTotal: number;
-}
-
 export interface ElectronicInvoice {
   id: string;
   organizationId: string;
   transactionId?: string;
   quoteId?: string;
-  issuer: FiscalParty;
-  receiver: FiscalParty;
   customerName: string;
   customerTaxId: string;
   fiscalType: InvoiceFiscalType;
@@ -408,94 +335,7 @@ export interface ElectronicInvoice {
   issuedAt: string;
   dueDate: string;
   paymentStatus: 'Pendiente' | 'Pagada' | 'Parcial' | 'Anulada';
-  lineItems: EcfLineItem[];
-  taxBreakdown: EcfTaxBreakdown;
-  xmlStatus: 'Pendiente generar' | 'XML generado' | 'Firmado' | 'Enviado' | 'Aceptado' | 'Rechazado';
-  pdfStatus: 'Pendiente generar' | 'Representación PDF generada' | 'Enviada al cliente';
-  digitalSignatureHash: string;
-  qrVerificationUrl: string;
-  qrPayload: string;
   auditTrail: string[];
-}
-
-export type AccountingReportType =
-  | 'Estado de resultados'
-  | 'Balance general'
-  | 'Estado de flujo de efectivo';
-
-export interface AccountingReport {
-  id: string;
-  organizationId: string;
-  type: AccountingReportType;
-  period: string;
-  status: 'Generado' | 'En revisión' | 'Pendiente datos' | 'Aprobado';
-  generatedByAgentId: string;
-  highlights: string[];
-  totals: {
-    ingresos?: number;
-    costos?: number;
-    gastos?: number;
-    utilidadNeta?: number;
-    activos?: number;
-    pasivos?: number;
-    patrimonio?: number;
-    entradasEfectivo?: number;
-    salidasEfectivo?: number;
-    flujoNeto?: number;
-  };
-  nifReference?: string;
-  nextAction: string;
-}
-
-export interface PurchaseRequest {
-  id: string;
-  organizationId: string;
-  requestNumber: string;
-  supplierName: string;
-  requesterName: string;
-  description: string;
-  amount: number;
-  currency: string;
-  status: 'Borrador' | 'Solicitada' | 'En revisión' | 'Aprobada' | 'Recibida' | 'Rechazada';
-  requiredBy: string;
-}
-
-export interface CashReceipt {
-  id: string;
-  organizationId: string;
-  receiptNumber: string;
-  payerName: string;
-  concept: string;
-  amount: number;
-  currency: string;
-  paymentMethod: 'Efectivo' | 'Transferencia' | 'Tarjeta' | 'Cheque';
-  receivedAt: string;
-  linkedTransactionId?: string;
-}
-
-export interface BankReconciliation {
-  id: string;
-  organizationId: string;
-  bankName: string;
-  accountMask: string;
-  period: string;
-  internalBalance: number;
-  bankStatementBalance: number;
-  difference: number;
-  status: 'Cuadrada' | 'Diferencia pendiente' | 'En revisión';
-  pendingItems: string[];
-}
-
-export interface DailyInventoryReport {
-  id: string;
-  organizationId: string;
-  reportDate: string;
-  itemName: string;
-  openingStock: number;
-  entries: number;
-  exits: number;
-  closingStock: number;
-  alertLevel: 'Normal' | 'Bajo' | 'Crítico';
 }
 
 export interface LicensePlan {
@@ -545,134 +385,10 @@ export interface UserProfile {
   avatarUrl: string;
 }
 
-export interface CRMAuthSession {
-  mode: 'real' | 'demo';
-  userName: string;
-  email: string;
-  role: UserRole;
-  organizationName: string;
-  token: string;
-  loginAt: string;
-}
-
 export interface FunnelStageConfig {
   id: FunnelStageId;
   name: string;
   color: string;
   order: number;
   autoActionPrompt?: string;
-}
-
-export type IntegrationStatus =
-  | 'Listo para conectar'
-  | 'Requiere credenciales'
-  | 'Webhook preparado'
-  | 'Conectado'
-  | 'Producción pendiente'
-  | 'Modo demo';
-
-export type IntegrationCategory =
-  | 'Mensajería'
-  | 'Social Ads'
-  | 'Buscadores'
-  | 'Video'
-  | 'Pagos'
-  | 'Facturación'
-  | 'Creativos'
-  | 'Notificaciones'
-  | 'Web';
-
-export interface ExternalIntegration {
-  id: string;
-  name: string;
-  category: IntegrationCategory;
-  status: IntegrationStatus;
-  inboundWebhookPath?: string;
-  outboundCapability: string;
-  requiredEnvVars: string[];
-  ownerAgentId: string;
-  setupNotes: string[];
-}
-
-export type CreativeAssetType = 'Flyer' | 'Video 30s' | 'Video 60s' | 'Carrusel' | 'Landing Hero';
-
-export interface CreativeAsset {
-  id: string;
-  title: string;
-  type: CreativeAssetType;
-  courseId: string;
-  campaignObjective: string;
-  targetAudience: string;
-  status: 'Brief listo' | 'Pendiente generar' | 'En revisión' | 'Aprobado para pauta';
-  imagePrompt?: string;
-  videoScript?: string[];
-  copyBlocks: string[];
-  assignedAgentId: string;
-}
-
-export interface LaunchCampaignPlan {
-  id: string;
-  courseId: string;
-  launchName: string;
-  launchDate: string;
-  relaunchDate?: string;
-  budgetDop: number;
-  dailySalesGoal: number;
-  status: 'Planificado' | 'Preparando audiencia' | 'En promoción' | 'Relanzamiento' | 'Cerrado';
-  channels: MarketingCampaign['channel'][];
-  automationCadence: string[];
-  ownerCheckpoints: string[];
-}
-
-export interface OwnerActionNotification {
-  id: string;
-  priority: 'Alta' | 'Media' | 'Baja';
-  type: 'Llamada requerida' | 'Pago recibido' | 'Bloqueo operativo' | 'Factura pendiente' | 'Campaña lista';
-  title: string;
-  leadName?: string;
-  leadPhone?: string;
-  leadEmail?: string;
-  recommendedAction: string;
-  dueAt: string;
-  assignedAgentId: string;
-  status: 'Pendiente' | 'Notificado' | 'Resuelto';
-}
-
-export interface AuditLogEntry {
-  id: string;
-  timestamp: string;
-  actorType: 'Sistema' | 'Agente IA' | 'Usuario' | 'Webhook' | 'Integración';
-  actorName: string;
-  module:
-    | 'Leads'
-    | 'Chat'
-    | 'Agentes'
-    | 'Marketing'
-    | 'Creativos'
-    | 'Lanzamientos'
-    | 'Pagos'
-    | 'Facturación'
-    | 'Contabilidad'
-    | 'Integraciones'
-    | 'Auditoría'
-    | 'Seguridad';
-  action:
-    | 'Creó'
-    | 'Actualizó'
-    | 'Respondió'
-    | 'Calificó'
-    | 'Programó'
-    | 'Generó'
-    | 'Recibió'
-    | 'Validó'
-    | 'Escaló'
-    | 'Notificó'
-    | 'Falló';
-  entityType: string;
-  entityId?: string;
-  summary: string;
-  details: string;
-  sourceChannel?: ConversationMessage['channel'] | LeadSource | 'Sistema' | 'API';
-  severity: 'Info' | 'Éxito' | 'Advertencia' | 'Crítico';
-  status: 'Registrado' | 'Pendiente revisión' | 'Resuelto';
 }

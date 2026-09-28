@@ -186,7 +186,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
             </div>
 
             <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">
-              ● {qrConnected ? 'Conectado' : 'Desconectado'}
+              ● {qrConnected ? 'Demo conectado' : 'Desconectado'}
             </span>
           </div>
 

@@ -1,7 +1,7 @@
 {
   "name": "sales-ai-crm",
   "private": true,
-  "version": "1.2.1-enterprise",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",

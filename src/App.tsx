@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { PlatformFrame } from './components/PlatformFrame';
 import { Sidebar, NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
-import { AuthGate } from './components/AuthGate';
 
 // View Modules
 import { DashboardOverview } from './components/DashboardOverview';
@@ -12,13 +11,9 @@ import { AIAgentsCommand } from './components/AIAgentsCommand';
 import { CoursesManager } from './components/CoursesManager';
 import { SalesFunnelsEditor } from './components/SalesFunnelsEditor';
 import { MarketingAutomation } from './components/MarketingAutomation';
-import { GrowthRevenueCommandCenter } from './components/GrowthRevenueCommandCenter';
-import { AutonomousGrowthOps } from './components/AutonomousGrowthOps';
 import { PaymentsInvoicing } from './components/PaymentsInvoicing';
-import { AccountingAutopilot } from './components/AccountingAutopilot';
 import { DocumentVault } from './components/DocumentVault';
 import { PredictiveAnalytics } from './components/PredictiveAnalytics';
-import { AuditTrailCenter } from './components/AuditTrailCenter';
 import { MultiTenantSettings } from './components/MultiTenantSettings';
 import { ManualsDocumentationModal } from './components/ManualsDocumentationModal';
 
@@ -37,16 +32,6 @@ import {
   INITIAL_ELECTRONIC_INVOICES,
   INITIAL_LICENSE_PLANS,
   INITIAL_TENANT_LICENSES,
-  EXTERNAL_INTEGRATIONS_READINESS,
-  INITIAL_CREATIVE_ASSETS,
-  INITIAL_LAUNCH_PLANS,
-  INITIAL_OWNER_ACTIONS,
-  INITIAL_AUDIT_LOG,
-  INITIAL_ACCOUNTING_REPORTS,
-  INITIAL_PURCHASE_REQUESTS,
-  INITIAL_CASH_RECEIPTS,
-  INITIAL_BANK_RECONCILIATIONS,
-  INITIAL_DAILY_INVENTORY_REPORTS,
 } from './data/initialData';
 
 import {
@@ -64,47 +49,9 @@ import {
   ElectronicInvoice,
   LicensePlan,
   TenantLicense,
-  AuditLogEntry,
-  AccountingReport,
-  PurchaseRequest,
-  CashReceipt,
-  BankReconciliation,
-  DailyInventoryReport,
-  CRMAuthSession,
 } from './types';
 
-const AUTH_SESSION_STORAGE_KEY = 'sales-ai-crm-auth-session-v121';
-const THEME_STORAGE_KEY = 'sales-ai-crm-theme';
-type ThemeMode = 'dark' | 'light';
-
 export function App() {
-  const deploymentMode =
-    ((import.meta.env.VITE_DEPLOYMENT_MODE as 'production' | 'trial' | undefined) ||
-      'production');
-
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    try {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored === 'light' || stored === 'dark') return stored;
-    } catch (error) {
-      console.warn('No se pudo cargar el tema local:', error);
-    }
-    return 'dark';
-  });
-
-  const [authSession, setAuthSession] = useState<CRMAuthSession | null>(() => {
-    try {
-      const stored = sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY);
-      if (stored) return JSON.parse(stored) as CRMAuthSession;
-    } catch (error) {
-      console.warn('No se pudo cargar la sesión local:', error);
-    }
-    return null;
-  });
-
-  const effectiveDeploymentMode = authSession?.mode === 'demo' ? 'trial' : deploymentMode;
-  const isTrialMode = effectiveDeploymentMode === 'trial';
-
   // Navigation active tab
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
 
@@ -114,29 +61,6 @@ export function App() {
   // Multi-tenant organization & user state
   const [currentOrg, setCurrentOrg] = useState<OrganizationTenant>(INITIAL_ORGANIZATIONS[0]);
   const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_USERS[0]);
-
-  const handleAuthenticated = (session: CRMAuthSession) => {
-    setAuthSession(session);
-    setCurrentUser((prev) => ({
-      ...prev,
-      name: session.userName,
-      email: session.email,
-      role: session.role,
-    }));
-    setActiveTab('dashboard');
-  };
-
-  const handleLogout = () => {
-    void fetch('/api/auth/logout', { method: 'POST' }).catch((error) =>
-      console.warn('No se pudo notificar cierre de sesión al servidor:', error),
-    );
-    setAuthSession(null);
-    setActiveTab('dashboard');
-  };
-
-  const handleToggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
 
   // Master Data States
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -150,20 +74,6 @@ export function App() {
   const [electronicInvoices] = useState<ElectronicInvoice[]>(INITIAL_ELECTRONIC_INVOICES);
   const [licensePlans] = useState<LicensePlan[]>(INITIAL_LICENSE_PLANS);
   const [tenantLicenses] = useState<TenantLicense[]>(INITIAL_TENANT_LICENSES);
-  const [accountingReports] = useState<AccountingReport[]>(INITIAL_ACCOUNTING_REPORTS);
-  const [purchaseRequests] = useState<PurchaseRequest[]>(INITIAL_PURCHASE_REQUESTS);
-  const [cashReceipts] = useState<CashReceipt[]>(INITIAL_CASH_RECEIPTS);
-  const [bankReconciliations] = useState<BankReconciliation[]>(INITIAL_BANK_RECONCILIATIONS);
-  const [dailyInventoryReports] = useState<DailyInventoryReport[]>(INITIAL_DAILY_INVENTORY_REPORTS);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
-    try {
-      const stored = localStorage.getItem('sales-ai-crm-audit-log');
-      if (stored) return JSON.parse(stored) as AuditLogEntry[];
-    } catch (error) {
-      console.warn('No se pudo cargar auditoría local:', error);
-    }
-    return INITIAL_AUDIT_LOG;
-  });
 
   // Active Lead for Chat Studio
   const [selectedLeadForChat, setSelectedLeadForChat] = useState<Lead>(INITIAL_LEADS[0]);
@@ -171,77 +81,9 @@ export function App() {
   // Modal Documentation State
   const [isDocumentationModalOpen, setIsDocumentationModalOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      document.documentElement.dataset.theme = theme;
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch (error) {
-      console.warn('No se pudo guardar el tema local:', error);
-    }
-  }, [theme]);
-
-  useEffect(() => {
-    try {
-      if (authSession) {
-        sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(authSession));
-      } else {
-        sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-      }
-    } catch (error) {
-      console.warn('No se pudo guardar la sesión local:', error);
-    }
-  }, [authSession]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('sales-ai-crm-audit-log', JSON.stringify(auditLogs.slice(0, 1000)));
-    } catch (error) {
-      console.warn('No se pudo guardar auditoría local:', error);
-    }
-  }, [auditLogs]);
-
-  if (!authSession) {
-    return (
-      <AuthGate
-        deploymentMode={deploymentMode}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
-        onAuthenticated={handleAuthenticated}
-      />
-    );
-  }
-
-  const recordAudit = (entry: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
-    const randomPart =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID().slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
-
-    const newEntry: AuditLogEntry = {
-      id: `audit_${Date.now()}_${randomPart}`,
-      timestamp: new Date().toISOString(),
-      ...entry,
-    };
-
-    setAuditLogs((prev) => [newEntry, ...prev].slice(0, 1000));
-  };
-
   // Handlers
   const handleAddLead = (newLead: Lead) => {
     setLeads((prev) => [newLead, ...prev]);
-    recordAudit({
-      actorType: 'Usuario',
-      actorName: currentUser.name,
-      module: 'Leads',
-      action: 'Creó',
-      entityType: 'Lead',
-      entityId: newLead.id,
-      summary: `Lead creado: ${newLead.firstName} ${newLead.lastName}`,
-      details: `Fuente: ${newLead.source}. Curso de interés: ${newLead.courseOfInterestId}. Asignado a ${newLead.assignedAgentId}.`,
-      sourceChannel: newLead.source,
-      severity: 'Info',
-      status: 'Registrado',
-    });
   };
 
   const handleUpdateLead = (updatedLead: Lead) => {
@@ -249,19 +91,6 @@ export function App() {
     if (selectedLeadForChat.id === updatedLead.id) {
       setSelectedLeadForChat(updatedLead);
     }
-    recordAudit({
-      actorType: 'Sistema',
-      actorName: 'Sales AI CRM',
-      module: 'Leads',
-      action: 'Actualizó',
-      entityType: 'Lead',
-      entityId: updatedLead.id,
-      summary: `Lead actualizado: ${updatedLead.firstName} ${updatedLead.lastName}`,
-      details: `Etapa: ${updatedLead.stageId}. Estado: ${updatedLead.status}. Probabilidad: ${updatedLead.buyProbability}%.`,
-      sourceChannel: updatedLead.source,
-      severity: 'Info',
-      status: 'Registrado',
-    });
   };
 
   const handleOpenChatWithLead = (lead: Lead) => {
@@ -271,87 +100,22 @@ export function App() {
 
   const handleUpdateAgent = (updatedAgent: AIAgentSpec) => {
     setAgents((prev) => prev.map((a) => (a.id === updatedAgent.id ? updatedAgent : a)));
-    recordAudit({
-      actorType: 'Usuario',
-      actorName: currentUser.name,
-      module: 'Agentes',
-      action: 'Actualizó',
-      entityType: 'AIAgentSpec',
-      entityId: updatedAgent.id,
-      summary: `Agente actualizado: ${updatedAgent.name}`,
-      details: `Especialidad: ${updatedAgent.specialty}. Estado: ${updatedAgent.status}. Nivel de autonomía: ${updatedAgent.autonomyLevel || 'Supervisado'}.`,
-      sourceChannel: 'Sistema',
-      severity: 'Info',
-      status: 'Registrado',
-    });
   };
 
   const handleAddCourse = (newCourse: Course) => {
     setCourses((prev) => [...prev, newCourse]);
-    recordAudit({
-      actorType: 'Usuario',
-      actorName: currentUser.name,
-      module: 'Lanzamientos',
-      action: 'Creó',
-      entityType: 'Course',
-      entityId: newCourse.id,
-      summary: `Producto/curso creado: ${newCourse.title}`,
-      details: `Categoría: ${newCourse.category}. Precio: ${newCourse.price}. Estado: ${newCourse.status}.`,
-      sourceChannel: 'Sistema',
-      severity: 'Info',
-      status: 'Registrado',
-    });
   };
 
   const handleUpdateCourse = (updatedCourse: Course) => {
     setCourses((prev) => prev.map((c) => (c.id === updatedCourse.id ? updatedCourse : c)));
-    recordAudit({
-      actorType: 'Usuario',
-      actorName: currentUser.name,
-      module: 'Lanzamientos',
-      action: 'Actualizó',
-      entityType: 'Course',
-      entityId: updatedCourse.id,
-      summary: `Producto/curso actualizado: ${updatedCourse.title}`,
-      details: `Estado: ${updatedCourse.status}. Horario: ${updatedCourse.schedule}. Promociones: ${(updatedCourse.activePromotions || []).join(', ') || 'ninguna'}.`,
-      sourceChannel: 'Sistema',
-      severity: 'Info',
-      status: 'Registrado',
-    });
   };
 
   const handleAddCampaign = (newCampaign: MarketingCampaign) => {
     setCampaigns((prev) => [newCampaign, ...prev]);
-    recordAudit({
-      actorType: 'Agente IA',
-      actorName: 'Camila Growth Copy',
-      module: 'Marketing',
-      action: 'Generó',
-      entityType: 'MarketingCampaign',
-      entityId: newCampaign.id,
-      summary: `Campaña generada: ${newCampaign.title}`,
-      details: `Canal: ${newCampaign.channel}. Segmento: ${newCampaign.targetSegment}. Estado: ${newCampaign.status}.`,
-      sourceChannel: newCampaign.channel === 'Google Ads' ? 'Google Ads' : 'Meta Ads',
-      severity: 'Éxito',
-      status: 'Registrado',
-    });
   };
 
   const handleAddTransaction = (newTx: PaymentTransaction) => {
     setTransactions((prev) => [newTx, ...prev]);
-    recordAudit({
-      actorType: 'Agente IA',
-      actorName: 'Sofía e-CF',
-      module: 'Pagos',
-      action: newTx.status === 'Completado' ? 'Validó' : 'Creó',
-      entityType: 'PaymentTransaction',
-      entityId: newTx.id,
-      summary: `Pago ${newTx.status.toLowerCase()}: ${newTx.leadName}`,
-      details: `Curso/servicio: ${newTx.courseTitle}. Monto: ${newTx.currency} ${newTx.amount}. Gateway: ${newTx.gateway}. Referencia: ${newTx.transactionRef}.`,
-      sourceChannel: 'Sistema',
-      severity: newTx.status === 'Completado' ? 'Éxito' : 'Advertencia',
-      status: newTx.status === 'Pendiente' ? 'Pendiente revisión' : 'Registrado',
-    });
   };
 
   // Real-time Chat AI Messaging Handler via Express Backend
@@ -380,19 +144,6 @@ export function App() {
     };
 
     handleUpdateLead(updatedWithUser);
-    recordAudit({
-      actorType: isHumanOverride ? 'Usuario' : 'Webhook',
-      actorName: isHumanOverride ? currentUser.name : 'Entrada omnicanal',
-      module: 'Chat',
-      action: 'Recibió',
-      entityType: 'ConversationMessage',
-      entityId: userMsg.id,
-      summary: `Mensaje recibido de ${targetLead.firstName} ${targetLead.lastName}`,
-      details: messageContent,
-      sourceChannel: 'WhatsApp',
-      severity: 'Info',
-      status: 'Registrado',
-    });
 
     // 2. Call backend server-side Gemini AI agent
     try {
@@ -442,34 +193,8 @@ export function App() {
       };
 
       handleUpdateLead(updatedWithAI);
-      recordAudit({
-        actorType: 'Agente IA',
-        actorName: assignedAgent.name,
-        module: 'Chat',
-        action: 'Respondió',
-        entityType: 'ConversationMessage',
-        entityId: aiMsg.id,
-        summary: `Respuesta generada para ${targetLead.firstName} ${targetLead.lastName}`,
-        details: replyText,
-        sourceChannel: 'WhatsApp',
-        severity: 'Éxito',
-        status: 'Registrado',
-      });
     } catch (err) {
       console.error('Error getting AI reply:', err);
-      recordAudit({
-        actorType: 'Sistema',
-        actorName: 'Sales AI CRM',
-        module: 'Chat',
-        action: 'Falló',
-        entityType: 'AIReply',
-        entityId: leadId,
-        summary: `Fallo generando respuesta para ${targetLead.firstName} ${targetLead.lastName}`,
-        details: err instanceof Error ? err.message : 'Error desconocido al generar respuesta IA.',
-        sourceChannel: 'WhatsApp',
-        severity: 'Crítico',
-        status: 'Pendiente revisión',
-      });
     }
   };
 
@@ -506,9 +231,7 @@ export function App() {
       agentName: 'Valeria Sotomayor (Closer IA)',
       channel: 'WhatsApp' as const,
       messageType: 'payment_link' as const,
-      content: isTrialMode
-        ? `Se creó una solicitud de pago de prueba por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o conectar una pasarela con webhook real.`
-        : `Se creó una solicitud de pago por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o recibir confirmación de una pasarela con webhook real.`,
+      content: `Se creó una solicitud de pago en modo demostración por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o conectar una pasarela con webhook real.`,
       timestamp: new Date().toISOString(),
     };
 
@@ -534,7 +257,6 @@ export function App() {
           leadsCount={leads.length}
           activeAgentsCount={agents.filter((a) => a.status === 'Activo').length}
           pendingPaymentsCount={transactions.filter((t) => t.status === 'Pendiente').length}
-          deploymentMode={effectiveDeploymentMode}
         />
 
         {/* Right Main Content Panel */}
@@ -548,12 +270,7 @@ export function App() {
             onOrgChange={setCurrentOrg}
             currentUser={currentUser}
             onRoleChange={(newRole) => setCurrentUser((prev) => ({ ...prev, role: newRole }))}
-            isDarkMode={theme === 'dark'}
-            onToggleTheme={handleToggleTheme}
             onOpenDocumentation={() => setIsDocumentationModalOpen(true)}
-            deploymentMode={effectiveDeploymentMode}
-            authSession={authSession}
-            onLogout={handleLogout}
           />
 
           {/* Dynamic View Container */}
@@ -572,7 +289,6 @@ export function App() {
                 onNavigateToAgents={() => setActiveTab('agents')}
                 onNavigateToChat={() => setActiveTab('chat')}
                 onNavigateToMarketing={() => setActiveTab('marketing')}
-                deploymentMode={effectiveDeploymentMode}
               />
             )}
 
@@ -627,21 +343,6 @@ export function App() {
               />
             )}
 
-            {activeTab === 'growth' && (
-              <GrowthRevenueCommandCenter agents={agents} courses={courses} />
-            )}
-
-            {activeTab === 'operations' && (
-              <AutonomousGrowthOps
-                integrations={EXTERNAL_INTEGRATIONS_READINESS}
-                creativeAssets={INITIAL_CREATIVE_ASSETS}
-                launchPlans={INITIAL_LAUNCH_PLANS}
-                ownerActions={INITIAL_OWNER_ACTIONS}
-                agents={agents}
-                courses={courses}
-              />
-            )}
-
             {activeTab === 'payments' && (
               <PaymentsInvoicing
                 transactions={transactions}
@@ -651,25 +352,12 @@ export function App() {
                 quotes={quotes}
                 electronicInvoices={electronicInvoices}
                 onAddTransaction={handleAddTransaction}
-                deploymentMode={effectiveDeploymentMode}
-              />
-            )}
-
-            {activeTab === 'accounting' && (
-              <AccountingAutopilot
-                reports={accountingReports}
-                purchaseRequests={purchaseRequests}
-                cashReceipts={cashReceipts}
-                bankReconciliations={bankReconciliations}
-                inventoryReports={dailyInventoryReports}
               />
             )}
 
             {activeTab === 'documents' && <DocumentVault leads={leads} />}
 
             {activeTab === 'analytics' && <PredictiveAnalytics leads={leads} courses={courses} />}
-
-            {activeTab === 'audit' && <AuditTrailCenter auditLogs={auditLogs} />}
 
             {activeTab === 'settings' && (
               <MultiTenantSettings

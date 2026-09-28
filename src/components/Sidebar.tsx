@@ -7,18 +7,14 @@ import {
   GraduationCap,
   GitMerge,
   Megaphone,
-  Rocket,
   CreditCard,
-  Calculator,
   FolderLock,
   BarChart3,
-  History,
   Settings,
   ChevronLeft,
   ChevronRight,
   Sparkles,
   Zap,
-  Workflow,
 } from 'lucide-react';
 
 export type NavTab =
@@ -29,13 +25,9 @@ export type NavTab =
   | 'courses'
   | 'funnels'
   | 'marketing'
-  | 'growth'
-  | 'operations'
   | 'payments'
-  | 'accounting'
   | 'documents'
   | 'analytics'
-  | 'audit'
   | 'settings';
 
 interface SidebarProps {
@@ -44,7 +36,6 @@ interface SidebarProps {
   leadsCount: number;
   activeAgentsCount: number;
   pendingPaymentsCount: number;
-  deploymentMode?: 'production' | 'trial';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,10 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   leadsCount,
   activeAgentsCount,
   pendingPaymentsCount,
-  deploymentMode = 'production',
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const isTrialMode = deploymentMode === 'trial';
 
   const navItems = [
     {
@@ -106,32 +95,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
     },
     {
-      id: 'growth' as NavTab,
-      label: 'Marketing, Ads & Ventas',
-      icon: Rocket,
-      badge: 'Growth',
-      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-    },
-    {
-      id: 'operations' as NavTab,
-      label: 'Operación Autónoma',
-      icon: Workflow,
-      badge: '24/7',
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-    },
-    {
       id: 'payments' as NavTab,
       label: 'Pasarelas & Facturación',
       icon: CreditCard,
       badge: pendingPaymentsCount > 0 ? `${pendingPaymentsCount}` : null,
       badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-    },
-    {
-      id: 'accounting' as NavTab,
-      label: 'Contabilidad Autónoma',
-      icon: Calculator,
-      badge: 'IA',
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
     },
     {
       id: 'documents' as NavTab,
@@ -145,13 +113,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: BarChart3,
       badge: 'ROI',
       badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-    },
-    {
-      id: 'audit' as NavTab,
-      label: 'Auditoría & Historial',
-      icon: History,
-      badge: 'Log',
-      badgeColor: 'bg-slate-700/60 text-slate-200 border-slate-600',
     },
     {
       id: 'settings' as NavTab,
@@ -233,11 +194,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3 border-t border-slate-800 text-[11px] bg-slate-950/50">
           <div className="flex items-center gap-2 text-emerald-400 font-medium mb-1">
             <Zap className="w-3.5 h-3.5" />
-            <span>IA Comercial: {isTrialMode ? 'Prueba segura' : 'Producción activa'}</span>
+            <span>IA Comercial: Demo segura</span>
           </div>
-          <p className="text-slate-500 text-[10px]">
-            SALES AI CRM • {isTrialMode ? 'Modo prueba' : 'Versión original'}
-          </p>
+          <p className="text-slate-500 text-[10px]">SALES AI CRM • Versión demostrativa</p>
         </div>
       )}
     </aside>

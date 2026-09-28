@@ -21,23 +21,14 @@ interface MarketingAutomationProps {
   onAddCampaign: (campaign: MarketingCampaign) => void;
 }
 
-type ContentType =
-  | 'WhatsApp'
-  | 'Email'
-  | 'Meta Ads'
-  | 'Google Ads'
-  | 'YouTube'
-  | 'Landing Page'
-  | 'Flyer'
-  | 'Video 30s'
-  | 'Video 60s';
-
 export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   campaigns,
   courses,
   onAddCampaign,
 }) => {
-  const [contentType, setContentType] = useState<ContentType>('WhatsApp');
+  const [contentType, setContentType] = useState<
+    'WhatsApp' | 'Email' | 'Meta Ads' | 'Landing Page'
+  >('WhatsApp');
   const [targetAudience, setTargetAudience] = useState(
     'Personas en República Dominicana que quieren trabajar en ARS, clínicas, call center de salud o servicio al usuario en salud',
   );
@@ -90,18 +81,6 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
         callToAction: 'Reservar Vacante con Beca 40%',
         suggestedImagePrompt:
           'A high-converting Dominican healthcare training ad, confident student in medical authorization call center, clear job opportunity message, modern clean layout',
-        flyerSpec: {
-          headline: `Aprende ${selectedCourse?.title} y entra al sector salud con una habilidad práctica`,
-          visual:
-            'Call center de salud moderno con estudiante usando headset, logo de INTECA visible y CTA de WhatsApp.',
-          requiredElements: ['Logo INTECA', 'Oferta autorizada', 'Beneficio laboral', 'WhatsApp CTA'],
-        },
-        videoScript: [
-          '0-3s: ¿Quieres trabajar en salud sin ser médico ni enfermera?',
-          '4-15s: Aprende procesos reales de autorizaciones, coberturas y atención al usuario.',
-          '16-25s: Prepárate para ARS, clínicas y call centers de salud.',
-          '26-30s: Escribe QUIERO MI CUPO y reserva hoy.',
-        ],
         funnelPlan: [
           'Adquisición: Meta Ads + WhatsApp con CTA único y público por interés laboral en salud.',
           'Conversión: respuesta en menos de 5 minutos, nota de voz, pensum, prueba social autorizada y enlace de pago.',
@@ -124,22 +103,15 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   const handleLaunchCampaign = () => {
     if (!generatedOutput) return;
 
-    const channelMap: Record<ContentType, MarketingCampaign['channel']> = {
-      WhatsApp: 'WhatsApp',
-      Email: 'Email',
-      'Meta Ads': 'Facebook/Instagram',
-      'Google Ads': 'Google Ads',
-      YouTube: 'YouTube',
-      'Landing Page': 'Omnicanal',
-      Flyer: 'Facebook/Instagram',
-      'Video 30s': 'YouTube',
-      'Video 60s': 'YouTube',
-    };
-
     const newCmp: MarketingCampaign = {
       id: `cmp_${Date.now()}`,
       title: generatedOutput.title || 'Campaña Lanzada',
-      channel: channelMap[contentType],
+      channel:
+        contentType === 'WhatsApp'
+          ? 'WhatsApp'
+          : contentType === 'Email'
+            ? 'Email'
+            : 'Facebook/Instagram',
       status: 'En Ejecución',
       targetSegment: targetAudience,
       sentCount: 2500,
@@ -257,19 +229,7 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
                 Tipo de Canal / Contenido
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(
-                  [
-                    'WhatsApp',
-                    'Email',
-                    'Meta Ads',
-                    'Google Ads',
-                    'YouTube',
-                    'Landing Page',
-                    'Flyer',
-                    'Video 30s',
-                    'Video 60s',
-                  ] as const
-                ).map((type) => (
+                {(['WhatsApp', 'Email', 'Meta Ads', 'Landing Page'] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -437,46 +397,6 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
                     {generatedOutput.suggestedImagePrompt}
                   </p>
                 </div>
-
-                {generatedOutput.flyerSpec && (
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-2">
-                    <span className="text-[10px] text-purple-300 font-bold uppercase">
-                      Especificación del flyer
-                    </span>
-                    <p className="text-slate-300">
-                      <strong>Headline:</strong> {generatedOutput.flyerSpec.headline}
-                    </p>
-                    <p className="text-slate-400">
-                      <strong>Visual:</strong> {generatedOutput.flyerSpec.visual}
-                    </p>
-                    {generatedOutput.flyerSpec.requiredElements && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {generatedOutput.flyerSpec.requiredElements.map((element: string) => (
-                          <span
-                            key={element}
-                            className="text-[10px] bg-slate-900 border border-slate-800 text-slate-300 px-2 py-1 rounded"
-                          >
-                            {element}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {generatedOutput.videoScript && (
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-2">
-                    <span className="text-[10px] text-rose-300 font-bold uppercase">
-                      Guion de video 30-60s
-                    </span>
-                    {generatedOutput.videoScript.map((line: string) => (
-                      <div key={line} className="flex items-start gap-2 text-slate-300">
-                        <Video className="w-3.5 h-3.5 text-rose-300 mt-0.5 flex-shrink-0" />
-                        <span>{line}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {generatedOutput.funnelPlan && (
                   <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-2">

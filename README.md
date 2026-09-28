@@ -1,183 +1,34 @@
-# Sales AI CRM Enterprise
+# Sales AI CRM
 
-CRM comercial SaaS multiempresa para ventas, marketing, atencion omnicanal, agentes IA 24/7, cobros, facturacion electronica, auditoria e integraciones externas.
+Prototipo de CRM SaaS multiempresa para ventas, marketing y atención asistida por inteligencia artificial. INTECA es la primera organización de demostración, pero el núcleo se está preparando para negocios de cualquier sector.
 
-INTECA SRL queda configurada como empresa principal con licencia gratis permanente, pero el CRM esta disenado para vender licencias a cualquier tipo de negocio.
+## Estado actual
 
-## Que incluye
+- La interfaz funciona con datos de demostración guardados en memoria.
+- Los tres endpoints de IA usan Gemini cuando `GEMINI_API_KEY` está configurada.
+- Los pagos no procesan dinero: las solicitudes se conservan como pendientes.
+- WhatsApp, redes sociales, correo, facturación y almacenamiento todavía no están conectados.
+- El aislamiento multitenant mostrado en la interfaz aún no sustituye los controles que deben implementarse en la base de datos y el servidor.
 
-- Dashboard ejecutivo comercial.
-- Leads CRM 360 con embudo completo.
-- Agentes IA autonomos de ventas, marketing, publicidad, embudos, prospeccion, WhatsApp, creativos, video, facturacion, lanzamientos y operaciones.
-- Chat Sales Studio con respuesta IA usando Gemini cuando `GEMINI_API_KEY` esta configurada.
-- Catalogo de productos, servicios y cursos.
-- Embudos y workflows.
-- IA Marketing & Ads para Meta, Google, YouTube, WhatsApp, email y campanas omnicanal.
-- Cabina Marketing, Ads & Ventas para preparar nicho, ventaja injusta, oferta, anuncios, embudo maestro, guiones, objeciones, KPIs y escala.
-- Operacion Autonoma con conectores preparados para redes, anuncios, pagos y e-CF.
-- Pasarelas & Facturacion con cotizaciones, pagos, comprobantes y facturas e-CF.
-- Facturacion electronica e-CF completa con encabezado fiscal, e-NCF, detalle comercial, impuestos, XML, PDF, firma digital y QR.
-- Contabilidad Autonoma con agente IA para estados financieros, compras, recibos, conciliacion bancaria e inventario diario.
-- Auditoria & Historial para registrar acciones del sistema, usuarios, agentes, webhooks e integraciones.
-- Login real por defecto: el dashboard de produccion no abre hasta validar usuario y contrasena; la demo queda como boton separado.
-- Entrada y salida independiente: puedes cerrar sesion real, entrar a demo, salir de demo y volver al acceso real.
-- Tema claro/oscuro persistente en login y dentro del CRM.
-- Multiempresa, roles y licencia gratis permanente para INTECA.
-- Webhooks listos para WhatsApp Cloud API, Meta Lead Ads, Google Ads, YouTube, formularios web, pagos y DGII/e-CF.
-
-## Modos incluidos
-
-El mismo proyecto trae dos modos:
-
-- `production`: version original/real para operar y conectar plataformas externas.
-- `trial`: version de prueba segura para ensayar campanas, agentes, cobros y datos sin afectar operacion real.
-
-Render debe quedar asi para la version real:
-
-```env
-DEPLOYMENT_MODE=production
-VITE_DEPLOYMENT_MODE=production
-NODE_ENV=production
-```
-
-Para prueba controlada:
-
-```env
-DEPLOYMENT_MODE=trial
-VITE_DEPLOYMENT_MODE=trial
-NODE_ENV=production
-```
+No utilice esta versión para información o pagos reales.
 
 ## Desarrollo local
 
-Requisitos:
+Requisitos: Node.js 22 o una versión LTS compatible.
 
-- Node.js 22 LTS o compatible.
-- Git.
-- Cuenta de Gemini si quieres probar IA real.
+1. Ejecute `npm install`.
+2. Copie `.env.example` como `.env.local`.
+3. Configure una clave de desarrollo de Gemini si necesita probar la IA.
+4. Ejecute `npm run dev`.
+5. Abra `http://localhost:3000`.
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-```
+## Comprobaciones
 
-Abrir:
+- `npm run typecheck`: verifica TypeScript estricto.
+- `npm run lint`: ejecuta ESLint.
+- `npm run build`: genera frontend y servidor de producción.
+- `npm run check`: ejecuta todas las comprobaciones anteriores.
 
-```text
-http://localhost:3000
-```
+## Próxima fase
 
-## Build de produccion
-
-```bash
-npm run typecheck
-npm run build
-npm start
-```
-
-## Render
-
-Build Command:
-
-```bash
-npm ci && npm run build
-```
-
-Start Command:
-
-```bash
-node dist/server.cjs
-```
-
-No uses `seed.cjs` en el Start Command. Si necesitas datos iniciales reales, debes cargarlos una sola vez desde un script controlado o desde la base de datos.
-
-## Variables minimas en Render
-
-```env
-NODE_ENV=production
-DEPLOYMENT_MODE=production
-VITE_DEPLOYMENT_MODE=production
-PORT=10000
-APP_URL=https://sales.ia.crm.inteca.com.do
-APP_SECRET=usa_un_valor_largo_y_privado
-GEMINI_API_KEY=tu_clave_gemini
-GEMINI_MODEL=gemini-3.6-flash
-META_WEBHOOK_VERIFY_TOKEN=sales_ai_crm_whatsapp_verify_2026
-ADMIN_EMAIL=admin@inteca.com.do
-ADMIN_PASSWORD=usa_una_contrasena_privada_y_larga
-ADMIN_NAME=Admin General
-ADMIN_ORGANIZATION=INTECA SRL
-```
-
-## Webhooks principales
-
-Usa tu dominio real delante de cada ruta:
-
-```text
-/api/webhooks/meta/whatsapp
-/api/webhooks/meta/leadgen
-/api/webhooks/google-ads/leads
-/api/webhooks/youtube/events
-/api/webhooks/web/forms
-/api/webhooks/payments
-/api/webhooks/dgii/ecf-status
-/api/audit/events
-/api/auth/login
-/api/auth/logout
-/api/ai/generate-growth-system
-/api/ai/generate-ecf-invoice
-/api/ai/generate-accounting-report
-/api/health
-/api/runtime/config
-```
-
-Ejemplo WhatsApp Cloud API:
-
-```text
-https://sales.ia.crm.inteca.com.do/api/webhooks/meta/whatsapp
-```
-
-Evento a suscribir en Meta:
-
-```text
-messages
-```
-
-## Estado de integraciones
-
-El CRM queda listo para conectar plataformas externas. Sin credenciales oficiales, el sistema muestra los modulos, rutas, agentes y flujos, pero no puede publicar anuncios, enviar WhatsApp real, cobrar tarjetas ni emitir e-CF ante DGII.
-
-Eso no es un fallo del CRM: esas acciones requieren tokens, permisos, certificados, proveedores y aprobaciones externas.
-
-## Comandos utiles
-
-```bash
-npm run typecheck
-npm run lint
-npm run build
-npm run check
-```
-
-## Estructura principal
-
-```text
-src/
-  components/
-  data/
-  types.ts
-server.ts
-.env.example
-Dockerfile
-render.yaml
-docs/
-```
-
-## Seguridad operativa
-
-- No subir `.env.local` a GitHub.
-- No poner tokens reales dentro del codigo.
-- Usar variables de entorno en Render.
-- Validar pagos antes de marcar cliente activo.
-- Aprobar testimonios, cambios de precio y publicaciones institucionales antes de activar campanas.
-- Revisar `Auditoria & Historial` para ver acciones del CRM y agentes.
+La siguiente fase incorporará PostgreSQL, migraciones, autenticación, roles, permisos, aislamiento por organización y persistencia. Los módulos educativos pasarán a ser opcionales sobre un núcleo universal de contactos, empresas, productos, servicios, oportunidades y automatizaciones.
