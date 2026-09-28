@@ -28,7 +28,7 @@ import {
   AlertCircle,
   Tag,
   ShieldCheck,
-  Send,
+  Send
 } from 'lucide-react';
 import { Lead, FunnelStageConfig, Course, LeadSource, EmotionState } from '../types';
 
@@ -47,7 +47,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
   courses,
   onAddLead,
   onUpdateLead,
-  onOpenChatWithLead,
+  onOpenChatWithLead
 }) => {
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,7 +82,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
       const updated: Lead = {
         ...targetLead,
         stageId: newStageId,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       onUpdateLead(updated);
       if (selectedLeadModal?.id === leadId) {
@@ -128,12 +128,12 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
           channel: 'WhatsApp',
           messageType: 'text',
           content: `¡Hola ${newFirstName}! Bienvenido a INTECA. Recibimos tu registro para el ${courseObj?.title}. Te envío el brochure con el temario completo.`,
-          timestamp: new Date().toISOString(),
-        },
+          timestamp: new Date().toISOString()
+        }
       ],
       documents: [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     onAddLead(created);
@@ -157,8 +157,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Almacenamiento completo de atributos, profiling con IA, personalidad DISC y seguimiento
-            omnicanal.
+            Almacenamiento completo de atributos, profiling con IA, personalidad DISC y seguimiento omnicanal.
           </p>
         </div>
 
@@ -196,9 +195,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
             <button
               onClick={() => setViewMode('kanban')}
               className={`p-1.5 rounded-lg text-xs transition-colors ${
-                viewMode === 'kanban'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
               title="Vista Kanban de Embudo"
             >
@@ -207,9 +204,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
             <button
               onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-lg text-xs transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
               title="Vista Tabla de Datos 360°"
             >
@@ -242,14 +237,10 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                 {/* Column Header */}
                 <div className="p-3.5 border-b border-slate-800/80 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stage.color}`}
-                    >
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stage.color}`}>
                       {stage.name}
                     </span>
-                    <span className="text-xs text-slate-400 font-semibold">
-                      ({stageLeads.length})
-                    </span>
+                    <span className="text-xs text-slate-400 font-semibold">({stageLeads.length})</span>
                   </div>
                 </div>
 
@@ -269,9 +260,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                             <h3 className="font-bold text-xs text-white group-hover:text-blue-400 transition-colors">
                               {lead.firstName} {lead.lastName}
                             </h3>
-                            <p className="text-[11px] text-slate-400">
-                              {lead.company || lead.country}
-                            </p>
+                            <p className="text-[11px] text-slate-400">{lead.company || lead.country}</p>
                           </div>
                           <span className="text-[10px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">
                             Score IA: {lead.scoreAI}
@@ -289,9 +278,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                             <Globe className="w-3 h-3 text-slate-500" />
                             {lead.country}
                           </span>
-                          <span className="font-bold text-emerald-400">
-                            ${lead.estimatedValue} USD
-                          </span>
+                          <span className="font-bold text-emerald-400">${lead.estimatedValue} USD</span>
                         </div>
 
                         {/* Action Bar */}
@@ -355,35 +342,23 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                       className="hover:bg-slate-800/50 cursor-pointer transition-colors"
                     >
                       <td className="p-3.5 font-bold text-white">
-                        <div>
-                          {lead.firstName} {lead.lastName}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-normal">
-                          {lead.email} • {lead.phone}
-                        </div>
+                        <div>{lead.firstName} {lead.lastName}</div>
+                        <div className="text-[10px] text-slate-400 font-normal">{lead.email} • {lead.phone}</div>
                       </td>
-                      <td className="p-3.5">
-                        {lead.country} ({lead.city || 'Principal'})
-                      </td>
-                      <td className="p-3.5 text-cyan-300 font-medium">
-                        {courseObj?.title || 'Curso INTECA'}
-                      </td>
+                      <td className="p-3.5">{lead.country} ({lead.city || 'Principal'})</td>
+                      <td className="p-3.5 text-cyan-300 font-medium">{courseObj?.title || 'Curso INTECA'}</td>
                       <td className="p-3.5">
                         <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-[10px]">
                           {lead.source}
                         </span>
                       </td>
                       <td className="p-3.5">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${stageObj?.color}`}
-                        >
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${stageObj?.color}`}>
                           {stageObj?.name}
                         </span>
                       </td>
                       <td className="p-3.5 font-bold text-purple-400">{lead.scoreAI}/100</td>
-                      <td className="p-3.5 font-bold text-emerald-400">
-                        ${lead.estimatedValue} USD
-                      </td>
+                      <td className="p-3.5 font-bold text-emerald-400">${lead.estimatedValue} USD</td>
                       <td className="p-3.5 text-right">
                         <button
                           onClick={(e) => {
@@ -427,8 +402,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {selectedLeadModal.roleTitle || 'Interesado'} •{' '}
-                  {selectedLeadModal.company || 'Particular'} • {selectedLeadModal.country}
+                  {selectedLeadModal.roleTitle || 'Interesado'} • {selectedLeadModal.company || 'Particular'} • {selectedLeadModal.country}
                 </p>
               </div>
 
@@ -450,37 +424,15 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Col 1: Contact & Tech attributes */}
               <div className="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <h3 className="font-bold text-xs text-slate-300 uppercase tracking-wider">
-                  Atributos Personales & Contacto
-                </h3>
+                <h3 className="font-bold text-xs text-slate-300 uppercase tracking-wider">Atributos Personales & Contacto</h3>
                 <div className="space-y-2 text-xs text-slate-300">
-                  <div>
-                    <strong className="text-slate-400">Correo:</strong> {selectedLeadModal.email}
-                  </div>
-                  <div>
-                    <strong className="text-slate-400">Teléfono / WA:</strong>{' '}
-                    {selectedLeadModal.whatsapp}
-                  </div>
-                  <div>
-                    <strong className="text-slate-400">Ubicación:</strong> {selectedLeadModal.city},{' '}
-                    {selectedLeadModal.country}
-                  </div>
-                  <div>
-                    <strong className="text-slate-400">Edad / Sexo:</strong>{' '}
-                    {selectedLeadModal.age || 30} años • {selectedLeadModal.gender || 'Femenino'}
-                  </div>
-                  <div>
-                    <strong className="text-slate-400">Fuente Ingestión:</strong>{' '}
-                    {selectedLeadModal.source}
-                  </div>
-                  <div>
-                    <strong className="text-slate-400">Dispositivo:</strong>{' '}
-                    {selectedLeadModal.deviceUsed || 'iPhone / Mac'}
-                  </div>
-                  <div>
-                    <strong className="text-slate-400">Navegador:</strong>{' '}
-                    {selectedLeadModal.browserUsed || 'Chrome 134'}
-                  </div>
+                  <div><strong className="text-slate-400">Correo:</strong> {selectedLeadModal.email}</div>
+                  <div><strong className="text-slate-400">Teléfono / WA:</strong> {selectedLeadModal.whatsapp}</div>
+                  <div><strong className="text-slate-400">Ubicación:</strong> {selectedLeadModal.city}, {selectedLeadModal.country}</div>
+                  <div><strong className="text-slate-400">Edad / Sexo:</strong> {selectedLeadModal.age || 30} años • {selectedLeadModal.gender || 'Femenino'}</div>
+                  <div><strong className="text-slate-400">Fuente Ingestión:</strong> {selectedLeadModal.source}</div>
+                  <div><strong className="text-slate-400">Dispositivo:</strong> {selectedLeadModal.deviceUsed || 'iPhone / Mac'}</div>
+                  <div><strong className="text-slate-400">Navegador:</strong> {selectedLeadModal.browserUsed || 'Chrome 134'}</div>
                 </div>
               </div>
 
@@ -504,59 +456,36 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                   <div>
                     <strong className="text-slate-400">Dolor Principal:</strong>{' '}
                     <p className="text-amber-300/90 text-[11px] mt-0.5">
-                      "
-                      {selectedLeadModal.personalityAnalysis?.dominantPainPoint ||
-                        'Automatización urgente de procesos de venta.'}
-                      "
+                      "{selectedLeadModal.personalityAnalysis?.dominantPainPoint || 'Automatización urgente de procesos de venta.'}"
                     </p>
                   </div>
                   <div>
                     <strong className="text-slate-400">Emoción Actual:</strong>{' '}
-                    <span className="text-emerald-400 font-bold">
-                      {selectedLeadModal.currentEmotion}
-                    </span>
+                    <span className="text-emerald-400 font-bold">{selectedLeadModal.currentEmotion}</span>
                   </div>
                 </div>
               </div>
 
               {/* Col 3: Funnel Stage Switcher & Next Actions */}
               <div className="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <h3 className="font-bold text-xs text-blue-300 uppercase tracking-wider">
-                  Estado Comercial & Etapa
-                </h3>
+                <h3 className="font-bold text-xs text-blue-300 uppercase tracking-wider">Estado Comercial & Etapa</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-slate-400 font-medium">
-                      Cambiar Etapa de Embudo:
-                    </label>
+                    <label className="text-[11px] text-slate-400 font-medium">Cambiar Etapa de Embudo:</label>
                     <select
                       value={selectedLeadModal.stageId}
-                      onChange={(e) =>
-                        handleStageChange(selectedLeadModal.id, e.target.value as any)
-                      }
+                      onChange={(e) => handleStageChange(selectedLeadModal.id, e.target.value as any)}
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white mt-1"
                     >
                       {funnelStages.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.name}
-                        </option>
+                        <option key={st.id} value={st.id}>{st.name}</option>
                       ))}
                     </select>
                   </div>
 
                   <div className="pt-2 border-t border-slate-800 text-xs text-slate-300 space-y-1">
-                    <div>
-                      <strong className="text-slate-400">Probabilidad de Pago:</strong>{' '}
-                      <span className="text-emerald-400 font-bold">
-                        {selectedLeadModal.buyProbability}%
-                      </span>
-                    </div>
-                    <div>
-                      <strong className="text-slate-400">Valor Estimado:</strong>{' '}
-                      <span className="text-white font-bold">
-                        ${selectedLeadModal.estimatedValue} USD
-                      </span>
-                    </div>
+                    <div><strong className="text-slate-400">Probabilidad de Pago:</strong> <span className="text-emerald-400 font-bold">{selectedLeadModal.buyProbability}%</span></div>
+                    <div><strong className="text-slate-400">Valor Estimado:</strong> <span className="text-white font-bold">${selectedLeadModal.estimatedValue} USD</span></div>
                   </div>
                 </div>
               </div>
@@ -639,9 +568,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white mt-1"
                   >
                     {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.title}</option>
                     ))}
                   </select>
                 </div>

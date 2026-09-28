@@ -11,7 +11,7 @@ import {
   Sparkles,
   Edit3,
   CheckCircle2,
-  Settings,
+  Settings
 } from 'lucide-react';
 import { FunnelStageConfig } from '../types';
 
@@ -22,7 +22,7 @@ interface SalesFunnelsEditorProps {
 
 export const SalesFunnelsEditor: React.FC<SalesFunnelsEditorProps> = ({
   stages,
-  onUpdateStages,
+  onUpdateStages
 }) => {
   const [selectedStage, setSelectedStage] = useState<FunnelStageConfig>(stages[0]);
   const [actionPrompt, setActionPrompt] = useState(stages[0]?.autoActionPrompt || '');
@@ -51,12 +51,9 @@ export const SalesFunnelsEditor: React.FC<SalesFunnelsEditorProps> = ({
             <GitMerge className="w-3.5 h-3.5 text-cyan-300" />
             <span>Motor de Embudos & Disparadores de Automatización</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-white">
-            Configuración del Pipeline de Ventas INTECA
-          </h1>
+          <h1 className="text-2xl font-extrabold text-white">Configuración del Pipeline de Ventas INTECA</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Define los pasos del embudo y configura acciones automáticas por etapa (envío de
-            WhatsApp, SMS, asignación de agentes IA y seguimiento).
+            Define los pasos del embudo y configura acciones automáticas por etapa (envío de WhatsApp, SMS, asignación de agentes IA y seguimiento).
           </p>
         </div>
       </div>
@@ -103,9 +100,7 @@ export const SalesFunnelsEditor: React.FC<SalesFunnelsEditorProps> = ({
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
           <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div>
-              <span
-                className={`text-xs font-bold px-2.5 py-1 rounded border ${selectedStage.color}`}
-              >
+              <span className={`text-xs font-bold px-2.5 py-1 rounded border ${selectedStage.color}`}>
                 Etapa: {selectedStage.name}
               </span>
               <p className="text-xs text-slate-400 mt-2">
@@ -140,18 +135,10 @@ export const SalesFunnelsEditor: React.FC<SalesFunnelsEditorProps> = ({
               Canales de Automatización Habilitados
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-300 pt-1">
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">
-                📱 WhatsApp API
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">
-                ✉️ Email Sequence
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">
-                💬 SMS Reminder
-              </div>
-              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">
-                🤖 Agente IA Closer
-              </div>
+              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">📱 WhatsApp API</div>
+              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">✉️ Email Sequence</div>
+              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">💬 SMS Reminder</div>
+              <div className="bg-slate-900 p-2 rounded border border-slate-800 text-center">🤖 Agente IA Closer</div>
             </div>
           </div>
         </div>

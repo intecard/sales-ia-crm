@@ -1,3 +1,5 @@
+> Documento histórico de una versión anterior. Para el estado actual consulte README.md y docs/VALIDACION_V040.md.
+
 # Informe de Fase 1
 
 ## Alcance completado

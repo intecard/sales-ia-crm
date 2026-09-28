@@ -1,271 +1,138 @@
 import React, { useState } from 'react';
 import {
-  AlertTriangle,
-  Building2,
-  CheckCircle2,
   CreditCard,
+  CheckCircle2,
   Download,
   FileText,
+  DollarSign,
   ShieldCheck,
+  Search,
+  ExternalLink,
+  Plus,
   X,
+  Sparkles,
   Zap,
+  Building2
 } from 'lucide-react';
-import {
-  CommercialQuote,
-  Course,
-  ElectronicInvoice,
-  Lead,
-  PaymentTransaction,
-  SalesOpportunity,
-} from '../types';
+import { PaymentTransaction, Lead, Course } from '../types';
 
 interface PaymentsInvoicingProps {
   transactions: PaymentTransaction[];
   leads: Lead[];
   courses: Course[];
-  opportunities: SalesOpportunity[];
-  quotes: CommercialQuote[];
-  electronicInvoices: ElectronicInvoice[];
   onAddTransaction: (tx: PaymentTransaction) => void;
 }
-
-const formatMoney = (amount: number, currency = 'DOP') =>
-  `${currency === 'DOP' ? 'RD$' : '$'}${amount.toLocaleString(undefined, {
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  })}`;
 
 export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
   transactions,
   leads,
   courses,
-  opportunities,
-  quotes,
-  electronicInvoices,
+  onAddTransaction
 }) => {
-  const [selectedInvoice, setSelectedInvoice] = useState<ElectronicInvoice | null>(null);
+  const [selectedTx, setSelectedTx] = useState<PaymentTransaction | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
-  const totalCollected = transactions.reduce(
-    (sum, tx) => sum + (tx.status === 'Completado' ? tx.amount : 0),
-    0,
-  );
-  const totalInvoiced = electronicInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
-  const pendingPayments = transactions.filter((tx) => tx.status === 'Pendiente').length;
-  const acceptedQuotes = quotes.filter((quote) => quote.status === 'Aceptada').length;
+  const totalRevenue = transactions.reduce((sum, t) => sum + (t.status === 'Completado' ? t.amount : 0), 0);
+
+  const handleOpenInvoice = (tx: PaymentTransaction) => {
+    setSelectedTx(tx);
+    setIsInvoiceModalOpen(true);
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
-      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      {/* Header */}
+      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-1">
             <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Cobros, Cotizaciones y Facturación Electrónica</span>
+            <span>Pasarelas de Pago Multi-Moneda & Facturación Automática</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-white">
-            Flujo Fiscal y Comercial Multiempresa
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 max-w-3xl">
-            Convierte oportunidades en cotizaciones, cotizaciones en facturas e-CF y pagos en
-            reportes. DGII, bancos y pasarelas permanecen en modo demo hasta conectar credenciales
-            oficiales.
+          <h1 className="text-2xl font-extrabold text-white">Cobros, Comprobantes & Activación de Cursos</h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Procesa pagos vía Stripe, PayPal, Square, Google Pay, Apple Pay y transferencias. Emitir facturas fiscales y enrolar al estudiante sin intervención humana.
           </p>
         </div>
 
-        <div className="bg-amber-950/40 border border-amber-500/30 text-amber-200 rounded-xl p-3 text-xs flex items-start gap-2 max-w-md">
-          <AlertTriangle className="w-4 h-4 text-amber-300 flex-shrink-0 mt-0.5" />
-          <span>
-            Seguridad comercial: no se marca matrícula/cliente activo hasta validar pago. Facturas
-            DGII reales requieren certificado digital, secuencias y endpoints oficiales.
-          </span>
+        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center gap-4 text-xs">
+          <div>
+            <span className="text-slate-400 block text-[10px]">Total Recaudado:</span>
+            <span className="text-lg font-black text-emerald-400">${totalRevenue.toLocaleString()} USD</span>
+          </div>
+          <div className="border-l border-slate-800 pl-4">
+            <span className="text-slate-400 block text-[10px]">Integración Pasarelas:</span>
+            <span className="text-xs font-bold text-cyan-300">● 7 Activas</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Gateway Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
         {[
-          {
-            label: 'Cobrado confirmado',
-            value: formatMoney(totalCollected),
-            icon: CheckCircle2,
-            tone: 'text-emerald-400',
-          },
-          {
-            label: 'Facturado demo e-CF',
-            value: formatMoney(totalInvoiced),
-            icon: FileText,
-            tone: 'text-cyan-300',
-          },
-          {
-            label: 'Cotizaciones aceptadas',
-            value: acceptedQuotes.toString(),
-            icon: ShieldCheck,
-            tone: 'text-indigo-300',
-          },
-          {
-            label: 'Pagos pendientes',
-            value: pendingPayments.toString(),
-            icon: Zap,
-            tone: 'text-amber-300',
-          },
-        ].map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.label} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase text-slate-500 font-black tracking-wider">
-                  {card.label}
-                </span>
-                <Icon className={`w-5 h-5 ${card.tone}`} />
-              </div>
-              <p className={`text-2xl font-black mt-3 ${card.tone}`}>{card.value}</p>
+          { name: 'Stripe', logo: '💳', status: 'Conectado API' },
+          { name: 'PayPal', logo: '🅿️', status: 'Conectado API' },
+          { name: 'Square', logo: '⬛', status: 'Conectado API' },
+          { name: 'Google Pay', logo: '🌐', status: 'Activo Mobile' },
+          { name: 'Apple Pay', logo: '🍎', status: 'Activo iOS' },
+          { name: 'Transferencias', logo: '🏦', status: 'Validación IA' }
+        ].map((gw) => (
+          <div key={gw.name} className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center gap-2.5">
+            <span className="text-xl">{gw.logo}</span>
+            <div>
+              <div className="font-bold text-white text-xs">{gw.name}</div>
+              <span className="text-[10px] text-emerald-400 font-semibold">{gw.status}</span>
             </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 text-xs">
-        {[
-          'Lead capturado',
-          'Oportunidad calificada',
-          'Cotización enviada',
-          'Factura e-CF generada',
-          'Pago validado',
-          'Seguimiento y reporte',
-        ].map((step, index) => (
-          <div key={step} className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-            <span className="text-slate-500 font-bold">Paso {index + 1}</span>
-            <p className="text-white font-bold mt-1">{step}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Cotizaciones comerciales
-            </h2>
-            <span className="text-xs text-slate-400">{quotes.length} emitidas</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950 text-slate-500 uppercase text-[10px]">
-                <tr>
-                  <th className="p-3">Cotización</th>
-                  <th className="p-3">Cliente</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {quotes.map((quote) => (
-                  <tr key={quote.id} className="hover:bg-slate-800/40">
-                    <td className="p-3 font-mono text-cyan-300">{quote.quoteNumber}</td>
-                    <td className="p-3 text-white font-semibold">{quote.customerName}</td>
-                    <td className="p-3">
-                      <span className="bg-slate-800 border border-slate-700 text-slate-200 px-2 py-0.5 rounded">
-                        {quote.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right text-emerald-400 font-black">
-                      {formatMoney(quote.total, quote.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Facturas electrónicas e-CF
-            </h2>
-            <span className="text-xs text-slate-400">{electronicInvoices.length} demo</span>
-          </div>
-          <div className="divide-y divide-slate-800">
-            {electronicInvoices.map((invoice) => (
-              <button
-                key={invoice.id}
-                type="button"
-                onClick={() => setSelectedInvoice(invoice)}
-                className="w-full p-4 text-left hover:bg-slate-800/40 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-cyan-300" />
-                      <span className="font-mono text-cyan-300 font-bold">{invoice.eNcf}</span>
-                    </div>
-                    <p className="text-sm text-white font-bold mt-1">{invoice.customerName}</p>
-                    <p className="text-[11px] text-slate-400">
-                      {invoice.fiscalType} · RNC/Cédula {invoice.customerTaxId}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-emerald-400 font-black">
-                      {formatMoney(invoice.total, invoice.currency)}
-                    </p>
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">
-                      {invoice.dgiiStatus}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      {/* Transactions Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-            Cobros y comprobantes
-          </h2>
-          <span className="text-xs text-slate-400">
-            {leads.length} leads · {courses.length} productos base · {opportunities.length}{' '}
-            oportunidades
-          </span>
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">Historial de Transacciones & Facturas</h2>
+          <span className="text-xs text-slate-400">Total: <strong>{transactions.length}</strong> transacciones</span>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-500 uppercase text-[10px] tracking-wider">
+            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
-                <th className="p-3.5">Referencia</th>
-                <th className="p-3.5">Cliente</th>
-                <th className="p-3.5">Producto / Servicio</th>
-                <th className="p-3.5">Medio</th>
+                <th className="p-3.5">Ref. / Factura</th>
+                <th className="p-3.5">Estudiante</th>
+                <th className="p-3.5">Programa Académico</th>
+                <th className="p-3.5">Pasarela</th>
+                <th className="p-3.5">Monto</th>
                 <th className="p-3.5">Estado</th>
-                <th className="p-3.5 text-right">Monto</th>
+                <th className="p-3.5 text-right">Comprobante</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-slate-800/40">
-                  <td className="p-3.5 font-mono text-cyan-300">
-                    <div>{tx.invoiceNumber || 'Pendiente'}</div>
-                    <div className="text-[10px] text-slate-500">{tx.transactionRef}</div>
+                <tr key={tx.id} className="hover:bg-slate-800/50 transition-colors">
+                  <td className="p-3.5 font-mono text-cyan-300 font-bold">
+                    <div>{tx.invoiceNumber}</div>
+                    <div className="text-[10px] text-slate-500 font-normal">{tx.transactionRef}</div>
                   </td>
                   <td className="p-3.5 font-bold text-white">{tx.leadName}</td>
-                  <td className="p-3.5">{tx.courseTitle}</td>
+                  <td className="p-3.5 text-slate-300">{tx.courseTitle}</td>
                   <td className="p-3.5">
-                    <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded">
+                    <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-[10px]">
                       {tx.gateway}
                     </span>
                   </td>
+                  <td className="p-3.5 font-extrabold text-emerald-400">${tx.amount} {tx.currency}</td>
                   <td className="p-3.5">
-                    <span
-                      className={`px-2 py-0.5 rounded border text-[10px] font-bold ${
-                        tx.status === 'Completado'
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                      }`}
-                    >
+                    <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
                       {tx.status}
                     </span>
                   </td>
-                  <td className="p-3.5 text-right font-black text-emerald-400">
-                    {formatMoney(tx.amount, tx.currency)}
+                  <td className="p-3.5 text-right">
+                    <button
+                      onClick={() => handleOpenInvoice(tx)}
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1 rounded-lg text-xs"
+                    >
+                      Ver Factura PDF
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -274,97 +141,68 @@ export const PaymentsInvoicing: React.FC<PaymentsInvoicingProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-        {[
-          { name: 'WhatsApp Business', status: 'Configurable' },
-          { name: 'Meta Ads Lead Forms', status: 'Pendiente credenciales' },
-          { name: 'Google Ads', status: 'Pendiente credenciales' },
-          { name: 'DGII e-CF', status: 'Modo demo seguro' },
-        ].map((integration) => (
-          <div
-            key={integration.name}
-            className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-3"
-          >
-            <Building2 className="w-4 h-4 text-indigo-300" />
-            <div>
-              <p className="font-bold text-white">{integration.name}</p>
-              <span className="text-slate-400">{integration.status}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {selectedInvoice && (
+      {/* Official Invoice PDF Modal */}
+      {isInvoiceModalOpen && selectedTx && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl p-6 space-y-5 shadow-2xl relative text-xs">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl p-6 space-y-6 shadow-2xl relative text-xs">
             <button
-              onClick={() => setSelectedInvoice(null)}
+              onClick={() => setIsInvoiceModalOpen(false)}
               className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white bg-slate-800 rounded-full"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-start justify-between border-b border-slate-800 pb-4 gap-4">
+            {/* Invoice Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
-                <h3 className="font-black text-lg text-white">Factura electrónica demo</h3>
-                <p className="text-slate-400">
-                  NCF: {selectedInvoice.ncf} · e-NCF: {selectedInvoice.eNcf}
-                </p>
-              </div>
-              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold">
-                {selectedInvoice.integrationMode}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-500 uppercase font-bold">Cliente</span>
-                <p className="font-bold text-white mt-1">{selectedInvoice.customerName}</p>
-                <p className="text-slate-400">RNC/Cédula: {selectedInvoice.customerTaxId}</p>
-              </div>
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-500 uppercase font-bold">
-                  Estado fiscal
-                </span>
-                <p className="font-bold text-amber-300 mt-1">{selectedInvoice.dgiiStatus}</p>
-                <p className="text-slate-400">Pago: {selectedInvoice.paymentStatus}</p>
-              </div>
-            </div>
-
-            <div className="border border-slate-800 rounded-xl overflow-hidden">
-              <div className="bg-slate-950 p-3 flex justify-between text-slate-400 font-bold">
-                <span>Subtotal</span>
-                <span>{formatMoney(selectedInvoice.subtotal, selectedInvoice.currency)}</span>
-              </div>
-              <div className="p-3 flex justify-between text-slate-300 border-t border-slate-800">
-                <span>ITBIS / Impuestos</span>
-                <span>{formatMoney(selectedInvoice.taxAmount, selectedInvoice.currency)}</span>
-              </div>
-              <div className="p-3 flex justify-between text-white font-black border-t border-slate-800">
-                <span>Total</span>
-                <span className="text-emerald-400">
-                  {formatMoney(selectedInvoice.total, selectedInvoice.currency)}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
-              <span className="text-[10px] text-cyan-300 font-bold uppercase">Auditoría</span>
-              {selectedInvoice.auditTrail.map((item) => (
-                <div key={item} className="flex items-start gap-2 text-slate-300">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                  <span>{item}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-lg text-white">INTECA EDUCATION GROUP</span>
                 </div>
-              ))}
+                <p className="text-[10px] text-slate-400">RUC / TAX ID: 20601928301 • Campus Internacional</p>
+              </div>
+              <div className="text-right">
+                <span className="text-emerald-400 font-bold text-sm">{selectedTx.invoiceNumber}</span>
+                <p className="text-[10px] text-slate-400">Emitido: {new Date(selectedTx.createdAt).toLocaleDateString()}</p>
+              </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-800 flex justify-end">
+            {/* Bill To */}
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+              <span className="text-[10px] text-slate-400 uppercase font-bold">Estudiante Matriculado:</span>
+              <p className="font-bold text-sm text-white">{selectedTx.leadName}</p>
+              <p className="text-slate-400">Estado de Cuenta: <span className="text-emerald-400 font-bold">PAGADO EN SU TOTALIDAD</span></p>
+            </div>
+
+            {/* Item Breakdown */}
+            <div className="border border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-950 p-2.5 font-bold text-slate-400 border-b border-slate-800 flex justify-between">
+                <span>Descripción del Item</span>
+                <span>Importe</span>
+              </div>
+              <div className="p-3.5 flex justify-between items-center bg-slate-900">
+                <div>
+                  <div className="font-bold text-white">{selectedTx.courseTitle}</div>
+                  <div className="text-[10px] text-indigo-300">Código Activación: {selectedTx.courseActivationCode}</div>
+                </div>
+                <span className="font-black text-sm text-emerald-400">${selectedTx.amount} USD</span>
+              </div>
+            </div>
+
+            {/* Activation Notice */}
+            <div className="bg-emerald-950/40 border border-emerald-500/30 p-3 rounded-xl text-emerald-300 text-[11px] flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 flex-shrink-0 text-emerald-400" />
+              <span>Acceso al Campus Virtual INTECA activado automáticamente. Credenciales enviadas por correo y WhatsApp.</span>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800 flex justify-end gap-2">
               <button
-                onClick={() => alert(`Descarga demo preparada: ${selectedInvoice.eNcf}.pdf`)}
+                onClick={() => {
+                  alert(`Descargando comprobante PDF: ${selectedTx.invoiceNumber}.pdf`);
+                }}
                 className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5"
               >
                 <Download className="w-4 h-4" />
-                <span>Descargar representación PDF demo</span>
+                <span>Descargar Factura PDF</span>
               </button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import {ThemeToggle} from './ThemeToggle';
 import React from 'react';
 import {
   Sparkles,
@@ -12,7 +13,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Zap,
-  Bot,
+  Bot
 } from 'lucide-react';
 import { PlatformMode, UserRole, OrganizationTenant, UserProfile } from '../types';
 
@@ -47,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenManuals,
   onOpenDocumentation,
-  isAiActive = true,
+  isAiActive = true
 }) => {
   const activePlatform = currentPlatform || currentOS || 'web';
   const handlePlatformChange = (p: any) => {
@@ -61,17 +62,9 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-lg">
       {/* Brand & Organization Title */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-2 rounded-xl shadow-md shadow-indigo-500/20">
-          <Bot className="w-6 h-6 text-white animate-pulse" />
-          <div className="flex flex-col">
-            <span className="font-extrabold text-base tracking-tight leading-none text-white">
-              SALES <span className="text-cyan-300">AI CRM</span>
-            </span>
-            <span className="text-[10px] text-blue-200 font-medium tracking-wider uppercase">
-              CRM Autónomo Enterprise
-            </span>
-          </div>
-        </div>
+        <img src="/logo-wide.png" alt="Sales AI CRM" className="crm-logo"/>
+        <ThemeToggle/>
+
 
         {/* Multi-Tenant Switcher */}
         {currentOrg && (
@@ -199,33 +192,15 @@ export const Header: React.FC<HeaderProps> = ({
             onChange={(e) => onRoleChange && onRoleChange(e.target.value as UserRole)}
             className="bg-transparent text-slate-200 font-medium focus:outline-none cursor-pointer pr-1"
           >
-            <option value="Admin" className="bg-slate-900 text-slate-200">
-              Admin General
-            </option>
-            <option value="Supervisor" className="bg-slate-900 text-slate-200">
-              Supervisor Comercial
-            </option>
-            <option value="Ventas" className="bg-slate-900 text-slate-200">
-              Ejecutivo Ventas
-            </option>
-            <option value="Marketing" className="bg-slate-900 text-slate-200">
-              Marketing Director
-            </option>
-            <option value="Call Center" className="bg-slate-900 text-slate-200">
-              Call Center / Televentas
-            </option>
-            <option value="Docentes" className="bg-slate-900 text-slate-200">
-              Coordinación Académica
-            </option>
-            <option value="Caja" className="bg-slate-900 text-slate-200">
-              Caja y Cobranzas
-            </option>
-            <option value="Contabilidad" className="bg-slate-900 text-slate-200">
-              Contabilidad & Facturas
-            </option>
-            <option value="Soporte" className="bg-slate-900 text-slate-200">
-              Soporte Técnico
-            </option>
+            <option value="Admin" className="bg-slate-900 text-slate-200">Admin General</option>
+            <option value="Supervisor" className="bg-slate-900 text-slate-200">Supervisor Comercial</option>
+            <option value="Ventas" className="bg-slate-900 text-slate-200">Ejecutivo Ventas</option>
+            <option value="Marketing" className="bg-slate-900 text-slate-200">Marketing Director</option>
+            <option value="Call Center" className="bg-slate-900 text-slate-200">Call Center / Televentas</option>
+            <option value="Docentes" className="bg-slate-900 text-slate-200">Coordinación Académica</option>
+            <option value="Caja" className="bg-slate-900 text-slate-200">Caja y Cobranzas</option>
+            <option value="Contabilidad" className="bg-slate-900 text-slate-200">Contabilidad & Facturas</option>
+            <option value="Soporte" className="bg-slate-900 text-slate-200">Soporte Técnico</option>
           </select>
         </div>
 
@@ -246,11 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
             title={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
           >
-            {isDarkMode ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-200" />
-            )}
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-200" />}
           </button>
         )}
       </div>

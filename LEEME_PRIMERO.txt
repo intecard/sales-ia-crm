@@ -1,4 +1,4 @@
-SALES AI CRM 0.8.1 — CONFIGURACION HIBRIDA INTECA
+SALES AI CRM 0.8.0 — CONFIGURACION HIBRIDA INTECA
 
 Esta version puede lanzarse como CRM web y como aplicacion instalada en Windows o Mac. Ambas
 presentaciones se conectan al mismo servicio HTTPS, por lo que comparten usuarios, contactos,

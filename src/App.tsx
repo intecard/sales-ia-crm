@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PlatformFrame } from './components/PlatformFrame';
 import { Sidebar, NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -16,6 +16,7 @@ import { DocumentVault } from './components/DocumentVault';
 import { PredictiveAnalytics } from './components/PredictiveAnalytics';
 import { MultiTenantSettings } from './components/MultiTenantSettings';
 import { ManualsDocumentationModal } from './components/ManualsDocumentationModal';
+import { apiRequest } from './services/api';
 
 // Mock Initial Datasets
 import {
@@ -26,12 +27,7 @@ import {
   INTECA_COURSES,
   INITIAL_LEADS,
   INITIAL_CAMPAIGNS,
-  INITIAL_TRANSACTIONS,
-  INITIAL_OPPORTUNITIES,
-  INITIAL_QUOTES,
-  INITIAL_ELECTRONIC_INVOICES,
-  INITIAL_LICENSE_PLANS,
-  INITIAL_TENANT_LICENSES,
+  INITIAL_TRANSACTIONS
 } from './data/initialData';
 
 import {
@@ -43,15 +39,12 @@ import {
   PaymentTransaction,
   OrganizationTenant,
   UserProfile,
-  PlatformMode,
-  SalesOpportunity,
-  CommercialQuote,
-  ElectronicInvoice,
-  LicensePlan,
-  TenantLicense,
+  PlatformMode
 } from './types';
 
-export function App() {
+type AppProps = { organizationId?: string; connectedMode?: boolean };
+
+export function App({ organizationId, connectedMode = false }: AppProps) {
   // Navigation active tab
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
 
@@ -69,11 +62,6 @@ export function App() {
   const [funnelStages, setFunnelStages] = useState<FunnelStageConfig[]>(FUNNEL_STAGES);
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(INITIAL_CAMPAIGNS);
   const [transactions, setTransactions] = useState<PaymentTransaction[]>(INITIAL_TRANSACTIONS);
-  const [opportunities] = useState<SalesOpportunity[]>(INITIAL_OPPORTUNITIES);
-  const [quotes] = useState<CommercialQuote[]>(INITIAL_QUOTES);
-  const [electronicInvoices] = useState<ElectronicInvoice[]>(INITIAL_ELECTRONIC_INVOICES);
-  const [licensePlans] = useState<LicensePlan[]>(INITIAL_LICENSE_PLANS);
-  const [tenantLicenses] = useState<TenantLicense[]>(INITIAL_TENANT_LICENSES);
 
   // Active Lead for Chat Studio
   const [selectedLeadForChat, setSelectedLeadForChat] = useState<Lead>(INITIAL_LEADS[0]);
@@ -81,13 +69,79 @@ export function App() {
   // Modal Documentation State
   const [isDocumentationModalOpen, setIsDocumentationModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (!connectedMode || !organizationId) return;
+    Promise.all([
+      apiRequest<{ items: Array<{ id: string; firstName: string; lastName?: string; email?: string; phone?: string; source?: string; tags: string[]; createdAt: string; updatedAt: string }> }>('/api/crm/contacts?pageSize=100', {}, organizationId),
+      apiRequest<{ items: Array<{ id: string; name: string; sku?: string; type: string; description?: string; price: string | number; currency: string; active: boolean; createdAt: string }> }>('/api/crm/products', {}, organizationId),
+    ]).then(([contactResponse, productResponse]) => {
+      setLeads(contactResponse.items.map((contact) => ({
+        id: contact.id,
+        firstName: contact.firstName,
+        lastName: contact.lastName || '',
+        country: '',
+        email: contact.email || '',
+        phone: contact.phone || '',
+        whatsapp: contact.phone || '',
+        interests: [],
+        courseOfInterestId: '',
+        funnelId: 'default',
+        stageId: 'nuevo',
+        status: 'Activo',
+        buyProbability: 0,
+        estimatedValue: 0,
+        source: 'API',
+        scoreAI: 0,
+        currentEmotion: 'Neutral',
+        lastInteraction: contact.updatedAt,
+        assignedAgentId: MULTI_AGENTS_SPEC[0]?.id || '',
+        organizationId,
+        tags: contact.tags,
+        conversationHistory: [],
+        documents: [],
+        createdAt: contact.createdAt,
+        updatedAt: contact.updatedAt,
+      })));
+      setCourses(productResponse.items.map((product) => ({
+        id: product.id,
+        title: product.name,
+        code: product.sku || product.id,
+        category: 'Gestión Empresarial',
+        price: Number(product.price),
+        description: product.description || '',
+        durationHours: 0,
+        schedule: 'Configurable',
+        instructors: [],
+        modulesCount: 0,
+        modulesList: [],
+        materialsIncluded: [],
+        bonusesIncluded: [],
+        certificationType: 'Certificación Oficial INTECA',
+        enrolledStudents: 0,
+        status: product.active ? 'Disponible' : 'Cerrado',
+      })));
+    }).catch((error) => console.error('No fue posible sincronizar el CRM', error));
+  }, [connectedMode, organizationId]);
+
   // Handlers
   const handleAddLead = (newLead: Lead) => {
     setLeads((prev) => [newLead, ...prev]);
+    if (connectedMode && organizationId) {
+      void apiRequest('/api/crm/contacts', {
+        method: 'POST',
+        body: JSON.stringify({ firstName: newLead.firstName, lastName: newLead.lastName, email: newLead.email, phone: newLead.phone, source: newLead.source, tags: newLead.tags }),
+      }, organizationId).catch((error) => console.error('No fue posible guardar el contacto', error));
+    }
   };
 
   const handleUpdateLead = (updatedLead: Lead) => {
     setLeads((prev) => prev.map((l) => (l.id === updatedLead.id ? updatedLead : l)));
+    if (connectedMode && organizationId) {
+      void apiRequest(`/api/crm/contacts/${updatedLead.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ firstName: updatedLead.firstName, lastName: updatedLead.lastName, email: updatedLead.email, phone: updatedLead.phone, source: updatedLead.source, tags: updatedLead.tags }),
+      }, organizationId).catch((error) => console.error('No fue posible actualizar el contacto', error));
+    }
     if (selectedLeadForChat.id === updatedLead.id) {
       setSelectedLeadForChat(updatedLead);
     }
@@ -122,7 +176,7 @@ export function App() {
   const handleSendMessageToLead = async (
     leadId: string,
     messageContent: string,
-    isHumanOverride: boolean,
+    isHumanOverride: boolean
   ) => {
     const targetLead = leads.find((l) => l.id === leadId);
     if (!targetLead) return;
@@ -134,13 +188,13 @@ export function App() {
       channel: 'WhatsApp' as const,
       messageType: 'text' as const,
       content: messageContent,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
 
     const updatedWithUser = {
       ...targetLead,
       conversationHistory: [...targetLead.conversationHistory, userMsg],
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     handleUpdateLead(updatedWithUser);
@@ -152,7 +206,8 @@ export function App() {
 
       const response = await fetch('/api/ai/chat-agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(organizationId ? { 'X-Organization-Id': organizationId } : {}) },
         body: JSON.stringify({
           agentRole: assignedAgent.roleTitle,
           leadName: `${targetLead.firstName} ${targetLead.lastName}`,
@@ -165,15 +220,15 @@ export function App() {
           buyProbability: targetLead.buyProbability,
           userMessage: messageContent,
           systemPrompt: assignedAgent.systemPrompt,
-          isHumanOverride,
-        }),
+          isHumanOverride
+        })
       });
 
       const data = await response.json();
 
       let replyText = data.reply;
       if (!replyText) {
-        replyText = `¡Excelente pregunta, ${targetLead.firstName}! Para orientarte bien, te explico el valor práctico de ${courseObj.title}, cómo responde a tu necesidad y cuál sería el siguiente paso para reservar o cotizar sin perder seguimiento. ¿Quieres que te envíe los pasos de pago o prefieres que validemos primero tus dudas principales?`;
+        replyText = `¡Excelente pregunta, ${targetLead.firstName}! En INTECA nos tomamos muy en serio tu formación. El ${courseObj.title} cuenta con acompañamiento directo y certificación internacional. ¿Te gustaría que reservemos tu vacante con la beca hoy mismo?`;
       }
 
       const aiMsg = {
@@ -183,13 +238,13 @@ export function App() {
         channel: 'WhatsApp' as const,
         messageType: 'text' as const,
         content: replyText,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
 
       const updatedWithAI = {
         ...updatedWithUser,
         conversationHistory: [...updatedWithUser.conversationHistory, aiMsg],
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       handleUpdateLead(updatedWithAI);
@@ -210,16 +265,15 @@ export function App() {
       leadId: lead.id,
       leadName: `${lead.firstName} ${lead.lastName}`,
       courseTitle: courseObj.title,
-      organizationId: lead.organizationId,
       amount: finalAmount,
-      currency: 'DOP',
+      currency: 'USD',
       status: 'Pendiente',
       gateway: 'Transferencia',
       transactionRef: `pending_${crypto.randomUUID()}`,
       invoiceNumber: '',
       invoiceUrl: '',
       createdAt: new Date().toISOString(),
-      courseActivationCode: '',
+      courseActivationCode: ''
     };
 
     handleAddTransaction(newTx);
@@ -231,8 +285,8 @@ export function App() {
       agentName: 'Valeria Sotomayor (Closer IA)',
       channel: 'WhatsApp' as const,
       messageType: 'payment_link' as const,
-      content: `Se creó una solicitud de pago en modo demostración por RD$${finalAmount.toLocaleString()}. El pago permanece pendiente hasta validar comprobante o conectar una pasarela con webhook real.`,
-      timestamp: new Date().toISOString(),
+      content: `Se creó una solicitud de pago en modo demostración por ${finalAmount} USD. El pago permanece pendiente hasta conectar una pasarela y confirmar su webhook.`,
+      timestamp: new Date().toISOString()
     };
 
     const updatedLead: Lead = {
@@ -240,7 +294,7 @@ export function App() {
       stageId: 'pago_pendiente',
       status: 'Activo',
       conversationHistory: [...lead.conversationHistory, paymentMsg],
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     handleUpdateLead(updatedLead);
@@ -250,6 +304,9 @@ export function App() {
   return (
     <PlatformFrame platform={simulatedOS}>
       <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+        <div className={`fixed z-[100] bottom-3 right-3 px-3 py-1.5 rounded-full text-[11px] font-bold shadow-lg ${connectedMode ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-slate-950'}`}>
+          {connectedMode ? 'MODO CONECTADO' : 'MODO DEMOSTRACIÓN'}
+        </div>
         {/* Left Sidebar Navigation */}
         <Sidebar
           activeTab={activeTab}
@@ -281,10 +338,6 @@ export function App() {
                 transactions={transactions}
                 agents={agents}
                 courses={courses}
-                opportunities={opportunities}
-                quotes={quotes}
-                electronicInvoices={electronicInvoices}
-                tenantLicenses={tenantLicenses}
                 onNavigateToLeads={() => setActiveTab('leads')}
                 onNavigateToAgents={() => setActiveTab('agents')}
                 onNavigateToChat={() => setActiveTab('chat')}
@@ -332,7 +385,10 @@ export function App() {
             )}
 
             {activeTab === 'funnels' && (
-              <SalesFunnelsEditor stages={funnelStages} onUpdateStages={setFunnelStages} />
+              <SalesFunnelsEditor
+                stages={funnelStages}
+                onUpdateStages={setFunnelStages}
+              />
             )}
 
             {activeTab === 'marketing' && (
@@ -348,24 +404,21 @@ export function App() {
                 transactions={transactions}
                 leads={leads}
                 courses={courses}
-                opportunities={opportunities}
-                quotes={quotes}
-                electronicInvoices={electronicInvoices}
                 onAddTransaction={handleAddTransaction}
               />
             )}
 
             {activeTab === 'documents' && <DocumentVault leads={leads} />}
 
-            {activeTab === 'analytics' && <PredictiveAnalytics leads={leads} courses={courses} />}
+            {activeTab === 'analytics' && (
+              <PredictiveAnalytics leads={leads} courses={courses} />
+            )}
 
             {activeTab === 'settings' && (
               <MultiTenantSettings
                 organizations={INITIAL_ORGANIZATIONS}
                 currentOrg={currentOrg}
                 currentUser={INITIAL_USERS[0]}
-                licensePlans={licensePlans}
-                tenantLicenses={tenantLicenses}
                 onOrgChange={setCurrentOrg}
               />
             )}
