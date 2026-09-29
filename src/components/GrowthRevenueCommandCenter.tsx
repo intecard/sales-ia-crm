@@ -62,7 +62,7 @@ export const GrowthRevenueCommandCenter: React.FC<GrowthRevenueCommandCenterProp
   const [aiError, setAiError] = useState('');
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) || courses[0];
-  const basePrice = selectedCourse?.discountPrice || selectedCourse?.price || 12500;
+  const basePrice = selectedCourse?.discountPrice || selectedCourse?.price || 0;
   const requiredQualifiedLeads = Math.ceil(dailySalesGoal / Math.max(closeRatePercent / 100, 0.01));
   const dailyRevenueGoal = dailySalesGoal * basePrice;
   const targetRoas = adBudget > 0 ? dailyRevenueGoal / adBudget : 0;

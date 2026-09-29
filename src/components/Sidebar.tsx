@@ -7,14 +7,22 @@ import {
   GraduationCap,
   GitMerge,
   Megaphone,
+  Rocket,
   CreditCard,
+  Calculator,
   FolderLock,
   BarChart3,
+  History,
   Settings,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Zap
+  Zap,
+  Workflow,
+  Crown,
+  WalletCards,
+  ShoppingCart,
+  Gauge,
 } from 'lucide-react';
 
 export type NavTab =
@@ -25,9 +33,17 @@ export type NavTab =
   | 'courses'
   | 'funnels'
   | 'marketing'
+  | 'growth'
+  | 'operations'
+  | 'owner'
+  | 'adsWallet'
+  | 'procurement'
+  | 'kpis'
   | 'payments'
+  | 'accounting'
   | 'documents'
   | 'analytics'
+  | 'audit'
   | 'settings';
 
 interface SidebarProps {
@@ -36,6 +52,7 @@ interface SidebarProps {
   leadsCount: number;
   activeAgentsCount: number;
   pendingPaymentsCount: number;
+  deploymentMode?: 'production' | 'trial';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -43,83 +60,141 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   leadsCount,
   activeAgentsCount,
-  pendingPaymentsCount
+  pendingPaymentsCount,
+  deploymentMode = 'production',
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const isTrialMode = deploymentMode === 'trial';
 
   const navItems = [
     {
       id: 'dashboard' as NavTab,
       label: 'Dashboard Executive',
       icon: LayoutDashboard,
-      badge: null
+      badge: null,
     },
     {
       id: 'leads' as NavTab,
       label: 'Leads CRM 360°',
       icon: Users,
       badge: leadsCount > 0 ? `${leadsCount}` : null,
-      badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+      badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     },
     {
       id: 'agents' as NavTab,
       label: 'Agentes IA Autónomos',
       icon: Bot,
       badge: `${activeAgentsCount} IA`,
-      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
     },
     {
       id: 'chat' as NavTab,
       label: 'Chat Sales Studio',
       icon: MessageSquare,
       badge: 'En Vivo',
-      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     },
     {
       id: 'courses' as NavTab,
       label: 'Productos / Servicios',
       icon: GraduationCap,
-      badge: '4 Cursos'
+      badge: 'Catálogo',
     },
     {
       id: 'funnels' as NavTab,
       label: 'Embudos & Workflows',
       icon: GitMerge,
-      badge: null
+      badge: null,
     },
     {
       id: 'marketing' as NavTab,
       label: 'IA Marketing & Ads',
       icon: Megaphone,
       badge: 'Auto',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    },
+    {
+      id: 'growth' as NavTab,
+      label: 'Marketing, Ads & Ventas',
+      icon: Rocket,
+      badge: 'Growth',
+      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+    },
+    {
+      id: 'operations' as NavTab,
+      label: 'Operación Autónoma',
+      icon: Workflow,
+      badge: '24/7',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    },
+    {
+      id: 'owner' as NavTab,
+      label: 'Dueño & Licencias',
+      icon: Crown,
+      badge: 'Owner',
+      badgeColor: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+    },
+    {
+      id: 'adsWallet' as NavTab,
+      label: 'Tarjeta & Pauta IA',
+      icon: WalletCards,
+      badge: 'Ads',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    },
+    {
+      id: 'procurement' as NavTab,
+      label: 'Compras IA',
+      icon: ShoppingCart,
+      badge: 'N/I',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    },
+    {
+      id: 'kpis' as NavTab,
+      label: 'KPIs Empresa',
+      icon: Gauge,
+      badge: 'KPI',
+      badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
     },
     {
       id: 'payments' as NavTab,
       label: 'Pasarelas & Facturación',
       icon: CreditCard,
       badge: pendingPaymentsCount > 0 ? `${pendingPaymentsCount}` : null,
-      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+    },
+    {
+      id: 'accounting' as NavTab,
+      label: 'Contabilidad Autónoma',
+      icon: Calculator,
+      badge: 'IA',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
     },
     {
       id: 'documents' as NavTab,
       label: 'Bóveda de Documentos',
       icon: FolderLock,
-      badge: null
+      badge: null,
     },
     {
       id: 'analytics' as NavTab,
       label: 'Analítica Predictiva IA',
       icon: BarChart3,
       badge: 'ROI',
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    },
+    {
+      id: 'audit' as NavTab,
+      label: 'Auditoría & Historial',
+      icon: History,
+      badge: 'Log',
+      badgeColor: 'bg-slate-700/60 text-slate-200 border-slate-600',
     },
     {
       id: 'settings' as NavTab,
       label: 'Multiempresa & Seguridad',
       icon: Settings,
-      badge: null
-    }
+      badge: null,
+    },
   ];
 
   return (
@@ -132,7 +207,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3 border-b border-slate-800 flex items-center justify-between">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <Sparkles
+              className="w-4 h-4 text-cyan-400 animate-spin"
+              style={{ animationDuration: '6s' }}
+            />
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Menú Principal
             </span>
@@ -164,7 +242,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }`}
               title={isCollapsed ? item.label : undefined}
             >
-              <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+              <Icon
+                className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`}
+              />
               {!isCollapsed && (
                 <div className="flex-1 flex items-center justify-between truncate">
                   <span className="truncate">{item.label}</span>
@@ -189,10 +269,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3 border-t border-slate-800 text-[11px] bg-slate-950/50">
           <div className="flex items-center gap-2 text-emerald-400 font-medium mb-1">
             <Zap className="w-3.5 h-3.5" />
-            <span>IA Automática: 100% Ok</span>
+            <span>IA Comercial: {isTrialMode ? 'Prueba segura' : 'Producción activa'}</span>
           </div>
           <p className="text-slate-500 text-[10px]">
-            SALES AI CRM • Versión demostrativa
+            SALES AI CRM • {isTrialMode ? 'Modo prueba' : 'Versión original'}
           </p>
         </div>
       )}

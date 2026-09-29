@@ -1,1 +1,0 @@
-export const LICENCE_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAVef8pjJh9P1LLm2+AtEz1PX8frrANT8Up8PQuh14k50=\n-----END PUBLIC KEY-----\n";

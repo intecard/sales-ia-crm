@@ -1,91 +1,183 @@
-# Sales AI CRM 0.8.0 — Plataforma híbrida
+# Sales AI CRM Enterprise
 
-La misma plataforma puede utilizarse desde navegador o desde la aplicación instalada en Windows y macOS. En modo híbrido ambos clientes se conectan al mismo servicio HTTPS y comparten usuarios, empresas, contactos, agentes, campañas y documentos.
+CRM comercial SaaS multiempresa para ventas, marketing, atencion omnicanal, agentes IA 24/7, cobros, facturacion electronica, auditoria e integraciones externas.
 
-## Modalidades de lanzamiento
+INTECA SRL queda configurada como empresa principal con licencia gratis permanente, pero el CRM esta disenado para vender licencias a cualquier tipo de negocio.
 
-- **Web híbrida:** despliegue `compose.cloud.yml` en un servidor con dominio público. Caddy obtiene y renueva HTTPS automáticamente cuando el DNS apunta al servidor y los puertos 80/443 están disponibles.
-- **Escritorio conectado:** compile el instalador dentro de `desktop`. En el primer inicio se solicita la dirección HTTPS del servicio. La sesión queda en el almacenamiento protegido de la aplicación y no se guardan contraseñas en archivos.
-- **Local independiente:** `INSTALAR.cmd` continúa iniciando una instalación privada en `http://localhost:3000`. Es útil para pruebas o contingencia, pero constituye otra base de datos y no se sincroniza con el servicio central.
+## Que incluye
 
-Para trabajar con los mismos datos en PC, Mac y web, todas las aplicaciones deben usar la misma dirección HTTPS.
+- Dashboard ejecutivo comercial.
+- Leads CRM 360 con embudo completo.
+- Agentes IA autonomos de ventas, marketing, publicidad, embudos, prospeccion, WhatsApp, creativos, video, facturacion, lanzamientos y operaciones.
+- Chat Sales Studio con respuesta IA usando Gemini cuando `GEMINI_API_KEY` esta configurada.
+- Catalogo de productos, servicios y cursos.
+- Embudos y workflows.
+- IA Marketing & Ads para Meta, Google, YouTube, WhatsApp, email y campanas omnicanal.
+- Cabina Marketing, Ads & Ventas para preparar nicho, ventaja injusta, oferta, anuncios, embudo maestro, guiones, objeciones, KPIs y escala.
+- Operacion Autonoma con conectores preparados para redes, anuncios, pagos y e-CF.
+- Pasarelas & Facturacion con cotizaciones, pagos, comprobantes y facturas e-CF.
+- Facturacion electronica e-CF completa con encabezado fiscal, e-NCF, detalle comercial, impuestos, XML, PDF, firma digital y QR.
+- Contabilidad Autonoma con agente IA para estados financieros, compras, recibos, conciliacion bancaria e inventario diario.
+- Auditoria & Historial para registrar acciones del sistema, usuarios, agentes, webhooks e integraciones.
+- Login real por defecto: el dashboard de produccion no abre hasta validar usuario y contrasena; la demo queda como boton separado.
+- Entrada y salida independiente: puedes cerrar sesion real, entrar a demo, salir de demo y volver al acceso real.
+- Tema claro/oscuro persistente en login y dentro del CRM.
+- Multiempresa, roles y licencia gratis permanente para INTECA.
+- Webhooks listos para WhatsApp Cloud API, Meta Lead Ads, Google Ads, YouTube, formularios web, pagos y DGII/e-CF.
 
-Actualización sobre 0.3.0. Incluye interfaz oscura/clara, logos del propietario, módulos persistentes por empresa, licencias firmadas y asistente web. NO declara completas todas las funciones de la antigua demostración.
+## Modos incluidos
 
-## Actualizar la instalación existente en Windows
+El mismo proyecto trae dos modos:
 
-1. Mantenga Docker Desktop abierto. No borre ni reinstale la base de datos.
-2. Extraiga el ZIP en una carpeta temporal. Copie el CONTENIDO de `SALES_AI_CRM` sobre el contenido de su carpeta instalada en D:, aceptando reemplazar archivos del programa. No cree una carpeta SALES_AI_CRM dentro de la anterior.
-3. Conserve el `.env` original, `respaldos` y los volúmenes Docker. Este paquete no contiene `.env` real ni contraseñas.
-4. En la carpeta instalada ejecute `ACTUALIZAR.cmd`. Primero hace un respaldo SQL y luego reconstruye los contenedores y aplica las migraciones aditivas para documentos, solicitudes de pago y cola de mensajes.
-5. Abra http://localhost:3000 y pulse Ctrl+F5. Inicie sesión con su cuenta existente.
-6. La cuenta aparece en modo consulta hasta activar su licencia. Para INTECA use el paquete PRIVADO del propietario: `ACTIVAR_INTECA.cmd`, indicando la ruta de su carpeta instalada. Busca exactamente una empresa llamada INTECA SRL y firma una licencia gratuita sin vencimiento para su ID.
-7. Actualice la pantalla. En Licencia & Plan debe indicar INTECA · Gratuita y permanente.
+- `production`: version original/real para operar y conectar plataformas externas.
+- `trial`: version de prueba segura para ensayar campanas, agentes, cobros y datos sin afectar operacion real.
 
-Si falla el respaldo, el actualizador no continúa. Si falla la actualización, conserve todos los archivos y consulte `docker compose logs --tail 80 app`. No ejecute `docker compose down -v`, `prisma migrate reset` ni borre los volúmenes. Para rollback del programa conserve también el ZIP 0.3.0; las migraciones añaden columnas y tablas sin eliminar las anteriores.
+Render debe quedar asi para la version real:
 
-## Instalación nueva
+```env
+DEPLOYMENT_MODE=production
+VITE_DEPLOYMENT_MODE=production
+NODE_ENV=production
+```
 
-Docker Desktop con contenedores Linux y Docker Compose v2. Ejecute INSTALAR.cmd, registre la empresa y active la licencia en Licencia & Plan. No hay usuario ni contraseña de fábrica. El instalador genera secretos aleatorios. Cada instalación local guarda sus propios datos.
+Para prueba controlada:
 
-## Funciones reales
+```env
+DEPLOYMENT_MODE=trial
+VITE_DEPLOYMENT_MODE=trial
+NODE_ENV=production
+```
 
-- Cuenta real con panel ejecutivo, contactos, empresas cliente, catálogo, oportunidades, tareas y configuración existentes.
-- Tema claro/oscuro persistente en ambas presentaciones. Logos horizontal y cuadrado originales.
-- Agentes: crear/editar instrucciones por empresa; consultas manuales con Gemini. No afirma estar trabajando 24/7 cuando no hay proceso activo.
-- Chat: conversaciones guardadas, entradas manuales, borradores, respuestas IA; envío individual de correo mediante Resend con confirmación explícita. ACCEPTED significa aceptado por proveedor, no entregado.
-- Embudos: tablero por etapas y cambios persistentes. Mover a una etapa llamada Ganado no marca por sí solo la oportunidad como ganada; cambie el resultado en Gestionar oportunidades.
-- Workflows: cada regla activa crea un seguimiento al crear un contacto desde el CRM. La fecha de la tarea no realiza llamadas ni envía mensajes. El canal web crea su propio seguimiento.
-- Marketing: campañas con objetivo, audiencia y tope de presupuesto; pueden autorizarse para publicación automática cuando exista una conexión oficial compatible. Sin esa conexión permanecen como borradores y no simulan publicaciones.
-- Canales sociales: webhooks firmados, cola persistente, respuestas de texto manuales o automáticas, agente por canal y atención humana. Requieren autorización de las cuentas y pruebas reales. Ver docs/CANALES_Y_PAGOS.md.
-- Solicitudes de pago: enlaces de plataformas externas, cuentas bancarias y portal para subir comprobantes; aprobación humana antes de registrar el cobro.
-- Cobros: registro manual en efectivo/transferencia/tarjeta externa, estados, reembolsos registrados y comprobantes internos imprimibles. No cobra tarjetas ni emite facturas fiscales.
-- Bóveda: PDF, PNG, JPG, TXT y CSV de hasta 5 MB. Archivos guardados en PostgreSQL con acceso por empresa, descarga como adjunto, incluidos en el SQL. No hay análisis antivirus.
-- Analítica: ventas por moneda, cobros manuales y proyección ponderada por probabilidad. No inventa CAC, LTV o retornos; no es un modelo predictivo validado.
-- Licencias: verificación Ed25519, vinculadas al ID de empresa. INTECA gratuita permanente; clientes comerciales requieren licencia con vencimiento. Sin licencia se conserva consulta/exportación; las escrituras se rechazan. No hay pago recurrente automático.
-- Vendedor IA & Web: catálogo y condiciones comerciales autorizadas, guion editable, iframe web, conversación persistente, oportunidad y seguimiento automáticos. La venta no se marca cobrada por lo que diga la IA.
+## Desarrollo local
 
-## Conectar IA y correo
+Requisitos:
 
-En Integraciones configure su clave Gemini y un modelo habilitado en SU cuenta, o Resend con API key y correo de un dominio verificado. Las claves se cifran con APP_SECRET. Conserve el .env y su secreto: cambiarlo impide descifrar las credenciales guardadas. No envíe claves por chat.
+- Node.js 22 LTS o compatible.
+- Git.
+- Cuenta de Gemini si quieres probar IA real.
 
-Guardar una clave no prueba su funcionamiento. Gemini pasa a Verificado tras una respuesta; Resend tras un envío aceptado. Los fallos se muestran sin imprimir claves en la interfaz. No se han probado cuentas externas reales en esta entrega; el envío de prueba automatizado usa un proveedor simulado y no contacta personas.
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-El software gratuito de INTECA no hace gratuitos los proveedores, anuncios, servidor ni dominios. No se configura ni ejecuta gasto publicitario desde este paquete.
+Abrir:
 
-## Página web
+```text
+http://localhost:3000
+```
 
-1. Cargue productos reales, precios y moneda en Catálogo.
-2. En Vendedor IA & Web configure políticas, guion, correo humano, enlace de pago HTTPS (si ya dispone de uno) y límite diario de consultas.
-3. Configure Gemini, active el asistente y guarde.
-4. Pruebe el enlace. Para visitantes de Internet debe desplegar el CRM en un servidor HTTPS y reemplazar el origen localhost por ese dominio.
-5. Configure WIDGET_ALLOWED_ORIGINS en el servidor con los orígenes HTTPS autorizados, separados por comas, por ejemplo `https://www.suempresa.com`. El iframe se bloquea para sitios externos por defecto.
-6. Inserte el iframe mostrado en su página. El visitante facilita nombre, correo y consentimiento de atención. La conversación se guarda y el asistente responde usando catálogo y políticas; no navega ni extrae automáticamente todo su sitio.
-7. Las consultas web tienen límite diario por empresa y límites por IP. El límite incluye intentos fallidos para evitar costes ilimitados. El asistente debe permanecer en un servidor encendido; un PC apagado no atiende clientes.
+## Build de produccion
 
-## Pendiente para el alcance total solicitado
+```bash
+npm run typecheck
+npm run build
+npm start
+```
 
-Conexión y validación de cuentas reales de WhatsApp Business/Facebook/Instagram, Google Ads y Meta Ads, publicación/optimización de campañas, audio, checkout integrado con importe automático y conciliación de tarjetas, facturación fiscal, recuperación por correo, CRM alojado 24/7, cobro automático de licencias, revocación centralizada y pruebas con proveedores reales.
+## Render
 
-Los menús equivalentes a la demo no significan que las acciones externas estén conectadas. La demo conserva datos ilustrativos; el modo real empieza con los datos del negocio. No existe un discurso infalible ni una garantía de cierre; el guion debe respetar las condiciones autorizadas y permitir atención humana.
+Build Command:
 
-## Seguridad y límites de licencias locales
+```bash
+npm ci && npm run build
+```
 
-El paquete de clientes solo contiene la clave pública. NO comparta el ZIP del propietario, private-key.pem ni las herramientas privadas con clientes. El propietario emite una licencia después de confirmar manualmente una compra. Conserve copias cifradas de su clave privada: perderla impide emitir nuevas licencias compatibles.
+Start Command:
 
-Como se entrega código fuente y el cliente administra su equipo, un usuario con control del servidor puede modificar el software o el reloj. La licencia local no es DRM invulnerable. Para control comercial fuerte se necesita hosting y un servicio central de licencias.
+```bash
+node dist/server.cjs
+```
 
-## Pruebas
+No uses `seed.cjs` en el Start Command. Si necesitas datos iniciales reales, debes cargarlos una sola vez desde un script controlado o desde la base de datos.
 
-`npm ci`, `npm run db:generate`, `npm run check`.
-Las suites integradas requieren una base aislada, roles sembrados y RUN_DATABASE_TESTS=1. Las nuevas pruebas de licencias requieren además TEST_LICENSE_PRIVATE_KEY_PATH y APP_SECRET de prueba; la clave privada no se incluye en el paquete de clientes. Nunca ejecute estas pruebas en una base con datos reales.
+## Variables minimas en Render
 
-Consulte docs/VALIDACION_V040.md para las pruebas realizadas y sus límites.
+```env
+NODE_ENV=production
+DEPLOYMENT_MODE=production
+VITE_DEPLOYMENT_MODE=production
+PORT=10000
+APP_URL=https://sales.ia.crm.inteca.com.do
+APP_SECRET=usa_un_valor_largo_y_privado
+GEMINI_API_KEY=tu_clave_gemini
+GEMINI_MODEL=gemini-3.6-flash
+META_WEBHOOK_VERIFY_TOKEN=sales_ai_crm_whatsapp_verify_2026
+ADMIN_EMAIL=admin@inteca.com.do
+ADMIN_PASSWORD=usa_una_contrasena_privada_y_larga
+ADMIN_NAME=Admin General
+ADMIN_ORGANIZATION=INTECA SRL
+```
 
-## Fichas completas de cursos
+## Webhooks principales
 
-En **Conocimiento de cursos**, seleccione un producto del catálogo y registre módulos, pénsum, duración, horarios/fechas/zona horaria, modalidad, requisitos, desglose de pagos, avales otorgados, certificación y políticas. Indique fuentes y fecha de verificación. Un administrador debe aprobar la ficha para que la usen los agentes; puede establecer vencimiento.
+Usa tu dominio real delante de cada ruta:
 
-Chat, web y mensajería consultan la misma información actual por empresa. No se precargan planes de estudios, precios ni avales de INTECA sin documentos actuales verificados. Los datos vacíos se señalan como pendientes. Una solicitud de aval no prueba su concesión. Si cambia nombre, descripción, precio o moneda del catálogo, vuelva a revisar y aprobar la ficha para evitar condiciones contradictorias. No hay extracción automática de archivos PDF de la bóveda: se deben transcribir los datos revisados en estos campos.
+```text
+/api/webhooks/meta/whatsapp
+/api/webhooks/meta/leadgen
+/api/webhooks/google-ads/leads
+/api/webhooks/youtube/events
+/api/webhooks/web/forms
+/api/webhooks/payments
+/api/webhooks/dgii/ecf-status
+/api/audit/events
+/api/auth/login
+/api/auth/logout
+/api/ai/generate-growth-system
+/api/ai/generate-ecf-invoice
+/api/ai/generate-accounting-report
+/api/health
+/api/runtime/config
+```
 
-La base de conocimiento mejora la consistencia, pero no garantiza que un modelo nunca se equivoque. Pruebe preguntas sobre cada curso antes de habilitar respuestas automáticas. Mensajes extensos que superan el límite de texto del conector pasan a revisión humana.
+Ejemplo WhatsApp Cloud API:
+
+```text
+https://sales.ia.crm.inteca.com.do/api/webhooks/meta/whatsapp
+```
+
+Evento a suscribir en Meta:
+
+```text
+messages
+```
+
+## Estado de integraciones
+
+El CRM queda listo para conectar plataformas externas. Sin credenciales oficiales, el sistema muestra los modulos, rutas, agentes y flujos, pero no puede publicar anuncios, enviar WhatsApp real, cobrar tarjetas ni emitir e-CF ante DGII.
+
+Eso no es un fallo del CRM: esas acciones requieren tokens, permisos, certificados, proveedores y aprobaciones externas.
+
+## Comandos utiles
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+npm run check
+```
+
+## Estructura principal
+
+```text
+src/
+  components/
+  data/
+  types.ts
+server.ts
+.env.example
+Dockerfile
+render.yaml
+docs/
+```
+
+## Seguridad operativa
+
+- No subir `.env.local` a GitHub.
+- No poner tokens reales dentro del codigo.
+- Usar variables de entorno en Render.
+- Validar pagos antes de marcar cliente activo.
+- Aprobar testimonios, cambios de precio y publicaciones institucionales antes de activar campanas.
+- Revisar `Auditoria & Historial` para ver acciones del CRM y agentes.

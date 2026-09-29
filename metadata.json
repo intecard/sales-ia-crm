@@ -1,6 +1,6 @@
 {
   "name": "Sales AI CRM",
-  "description": "CRM SaaS multiempresa configurable para ventas, marketing y atención con inteligencia artificial. INTECA es la primera organización de demostración.",
+  "description": "CRM SaaS multiempresa configurable para ventas, marketing y atención con inteligencia artificial. INTECA SRL es la organización principal real y la demo queda aislada.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -5,7 +5,6 @@ import {
   Loader2,
   LockKeyhole,
   Mail,
-  PlayCircle,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -20,19 +19,11 @@ interface AuthGateProps {
   onAuthenticated: (session: CRMAuthSession) => void;
 }
 
-export const AuthGate: React.FC<AuthGateProps> = ({
-  deploymentMode,
-  theme,
-  onToggleTheme,
-  onAuthenticated,
-}) => {
+export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuthenticated }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const isProduction = deploymentMode === 'production';
-
   const handleRealLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
@@ -62,18 +53,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({
     }
   };
 
-  const handleDemoAccess = () => {
-    onAuthenticated({
-      mode: 'demo',
-      userName: 'Usuario Demo',
-      email: 'demo@sales-ai-crm.local',
-      role: 'Admin',
-      organizationName: 'Empresa Demo',
-      token: `demo_${Date.now()}`,
-      loginAt: new Date().toISOString(),
-    });
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.25),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(244,63,94,0.18),transparent_28%)]" />
@@ -83,7 +62,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({
           <div className="flex items-center justify-between gap-3 mb-5">
             <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 px-3 py-1 rounded-full text-xs font-black">
               <ShieldCheck className="w-4 h-4" />
-              <span>{isProduction ? 'Entrada real protegida' : 'Entorno de prueba'}</span>
+              <span>Entrada real protegida</span>
             </div>
             <button
               type="button"
@@ -116,8 +95,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({
             Acceso real para operar INTECA y clientes con agentes IA 24/7.
           </h2>
           <p className="text-sm text-slate-400 mt-3 max-w-xl">
-            La versión principal abre con usuario y contraseña. La demo queda separada para
-            probar datos de muestra sin tocar la operación real.
+            La plataforma abre únicamente con usuario y contraseña reales. No hay acceso de prueba
+            ni datos de muestra en esta versión.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
@@ -187,33 +166,20 @@ export const AuthGate: React.FC<AuthGateProps> = ({
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-60 disabled:cursor-wait text-white font-black rounded-xl px-4 py-3 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="w-4 h-4" />
+              )}
               <span>{isLoading ? 'Validando acceso...' : 'Entrar a la versión real'}</span>
             </button>
           </form>
 
-          <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-800" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-black">
-              o probar sin afectar producción
-            </span>
-            <div className="h-px flex-1 bg-slate-800" />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleDemoAccess}
-            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-black rounded-xl px-4 py-3 flex items-center justify-center gap-2"
-          >
-            <PlayCircle className="w-4 h-4 text-amber-300" />
-            <span>Entrar como demo</span>
-          </button>
-
           <div className="mt-5 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 flex gap-2">
             <Building2 className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" />
             <p>
-              Para producción en Render, configura `ADMIN_EMAIL` y `ADMIN_PASSWORD` en
-              Environment. La demo siempre se marca como prueba.
+              Para producción en Render, configura `ADMIN_EMAIL` y `ADMIN_PASSWORD` en Environment.
+              Esta versión solo permite entrada real.
             </p>
           </div>
         </section>

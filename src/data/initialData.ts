@@ -6,40 +6,74 @@ import {
   PaymentTransaction,
   OrganizationTenant,
   UserProfile,
-  FunnelStageConfig
+  FunnelStageConfig,
+  ProductService,
+  SalesOpportunity,
+  CommercialQuote,
+  ElectronicInvoice,
+  LicensePlan,
+  TenantLicense,
+  ExternalIntegration,
+  CreativeAsset,
+  LaunchCampaignPlan,
+  OwnerActionNotification,
+  AuditLogEntry,
+  AccountingReport,
+  PurchaseRequest,
+  CashReceipt,
+  BankReconciliation,
+  DailyInventoryReport,
+  AdPaymentProfile,
+  AdSpendDecision,
+  PlatformOwnerControl,
+  CompanyAdminProfile,
+  CompanyStaffUser,
+  SupplierQuoteEvaluation,
+  ProcurementAgentTask,
+  CompanyKpiMetric,
 } from '../types';
 
 export const INITIAL_ORGANIZATIONS: OrganizationTenant[] = [
   {
     id: 'org_inteca_main',
-    name: 'INTECA Campus Principal',
+    name: 'INTECA SRL',
     slug: 'inteca-main',
     logo: '🎓',
     plan: 'Enterprise Autonomous AI',
-    activeUsers: 24,
-    activeLeadsCount: 12480,
-    whatsappStatus: 'Conectado QR'
-  },
-  {
-    id: 'org_inteca_tech',
-    name: 'INTECA Tech & AI Institute',
-    slug: 'inteca-tech',
-    logo: '⚡',
-    plan: 'Enterprise Autonomous AI',
-    activeUsers: 12,
-    activeLeadsCount: 6350,
-    whatsappStatus: 'Conectado QR'
-  },
-  {
-    id: 'org_inteca_exec',
-    name: 'INTECA Executive Education',
-    slug: 'inteca-exec',
-    logo: '💼',
-    plan: 'Enterprise Autonomous AI',
     activeUsers: 8,
-    activeLeadsCount: 3100,
-    whatsappStatus: 'Conectado QR'
-  }
+    activeLeadsCount: 420,
+    whatsappStatus: 'Conectado QR',
+  },
+  {
+    id: 'org_clinica_santa_luz',
+    name: 'Clínica Santa Luz',
+    slug: 'clinica-santa-luz',
+    logo: '🏥',
+    plan: 'Business',
+    activeUsers: 18,
+    activeLeadsCount: 1320,
+    whatsappStatus: 'Procesando',
+  },
+  {
+    id: 'org_autoprime_rd',
+    name: 'AutoPrime RD',
+    slug: 'autoprime-rd',
+    logo: '🚘',
+    plan: 'Pro',
+    activeUsers: 7,
+    activeLeadsCount: 680,
+    whatsappStatus: 'Desconectado',
+  },
+  {
+    id: 'org_servicios_nova',
+    name: 'Servicios Nova B2B',
+    slug: 'servicios-nova-b2b',
+    logo: '💼',
+    plan: 'Business',
+    activeUsers: 11,
+    activeLeadsCount: 910,
+    whatsappStatus: 'Conectado QR',
+  },
 ];
 
 export const INITIAL_USERS: UserProfile[] = [
@@ -49,7 +83,8 @@ export const INITIAL_USERS: UserProfile[] = [
     email: 'luis.ramirez@inteca.edu',
     role: 'Admin',
     organizationId: 'org_inteca_main',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+    avatarUrl:
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   },
   {
     id: 'usr_sales_lead',
@@ -57,54 +92,165 @@ export const INITIAL_USERS: UserProfile[] = [
     email: 'valeria.mendoza@inteca.edu',
     role: 'Supervisor',
     organizationId: 'org_inteca_main',
-    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80'
-  }
+    avatarUrl:
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+  },
 ];
 
 export const FUNNEL_STAGES: FunnelStageConfig[] = [
-  { id: 'nuevo', name: 'Lead Nuevo', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', order: 1, autoActionPrompt: 'Enviar WhatsApp de bienvenida con brochure en PDF y video demostrativo del curso.' },
-  { id: 'interesado', name: 'Interesado Activo', color: 'bg-sky-500/20 text-sky-400 border-sky-500/30', order: 2, autoActionPrompt: 'Agente Closer inicia diálogo para detectar objeciones y enviar temario detallado.' },
-  { id: 'contactado', name: 'Contactado IA', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', order: 3, autoActionPrompt: 'Hacer llamada o audio en WhatsApp con IA explicando bonos especiales de la semana.' },
-  { id: 'calificado', name: 'Calificado Alto ROI', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', order: 4, autoActionPrompt: 'Ofrecer beca o descuento personalizado por tiempo limitado de 24 hrs.' },
-  { id: 'presentacion', name: 'Presentación / Demo', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', order: 5, autoActionPrompt: 'Enviar invitación a clase magistral o grabación exclusiva con testimonio en video.' },
-  { id: 'negociacion', name: 'En Negociación', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', order: 6, autoActionPrompt: 'Negociar facilidades de pago en cuotas y aplicar cupón exclusivo.' },
-  { id: 'oferta', name: 'Oferta Especial Emitida', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30', order: 7, autoActionPrompt: 'Contador de urgencia activo. Enviar recordatorio vía SMS y WhatsApp.' },
-  { id: 'pago_pendiente', name: 'Pago Pendiente', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', order: 8, autoActionPrompt: 'Enviar link de pago rápido multi-pasarela y asistente de checkout.' },
-  { id: 'venta_realizada', name: 'Venta Cerrada (Pago OK)', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', order: 9, autoActionPrompt: 'Emitir factura, generar acceso automático a plataforma de estudio y bienvenida.' },
-  { id: 'cliente', name: 'Estudiante Activo', color: 'bg-teal-500/20 text-teal-400 border-teal-500/30', order: 10, autoActionPrompt: 'Seguimiento pedagógico y encuestas de satisfacción.' },
-  { id: 'recompra', name: 'Recompra / Upsell', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', order: 11, autoActionPrompt: 'Recomendar especialización avanzada o diplomado con 40% OFF por exalumno.' },
-  { id: 'referido', name: 'Programa de Referidos', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30', order: 12, autoActionPrompt: 'Ofrecer comisiones o comisión en efectivo por enrolar a colegas.' }
+  {
+    id: 'nuevo',
+    name: 'Lead Nuevo',
+    color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    order: 1,
+    autoActionPrompt:
+      'Capturar fuente, interés y necesidad principal. Responder en menos de 5 minutos.',
+  },
+  {
+    id: 'contactado',
+    name: 'Contactado',
+    color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+    order: 2,
+    autoActionPrompt: 'Enviar bienvenida, diagnóstico breve, brochure y CTA único según canal.',
+  },
+  {
+    id: 'interesado',
+    name: 'Interesado',
+    color: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+    order: 3,
+    autoActionPrompt:
+      'Explicar función práctica del técnico/producto, beneficios y mejora de oportunidad laboral o comercial.',
+  },
+  {
+    id: 'calificado',
+    name: 'Calificado',
+    color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    order: 4,
+    autoActionPrompt:
+      'Validar presupuesto, urgencia, decisión y objeciones. Asignar probabilidad de cierre.',
+  },
+  {
+    id: 'presentacion',
+    name: 'Presentación / Prueba de Valor',
+    color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    order: 5,
+    autoActionPrompt:
+      'Enviar nota de voz, pensum/cotización, prueba social autorizada y fecha límite.',
+  },
+  {
+    id: 'negociacion',
+    name: 'Negociación',
+    color: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    order: 6,
+    autoActionPrompt:
+      'Resolver objeciones, adaptar oferta y negociar solo dentro de políticas autorizadas.',
+  },
+  {
+    id: 'oferta',
+    name: 'Inscripción / Cotización Pendiente',
+    color: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+    order: 7,
+    autoActionPrompt:
+      'Enviar enlace de pago o datos bancarios. Crear recordatorio inmediato, 24h y 72h.',
+  },
+  {
+    id: 'pago_pendiente',
+    name: 'Pago Recibido por Validar',
+    color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    order: 8,
+    autoActionPrompt:
+      'Registrar comprobante, fuente y monto. No activar matrícula/cliente hasta validar.',
+  },
+  {
+    id: 'venta_realizada',
+    name: 'Pago Validado',
+    color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    order: 9,
+    autoActionPrompt:
+      'Emitir recibo/factura e-CF, registrar cobro y notificar pago validado al dueño.',
+  },
+  {
+    id: 'cliente',
+    name: 'Matriculado / Cliente Activo',
+    color: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+    order: 10,
+    autoActionPrompt: 'Activar acceso, enviar bienvenida, próximos pasos e inicio programado.',
+  },
+  {
+    id: 'recompra',
+    name: 'Bienvenida, Inicio y Upsell',
+    color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+    order: 11,
+    autoActionPrompt: 'Dar seguimiento posventa, detectar recompra y medir satisfacción.',
+  },
+  {
+    id: 'referido',
+    name: 'Referidos',
+    color: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    order: 12,
+    autoActionPrompt: 'Activar tablero de referidos y comisión según política.',
+  },
 ];
 
 export const INTECA_COURSES: Course[] = [
   {
     id: 'crs_ai_biz',
-    title: 'Diplomado Internacional en IA Aplicada a Negocios y Ventas',
-    code: 'INT-AI-901',
-    category: 'Inteligencia Artificial',
-    price: 499,
-    discountPrice: 299,
-    description: 'Aprende a implementar agentes autónomos de IA, automatización con LLMs, prompt engineering avanzado y CRM predictivo para multiplicar las ventas de tu institución o empresa.',
-    durationHours: 120,
-    schedule: 'Martes y Jueves 19:00 - 21:30 GMT-5 (Clases en Vivo + Grabado HD)',
-    instructors: ['Dr. Carlos Alarcón (Ex-Google Lead AI)', 'Mg. Sofía Barrientos (Especialista CRM Growth)'],
+    title: 'Técnico en Autorizaciones Médicas',
+    code: 'INTECA-AUT-5M',
+    category: 'Salud',
+    price: 12500,
+    discountPrice: 2500,
+    description:
+      'Formación virtual para aprender el flujo real de autorizaciones médicas: validación de coberturas, PBS, orientación al afiliado, documentación, seguimiento y procesos usados por ARS y prestadores de salud.',
+    durationHours: 80,
+    schedule:
+      'Virtual · 5 meses · 1 día por semana · horarios tarde/noche y fines de semana según grupo',
+    instructors: [
+      'Facilitador con experiencia en ARS, autorizaciones, call center, capacitación y CRM',
+    ],
     modulesCount: 6,
     modulesList: [
-      { title: 'Módulo 1: Fundamentos de Arquitectura de LLMs y Agentes', topics: ['Prompts Avanzados', 'RAG con bases vectoriales', 'Agentes Multi-Rol'] },
-      { title: 'Módulo 2: Automatización de Embudos de Venta con IA', topics: ['WhatsApp API con Inteligencia Artificial', 'Workflows en tiempo real', 'Scoring de leads'] },
-      { title: 'Módulo 3: Creación de Contenido Marketing en Masa', topics: ['Copywriting con Gemini', 'Generación de Creativos e Imágenes', 'Video AI Studio'] },
-      { title: 'Módulo 4: Integración con Pasarelas de Pago y ERP', topics: ['Stripe, PayPal y Webhooks', 'Facturación automática', 'Enrolamiento sin fricción'] },
-      { title: 'Módulo 5: Analytics Predictivo y Machine Learning', topics: ['Predicción de churn', 'LTV y CAC automático', 'Dashboards ejecutivos'] },
-      { title: 'Módulo 6: Proyecto Final Integrador INTECA', topics: ['Despliegue de un CRM Autónomo en vivo', 'Auditoría y Certificación'] }
+      {
+        title: 'Módulo 1: Sistema de salud y SDSS',
+        topics: ['Ley 87-01', 'CNSS', 'SISALRIL', 'Rol de ARS y prestadores'],
+      },
+      {
+        title: 'Módulo 2: PBS y coberturas',
+        topics: ['Plan Básico de Salud', 'validación de afiliados', 'coberturas y exclusiones'],
+      },
+      {
+        title: 'Módulo 3: Flujo de autorizaciones',
+        topics: ['solicitud', 'validación', 'documentación', 'aprobación y seguimiento'],
+      },
+      {
+        title: 'Módulo 4: Atención al usuario',
+        topics: ['empatía', 'manejo de objeciones', 'comunicación clara y registro en CRM'],
+      },
+      {
+        title: 'Módulo 5: Casos prácticos',
+        topics: ['ambulatorios', 'emergencias', 'laboratorio', 'farmacia y hospitalización'],
+      },
+      {
+        title: 'Módulo 6: Empleabilidad',
+        topics: ['perfil del oficial', 'entrevista', 'indicadores y oportunidades laborales'],
+      },
     ],
-    materialsIncluded: ['Acceso ilimitado por 2 años a campus virtual', 'Plantillas de prompts de ventas probadas', 'Scripts de integración de WhatsApp y CRM', 'Tutoría personalizada con IA 24/7'],
-    bonusesIncluded: ['Bono 1: Masterclass de Meta Ads + Google Ads con IA ($150 value)', 'Bono 2: Certificación Internacional Digital Verificable en Blockchain ($100 value)'],
-    certificationType: 'Diplomado Internacional',
-    videoPreviewUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    brochurePdfUrl: 'https://inteca.edu/brochures/diplomado-ia-negocios.pdf',
-    activePromotions: ['Beca Especial 40% OFF por Inscripción Pronta', 'Cupón INTECA2026'],
-    enrolledStudents: 1420,
-    status: 'Cupos Limitados'
+    materialsIncluded: [
+      'Guías de práctica',
+      'casos simulados',
+      'plantillas de seguimiento',
+      'acompañamiento virtual',
+    ],
+    bonusesIncluded: [
+      'Orientación para entrevista',
+      'prácticas de atención y autorización',
+      'preparación para sector salud',
+    ],
+    certificationType: 'Certificación Oficial INTECA',
+    brochurePdfUrl: 'https://inteca.com.do',
+    activePromotions: ['Inscripción RD$2,500', 'Mensualidad RD$2,000'],
+    enrolledStudents: 0,
+    status: 'Cupos Limitados',
   },
   {
     id: 'crs_mkt_automation',
@@ -113,21 +259,41 @@ export const INTECA_COURSES: Course[] = [
     category: 'Marketing & Ventas',
     price: 650,
     discountPrice: 380,
-    description: 'Domina la estrategia completa de atracción omnicanal, campañas de Meta & TikTok Ads optimizadas por IA, email marketing relacional y sistemas de prospección automatizada.',
+    description:
+      'Domina la estrategia completa de atracción omnicanal, campañas de Meta & TikTok Ads optimizadas por IA, email marketing relacional y sistemas de prospección automatizada.',
     durationHours: 160,
     schedule: 'Lunes y Miércoles 20:00 - 22:00 GMT-5',
-    instructors: ['Ing. Andrés Montenegro (Growth Hacker Senior)', 'Dra. Elena Ruiz (Especialista en Neuromarketing)'],
+    instructors: [
+      'Ing. Andrés Montenegro (Growth Hacker Senior)',
+      'Dra. Elena Ruiz (Especialista en Neuromarketing)',
+    ],
     modulesCount: 8,
     modulesList: [
-      { title: 'Módulo 1: Neuromarketing y Psicología del Consumidor', topics: ['Sesgos cognitivos de compra', 'Ganchos emocionales', 'Storytelling persuasivo'] },
-      { title: 'Módulo 2: Meta Ads y TikTok Ads de Alto Impacto', topics: ['Audiencias personalizadas', 'CBO & ABO inteligente', 'Creativos virales'] },
-      { title: 'Módulo 3: Email Marketing y SMS Sequences', topics: ['Entregabilidad superior al 98%', 'Copywriting de alta conversión', 'Flujos relacionales'] }
+      {
+        title: 'Módulo 1: Neuromarketing y Psicología del Consumidor',
+        topics: ['Sesgos cognitivos de compra', 'Ganchos emocionales', 'Storytelling persuasivo'],
+      },
+      {
+        title: 'Módulo 2: Meta Ads y TikTok Ads de Alto Impacto',
+        topics: ['Audiencias personalizadas', 'CBO & ABO inteligente', 'Creativos virales'],
+      },
+      {
+        title: 'Módulo 3: Email Marketing y SMS Sequences',
+        topics: [
+          'Entregabilidad superior al 98%',
+          'Copywriting de alta conversión',
+          'Flujos relacionales',
+        ],
+      },
     ],
-    materialsIncluded: ['Pack de 500 Landing Pages de alta conversión', 'Calculadora de ROI y Presupuesto publicitario'],
+    materialsIncluded: [
+      'Pack de 500 Landing Pages de alta conversión',
+      'Calculadora de ROI y Presupuesto publicitario',
+    ],
     bonusesIncluded: ['Bono: Guía de Cierre por WhatsApp de alta presión suave ($120 value)'],
     certificationType: 'Máster Executive',
     enrolledStudents: 2150,
-    status: 'Disponible'
+    status: 'Disponible',
   },
   {
     id: 'crs_fullstack_ai',
@@ -136,21 +302,37 @@ export const INTECA_COURSES: Course[] = [
     category: 'Programación',
     price: 599,
     discountPrice: 349,
-    description: 'Construye aplicaciones web modernas con React, Next.js, Node.js, Express, Python FastAPI e integra modelos Gemini para crear software SaaS de nivel empresarial.',
+    description:
+      'Construye aplicaciones web modernas con React, Next.js, Node.js, Express, Python FastAPI e integra modelos Gemini para crear software SaaS de nivel empresarial.',
     durationHours: 180,
     schedule: 'Sábados 09:00 - 14:00 GMT-5',
-    instructors: ['Mg. Roberto Silva (Staff Software Engineer)', 'Ing. Karen Morales (Full Stack AI Specialist)'],
+    instructors: [
+      'Mg. Roberto Silva (Staff Software Engineer)',
+      'Ing. Karen Morales (Full Stack AI Specialist)',
+    ],
     modulesCount: 7,
     modulesList: [
-      { title: 'Módulo 1: TypeScript y Arquitectura Limpia', topics: ['SOLID', 'DDD', 'Clean Architecture'] },
-      { title: 'Módulo 2: Frontend Moderno con React y Vite', topics: ['State Management', 'Tailwind CSS', 'Framer Motion'] },
-      { title: 'Módulo 3: Backend con Node.js, Express y Python FastAPI', topics: ['REST, WebSockets, OAuth', 'PostgreSQL y Redis'] }
+      {
+        title: 'Módulo 1: TypeScript y Arquitectura Limpia',
+        topics: ['SOLID', 'DDD', 'Clean Architecture'],
+      },
+      {
+        title: 'Módulo 2: Frontend Moderno con React y Vite',
+        topics: ['State Management', 'Tailwind CSS', 'Framer Motion'],
+      },
+      {
+        title: 'Módulo 3: Backend con Node.js, Express y Python FastAPI',
+        topics: ['REST, WebSockets, OAuth', 'PostgreSQL y Redis'],
+      },
     ],
-    materialsIncluded: ['Repositorio privado de proyectos con código fuente', 'Entorno en la nube para prácticas'],
+    materialsIncluded: [
+      'Repositorio privado de proyectos con código fuente',
+      'Entorno en la nube para prácticas',
+    ],
     bonusesIncluded: ['Bono: Asesoría de Empleabilidad e Inserción Laboral Remota ($200 value)'],
     certificationType: 'Certificación Oficial INTECA',
     enrolledStudents: 980,
-    status: 'Próximo Inicio'
+    status: 'Próximo Inicio',
   },
   {
     id: 'crs_b2b_sales',
@@ -159,21 +341,940 @@ export const INTECA_COURSES: Course[] = [
     category: 'Marketing & Ventas',
     price: 420,
     discountPrice: 250,
-    description: 'Metodología SPIN Selling, negociación Harvard, prospección ejecutiva en LinkedIn Sales Navigator y manejo proactivo de objeciones financieras.',
+    description:
+      'Metodología SPIN Selling, negociación Harvard, prospección ejecutiva en LinkedIn Sales Navigator y manejo proactivo de objeciones financieras.',
     durationHours: 90,
     schedule: 'Viernes 18:30 - 21:30 GMT-5',
     instructors: ['Lic. Gabriel Paredes (Ex-Director de Ventas Salesforce Latam)'],
     modulesCount: 5,
     modulesList: [
-      { title: 'Módulo 1: Prospectación Consultiva B2B', topics: ['Identificación de Decision Makers', 'Outreach efectivo'] },
-      { title: 'Módulo 2: Cierre de Contratos Corporativos', topics: ['Negociación Harvard', 'Licitaciones y Propuestas'] }
+      {
+        title: 'Módulo 1: Prospectación Consultiva B2B',
+        topics: ['Identificación de Decision Makers', 'Outreach efectivo'],
+      },
+      {
+        title: 'Módulo 2: Cierre de Contratos Corporativos',
+        topics: ['Negociación Harvard', 'Licitaciones y Propuestas'],
+      },
     ],
     materialsIncluded: ['Manual de Objeciones B2B', 'Modelos de contratos corporativos editable'],
     bonusesIncluded: ['Bono: Plantilla de Propuesta Comercial Ganadora'],
     certificationType: 'Certificación Oficial INTECA',
     enrolledStudents: 810,
-    status: 'Disponible'
-  }
+    status: 'Disponible',
+  },
+];
+
+const createConfirmedIntecaCourse = (
+  overrides: Partial<Course> & Pick<Course, 'id' | 'title' | 'code' | 'description'>,
+): Course => ({
+  id: overrides.id,
+  title: overrides.title,
+  code: overrides.code,
+  category: overrides.category || 'Salud',
+  price: overrides.price ?? 0,
+  discountPrice: overrides.discountPrice,
+  description: overrides.description,
+  durationHours: overrides.durationHours ?? 0,
+  schedule: overrides.schedule || 'Duración y horario pendientes de confirmar por INTECA',
+  instructors: overrides.instructors || ['Facilitador especializado de INTECA'],
+  modulesCount: overrides.modulesCount ?? 1,
+  modulesList: overrides.modulesList || [
+    {
+      title: 'Contenido pendiente de completar',
+      topics: ['Programa en preparación con información confirmada por INTECA'],
+    },
+  ],
+  materialsIncluded: overrides.materialsIncluded || [
+    'Material de apoyo según programa confirmado por INTECA',
+  ],
+  bonusesIncluded: overrides.bonusesIncluded || [
+    'Orientación práctica según el objetivo del curso',
+  ],
+  certificationType: overrides.certificationType || 'Certificación Oficial INTECA',
+  brochurePdfUrl: overrides.brochurePdfUrl || 'https://inteca.com.do',
+  activePromotions: overrides.activePromotions || ['Inscripción RD$2,500', 'Mensualidad RD$2,000'],
+  enrolledStudents: overrides.enrolledStudents ?? 0,
+  status: overrides.status || 'Disponible',
+});
+
+export const CONFIRMED_INTECA_COURSES: Course[] = [
+  {
+    ...INTECA_COURSES[0],
+    title: 'Autorizaciones Médicas',
+    description:
+      'Curso basado en el Manual de Autorizaciones Médicas de INTECA. Forma al participante para comprender el flujo de solicitudes, validación de coberturas, PBS, documentación, seguimiento y atención al usuario en procesos usados por ARS y prestadores de salud.',
+    materialsIncluded: [
+      'Manual de Autorizaciones Médicas',
+      'Documento maestro de mini cursos',
+      'Programa completo de mini cursos',
+      'Plantillas de seguimiento',
+    ],
+  },
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_13_mini_cursos_autorizaciones',
+    title: '13 Mini Cursos de Autorizaciones Médicas',
+    code: 'INTECA-AUT-13MC',
+    description:
+      'Programa estructurado desde el Documento Maestro de 13 Mini Cursos de Autorizaciones Médicas INTECA. Diseñado para dividir el aprendizaje en temas breves, prácticos y fáciles de vender por módulos.',
+    schedule:
+      'Mini cursos · duración, calendario y precio final pendientes de confirmar por INTECA',
+    activePromotions: ['Oferta modular pendiente de confirmar'],
+  }),
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_mini_cursos_mensuales_autorizaciones',
+    title: 'Mini Cursos Mensuales de Autorizaciones Médicas',
+    code: 'INTECA-AUT-MENSUAL',
+    description:
+      'Oferta mensual de mini cursos sobre autorizaciones médicas. Pensada para captar estudiantes por temas específicos, mantener lanzamientos recurrentes y alimentar el embudo comercial todos los meses.',
+    schedule: 'Mensual · fechas de inicio y relanzamiento definidas por INTECA',
+    activePromotions: ['Precio mensual pendiente de confirmar'],
+  }),
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_programa_completo_mini_cursos_autorizaciones',
+    title: 'Programa Completo de Mini Cursos de Autorizaciones Médicas',
+    code: 'INTECA-AUT-PCMC',
+    description:
+      'Programa completo que agrupa los mini cursos de autorizaciones médicas en una ruta organizada. Sirve para vender el paquete completo a estudiantes que quieren una formación más amplia.',
+    schedule: 'Programa completo · duración y precio final pendientes de confirmar por INTECA',
+    activePromotions: ['Paquete completo pendiente de confirmar'],
+  }),
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_atencion_paciente_usuario',
+    title: 'Atención al Paciente o Usuario',
+    code: 'INTECA-APU',
+    description:
+      'Curso basado en el Manual de Atención al Paciente o Usuario. Fortalece comunicación, orientación, manejo de casos, trato profesional y servicio en instituciones de salud.',
+    schedule: 'Duración y horario pendientes de confirmar por INTECA',
+  }),
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_precertificaciones_medicas',
+    title: 'Precertificaciones Médicas',
+    code: 'INTECA-PRE',
+    description:
+      'Curso basado en el Manual de Precertificaciones Médicas. Enfocado en validación documental, coordinación con prestadores, revisión de requisitos y seguimiento operativo del sector salud.',
+    schedule: 'Duración y horario pendientes de confirmar por INTECA',
+  }),
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_enfermeria',
+    title: 'Enfermería',
+    code: 'INTECA-ENF-1A',
+    description:
+      'Programa basado en el Manual de Enfermería y Manual Técnico de Enfermería de INTECA. Formación del área salud con duración confirmada de 1 año.',
+    schedule: 'Duración: 1 año · horarios pendientes de confirmar por INTECA',
+    modulesCount: 1,
+    modulesList: [
+      {
+        title: 'Manual de Enfermería',
+        topics: ['Contenido completo pendiente de cargar según programa oficial de INTECA'],
+      },
+    ],
+    materialsIncluded: ['Manual de Enfermería', 'Manual Técnico de Enfermería'],
+  }),
+  createConfirmedIntecaCourse({
+    id: 'crs_inteca_farmacologia',
+    title: 'Farmacología',
+    code: 'INTECA-FAR',
+    description:
+      'Curso basado en el Manual de Farmacología de INTECA. Orientado a reforzar conocimientos aplicados de farmacología para contextos administrativos, asistenciales y de atención en salud.',
+    schedule: 'Duración y horario pendientes de confirmar por INTECA',
+    materialsIncluded: ['Manual de Farmacología'],
+  }),
+];
+
+export const INITIAL_PRODUCTS_SERVICES: ProductService[] = [
+  {
+    id: 'svc_inteca_autorizaciones',
+    organizationId: 'org_inteca_main',
+    name: 'Técnico en Autorizaciones Médicas',
+    sku: 'INTECA-AUT-5M',
+    category: 'Educación',
+    description:
+      'Programa virtual para formar oficiales de autorizaciones médicas para ARS y sector salud.',
+    unitPrice: 12500,
+    currency: 'DOP',
+    billingCycle: 'Único',
+    taxable: false,
+    status: 'Activo',
+  },
+  {
+    id: 'svc_clinica_plan_empresarial',
+    organizationId: 'org_clinica_santa_luz',
+    name: 'Plan corporativo de consultas preventivas',
+    sku: 'CSL-CORP-001',
+    category: 'Salud',
+    description:
+      'Paquete de consultas y laboratorio básico para colaboradores de empresas afiliadas.',
+    unitPrice: 85000,
+    currency: 'DOP',
+    billingCycle: 'Mensual',
+    taxable: true,
+    status: 'Activo',
+  },
+  {
+    id: 'svc_autoprime_financiamiento',
+    organizationId: 'org_autoprime_rd',
+    name: 'Gestión de financiamiento vehículo usado',
+    sku: 'APR-FIN-USED',
+    category: 'Automotriz',
+    description:
+      'Servicio comercial para captar, precalificar y cerrar financiamiento de vehículos.',
+    unitPrice: 45000,
+    currency: 'DOP',
+    billingCycle: 'Único',
+    taxable: true,
+    status: 'Activo',
+  },
+  {
+    id: 'svc_nova_consultoria',
+    organizationId: 'org_servicios_nova',
+    name: 'Consultoría mensual de ventas B2B',
+    sku: 'NOVA-B2B-MONTH',
+    category: 'Servicios',
+    description:
+      'Acompañamiento comercial, automatización de seguimiento y reporting para equipos B2B.',
+    unitPrice: 65000,
+    currency: 'DOP',
+    billingCycle: 'Mensual',
+    taxable: true,
+    status: 'Activo',
+  },
+];
+
+export const INITIAL_OPPORTUNITIES: SalesOpportunity[] = [
+  {
+    id: 'opp_1001',
+    organizationId: 'org_inteca_main',
+    leadId: 'lead_101',
+    title: 'Inscripción grupo Autorizaciones Médicas octubre',
+    companyName: 'Prospecto individual INTECA',
+    stage: 'Cotización',
+    productServiceId: 'svc_inteca_autorizaciones',
+    quotedAmount: 12500,
+    currency: 'DOP',
+    probability: 86,
+    expectedCloseDate: '2026-10-01',
+    ownerName: 'Valeria Sotomayor',
+    nextStep: 'Confirmar inscripción RD$2,500 y enviar comprobante por WhatsApp.',
+    riskLevel: 'Bajo',
+  },
+  {
+    id: 'opp_1002',
+    organizationId: 'org_clinica_santa_luz',
+    leadId: 'lead_102',
+    title: 'Convenio preventivo para 120 colaboradores',
+    companyName: 'Distribuidora Caribe Norte',
+    stage: 'Negociación',
+    productServiceId: 'svc_clinica_plan_empresarial',
+    quotedAmount: 85000,
+    currency: 'DOP',
+    probability: 72,
+    expectedCloseDate: '2026-10-08',
+    ownerName: 'Supervisor Comercial',
+    nextStep: 'Enviar cotización ajustada con ITBIS y condiciones de pago a 15 días.',
+    riskLevel: 'Medio',
+  },
+  {
+    id: 'opp_1003',
+    organizationId: 'org_autoprime_rd',
+    leadId: 'lead_103',
+    title: 'Cierre de financiamiento SUV familiar',
+    companyName: 'Cliente AutoPrime RD',
+    stage: 'Cierre',
+    productServiceId: 'svc_autoprime_financiamiento',
+    quotedAmount: 45000,
+    currency: 'DOP',
+    probability: 91,
+    expectedCloseDate: '2026-09-30',
+    ownerName: 'Ejecutivo Ventas',
+    nextStep: 'Validar carta laboral, preparar contrato y emitir factura de servicio.',
+    riskLevel: 'Bajo',
+  },
+];
+
+export const INITIAL_QUOTES: CommercialQuote[] = [
+  {
+    id: 'quote_5001',
+    organizationId: 'org_inteca_main',
+    opportunityId: 'opp_1001',
+    quoteNumber: 'COT-2026-0001',
+    customerName: 'Alejandro Gómez Santander',
+    customerTaxId: 'Pendiente',
+    issueDate: '2026-09-26',
+    validUntil: '2026-10-01',
+    status: 'Enviada',
+    currency: 'DOP',
+    subtotal: 12500,
+    taxAmount: 0,
+    total: 12500,
+    items: [
+      {
+        id: 'qli_1',
+        productServiceId: 'svc_inteca_autorizaciones',
+        description: 'Técnico en Autorizaciones Médicas - modalidad virtual',
+        quantity: 1,
+        unitPrice: 12500,
+        discountPercent: 0,
+      },
+    ],
+  },
+  {
+    id: 'quote_5002',
+    organizationId: 'org_clinica_santa_luz',
+    opportunityId: 'opp_1002',
+    quoteNumber: 'COT-2026-0002',
+    customerName: 'Distribuidora Caribe Norte SRL',
+    customerTaxId: '132-0000001-5',
+    issueDate: '2026-09-26',
+    validUntil: '2026-10-08',
+    status: 'Aceptada',
+    currency: 'DOP',
+    subtotal: 85000,
+    taxAmount: 15300,
+    total: 100300,
+    items: [
+      {
+        id: 'qli_2',
+        productServiceId: 'svc_clinica_plan_empresarial',
+        description: 'Plan corporativo de consultas preventivas - primer mes',
+        quantity: 1,
+        unitPrice: 85000,
+        discountPercent: 0,
+      },
+    ],
+  },
+];
+
+export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [
+  {
+    id: 'einvoice_7001',
+    organizationId: 'org_clinica_santa_luz',
+    quoteId: 'quote_5002',
+    issuer: {
+      legalName: 'Clínica Santa Luz SRL',
+      commercialName: 'Clínica Santa Luz',
+      taxId: '131-9000000-2',
+      fiscalAddress: 'Av. Salud Integral 45, Santo Domingo, República Dominicana',
+      email: 'facturacion@clinicasantaluz.com',
+      phone: '809-000-2000',
+    },
+    receiver: {
+      legalName: 'Distribuidora Caribe Norte SRL',
+      taxId: '132-0000001-5',
+      fiscalAddress: 'Calle Principal 18, Santiago, República Dominicana',
+      email: 'cuentas@caribenorte.com',
+    },
+    customerName: 'Distribuidora Caribe Norte SRL',
+    customerTaxId: '132-0000001-5',
+    fiscalType: 'Factura de crédito fiscal',
+    ncf: 'B0100000042',
+    eNcf: 'E310000000042',
+    dgiiStatus: 'Lista para enviar',
+    integrationMode: 'Producción pendiente',
+    subtotal: 85000,
+    taxAmount: 15300,
+    total: 100300,
+    currency: 'DOP',
+    issuedAt: '2026-09-26T09:30:00-04:00',
+    dueDate: '2026-10-11',
+    paymentStatus: 'Pendiente',
+    lineItems: [
+      {
+        id: 'ecf_line_7001_1',
+        quantity: 1,
+        description: 'Plan corporativo de consultas preventivas - primer mes',
+        unitPrice: 85000,
+        discountAmount: 0,
+        taxableAmount: 85000,
+        exemptAmount: 0,
+        itbisAmount: 15300,
+        iscAmount: 0,
+        otherTaxAmount: 0,
+        total: 100300,
+      },
+    ],
+    taxBreakdown: {
+      taxableAmount: 85000,
+      exemptAmount: 0,
+      itbisRate: 18,
+      itbisAmount: 15300,
+      iscAmount: 0,
+      otherChargesAmount: 0,
+      grandTotal: 100300,
+    },
+    xmlStatus: 'XML generado',
+    pdfStatus: 'Representación PDF generada',
+    digitalSignatureHash: 'PENDIENTE_CERTIFICADO_DIGITAL_DGII',
+    qrVerificationUrl:
+      'https://ecf.dgii.gov.do/test/verificacion?encf=E310000000042&rnc=13190000002',
+    qrPayload:
+      'RNCEmisor=13190000002&ENCF=E310000000042&MontoTotal=100300.00&FechaEmision=2026-09-26',
+    auditTrail: [
+      'Cotización aceptada por el cliente',
+      'Factura electrónica generada y pendiente de conexión fiscal DGII',
+      'Pendiente conectar certificado digital, secuencia NCF real y endpoint DGII',
+    ],
+  },
+  {
+    id: 'einvoice_7002',
+    organizationId: 'org_autoprime_rd',
+    transactionId: 'tx_8802',
+    issuer: {
+      legalName: 'AutoPrime RD SRL',
+      commercialName: 'AutoPrime RD',
+      taxId: '131-8000000-1',
+      fiscalAddress: 'Av. Automotriz 12, Santo Domingo, República Dominicana',
+      email: 'facturacion@autoprimerd.com',
+      phone: '809-000-3000',
+    },
+    receiver: {
+      legalName: 'Guillermo Restrepo',
+      taxId: '001-0000000-1',
+      fiscalAddress: 'Santo Domingo, República Dominicana',
+      email: 'cliente@example.com',
+    },
+    customerName: 'Guillermo Restrepo',
+    customerTaxId: '001-0000000-1',
+    fiscalType: 'Factura de consumo',
+    ncf: 'B0200000090',
+    eNcf: 'E320000000090',
+    dgiiStatus: 'Lista para enviar',
+    integrationMode: 'Producción pendiente',
+    subtotal: 38135.59,
+    taxAmount: 6864.41,
+    total: 45000,
+    currency: 'DOP',
+    issuedAt: '2026-09-25T16:20:00-04:00',
+    dueDate: '2026-09-25',
+    paymentStatus: 'Pagada',
+    lineItems: [
+      {
+        id: 'ecf_line_7002_1',
+        quantity: 1,
+        description: 'Servicio de gestión comercial automotriz',
+        unitPrice: 38135.59,
+        discountAmount: 0,
+        taxableAmount: 38135.59,
+        exemptAmount: 0,
+        itbisAmount: 6864.41,
+        iscAmount: 0,
+        otherTaxAmount: 0,
+        total: 45000,
+      },
+    ],
+    taxBreakdown: {
+      taxableAmount: 38135.59,
+      exemptAmount: 0,
+      itbisRate: 18,
+      itbisAmount: 6864.41,
+      iscAmount: 0,
+      otherChargesAmount: 0,
+      grandTotal: 45000,
+    },
+    xmlStatus: 'XML generado',
+    pdfStatus: 'Representación PDF generada',
+    digitalSignatureHash: 'PENDIENTE_CERTIFICADO_DIGITAL_DGII',
+    qrVerificationUrl:
+      'https://ecf.dgii.gov.do/test/verificacion?encf=E320000000090&rnc=13180000001',
+    qrPayload:
+      'RNCEmisor=13180000001&ENCF=E320000000090&MontoTotal=45000.00&FechaEmision=2026-09-25',
+    auditTrail: [
+      'Pago marcado como completado en datos operativos',
+      'Factura de consumo generada',
+      'No enviada a DGII por falta de credenciales de producción',
+    ],
+  },
+];
+
+export const INITIAL_ACCOUNTING_REPORTS: AccountingReport[] = [
+  {
+    id: 'acct_report_income_2026_09',
+    organizationId: 'org_inteca_main',
+    type: 'Estado de resultados',
+    period: 'Septiembre 2026',
+    status: 'Generado',
+    generatedByAgentId: 'agent_accounting',
+    highlights: [
+      'Ingresos concentrados en inscripciones y mensualidades.',
+      'Gastos principales: pauta digital, herramientas y soporte operativo.',
+      'Utilidad neta positiva si se mantiene disciplina de cobro y seguimiento.',
+    ],
+    totals: {
+      ingresos: 142500,
+      costos: 27500,
+      gastos: 38500,
+      utilidadNeta: 76500,
+    },
+    nextAction:
+      'Conciliar cobros confirmados con comprobantes bancarios y separar gastos por campaña.',
+  },
+  {
+    id: 'acct_report_balance_2026_09',
+    organizationId: 'org_inteca_main',
+    type: 'Balance general',
+    period: 'Corte 30/09/2026',
+    status: 'En revisión',
+    generatedByAgentId: 'agent_accounting',
+    highlights: [
+      'Activos principales: efectivo, cuentas por cobrar y licencias CRM.',
+      'Pasivos principales: servicios por pagar y gastos acumulados.',
+      'Patrimonio actualizado con resultado acumulado del periodo.',
+    ],
+    totals: {
+      activos: 385000,
+      pasivos: 128000,
+      patrimonio: 257000,
+    },
+    nifReference:
+      'NIF B-6: estructura para Estado de Situación Financiera en forma de reporte o cuenta.',
+    nextAction:
+      'Validar cuentas por cobrar, obligaciones pendientes y clasificación de activos/pasivos.',
+  },
+  {
+    id: 'acct_report_cashflow_2026_09',
+    organizationId: 'org_inteca_main',
+    type: 'Estado de flujo de efectivo',
+    period: 'Septiembre 2026',
+    status: 'Pendiente datos',
+    generatedByAgentId: 'agent_accounting',
+    highlights: [
+      'Entradas por pagos de inscripción y mensualidades.',
+      'Salidas por anuncios, herramientas, producción de contenidos y gastos administrativos.',
+      'Pendiente importar extracto bancario para cerrar conciliación.',
+    ],
+    totals: {
+      entradasEfectivo: 97500,
+      salidasEfectivo: 41200,
+      flujoNeto: 56300,
+    },
+    nextAction:
+      'Importar extracto bancario, asociar comprobantes y emitir flujo final del periodo.',
+  },
+];
+
+export const INITIAL_PURCHASE_REQUESTS: PurchaseRequest[] = [
+  {
+    id: 'pr_2026_0001',
+    organizationId: 'org_inteca_main',
+    requestNumber: 'OC-INTECA-2026-0001',
+    supplierName: 'Proveedor de pauta digital',
+    requesterName: 'Camila Growth Copy',
+    description: 'Presupuesto para campaña de relanzamiento de Autorizaciones Médicas',
+    amount: 10000,
+    currency: 'DOP',
+    status: 'Solicitada',
+    requiredBy: '2026-10-01',
+  },
+  {
+    id: 'pr_2026_0002',
+    organizationId: 'org_inteca_main',
+    requestNumber: 'OC-INTECA-2026-0002',
+    supplierName: 'Herramientas de automatización',
+    requesterName: 'Sofía e-CF',
+    description: 'Proveedor para firma digital, QR y e-CF',
+    amount: 18500,
+    currency: 'DOP',
+    status: 'En revisión' as PurchaseRequest['status'],
+    requiredBy: '2026-10-05',
+  },
+];
+
+export const INITIAL_CASH_RECEIPTS: CashReceipt[] = [
+  {
+    id: 'cash_receipt_001',
+    organizationId: 'org_inteca_main',
+    receiptNumber: 'REC-INTECA-2026-0001',
+    payerName: 'Alejandro Gómez',
+    concept: 'Inscripción Técnico en Autorizaciones Médicas',
+    amount: 2500,
+    currency: 'DOP',
+    paymentMethod: 'Transferencia',
+    receivedAt: '2026-09-27T10:35:00-04:00',
+    linkedTransactionId: 'tx_8801',
+  },
+  {
+    id: 'cash_receipt_002',
+    organizationId: 'org_inteca_main',
+    receiptNumber: 'REC-INTECA-2026-0002',
+    payerName: 'María Castillo',
+    concept: 'Mensualidad curso sector salud',
+    amount: 2000,
+    currency: 'DOP',
+    paymentMethod: 'Efectivo',
+    receivedAt: '2026-09-27T11:10:00-04:00',
+  },
+];
+
+export const INITIAL_BANK_RECONCILIATIONS: BankReconciliation[] = [
+  {
+    id: 'bank_rec_2026_09',
+    organizationId: 'org_inteca_main',
+    bankName: 'Banco principal',
+    accountMask: '****-5502',
+    period: 'Septiembre 2026',
+    internalBalance: 97500,
+    bankStatementBalance: 95000,
+    difference: 2500,
+    status: 'Diferencia pendiente',
+    pendingItems: [
+      'Transferencia de Alejandro Gómez pendiente de confirmar en extracto.',
+      'Comisión bancaria pendiente de clasificar.',
+    ],
+  },
+];
+
+export const INITIAL_DAILY_INVENTORY_REPORTS: DailyInventoryReport[] = [
+  {
+    id: 'inv_daily_001',
+    organizationId: 'org_inteca_main',
+    reportDate: '2026-09-27',
+    itemName: 'Cupos Técnico en Autorizaciones Médicas',
+    openingStock: 200,
+    entries: 0,
+    exits: 14,
+    closingStock: 186,
+    alertLevel: 'Normal',
+  },
+  {
+    id: 'inv_daily_002',
+    organizationId: 'org_inteca_main',
+    reportDate: '2026-09-27',
+    itemName: 'Cupos Taller Ley 87-01',
+    openingStock: 35,
+    entries: 0,
+    exits: 28,
+    closingStock: 7,
+    alertLevel: 'Bajo',
+  },
+];
+
+export const INITIAL_LICENSE_PLANS: LicensePlan[] = [
+  {
+    id: 'plan_founder_free',
+    name: 'INTECA Licencia Abierta Indefinida',
+    targetSegment: 'Uso interno de INTECA SRL, abierto, indefinido y para siempre',
+    monthlyPrice: 0,
+    setupFee: 0,
+    includedUsers: 9999,
+    leadLimit: 999999,
+    features: [
+      'Licencia abierta indefinida',
+      'Uso interno de INTECA para siempre',
+      'Sin renovación, vencimiento ni suspensión comercial',
+      'CRM completo y agentes IA',
+    ],
+    status: 'Interno',
+  },
+  {
+    id: 'plan_starter',
+    name: 'Starter Comercial',
+    targetSegment: 'Pequeñas empresas y equipos de ventas',
+    monthlyPrice: 3500,
+    setupFee: 5000,
+    includedUsers: 3,
+    leadLimit: 1000,
+    features: ['Leads y oportunidades', 'Cotizaciones', 'Seguimiento WhatsApp', 'Reportes básicos'],
+    status: 'Vendible',
+  },
+  {
+    id: 'plan_business',
+    name: 'Business Multicanal',
+    targetSegment: 'Empresas con operación comercial activa',
+    monthlyPrice: 9500,
+    setupFee: 15000,
+    includedUsers: 10,
+    leadLimit: 10000,
+    features: [
+      'Embudo completo',
+      'Facturación electrónica e-CF',
+      'Automatizaciones',
+      'Roles y permisos',
+    ],
+    status: 'Vendible',
+  },
+  {
+    id: 'plan_enterprise',
+    name: 'Enterprise IA',
+    targetSegment: 'Empresas con varias sedes, equipos grandes o integraciones',
+    monthlyPrice: 22000,
+    setupFee: 45000,
+    includedUsers: 25,
+    leadLimit: 50000,
+    features: [
+      'Multiempresa avanzado',
+      'Agentes IA',
+      'Integraciones a medida',
+      'Auditoría comercial',
+      'Pauta pagada con límites',
+      'Compras nacionales e internacionales',
+      'KPIs empresariales',
+    ],
+    status: 'Vendible',
+  },
+];
+
+export const INITIAL_TENANT_LICENSES: TenantLicense[] = [
+  {
+    id: 'lic_inteca_free',
+    organizationId: 'org_inteca_main',
+    planId: 'plan_founder_free',
+    billingCycle: 'Abierta indefinida',
+    monthlyAmount: 0,
+    status: 'Activa',
+    renewalDate: 'Indefinida / para siempre',
+    seatsUsed: 0,
+    seatsLimit: 9999,
+    invoiceEmail: 'intecaedu@gmail.com',
+    paymentMethod: 'Gratis INTECA',
+    isFreeForever: true,
+    isOpenLicense: true,
+    licenseManagementLocked: true,
+  },
+  {
+    id: 'lic_clinica_business',
+    organizationId: 'org_clinica_santa_luz',
+    planId: 'plan_business',
+    billingCycle: 'Mensual',
+    monthlyAmount: 9500,
+    status: 'Prueba',
+    renewalDate: '2026-10-26',
+    seatsUsed: 9,
+    seatsLimit: 10,
+    invoiceEmail: 'facturacion@clinicasantaluz.demo',
+    paymentMethod: 'Transferencia',
+  },
+  {
+    id: 'lic_autoprime_starter',
+    organizationId: 'org_autoprime_rd',
+    planId: 'plan_starter',
+    billingCycle: 'Mensual',
+    monthlyAmount: 3500,
+    status: 'Activa',
+    renewalDate: '2026-10-15',
+    seatsUsed: 3,
+    seatsLimit: 3,
+    invoiceEmail: 'admin@autoprime.demo',
+    paymentMethod: 'Tarjeta',
+  },
+];
+
+export const PLATFORM_OWNER_CONTROL: PlatformOwnerControl = {
+  ownerName: 'Luis Ramirez',
+  ownerEmail: 'intecaedu@gmail.com',
+  ownerRole: 'Super Admin CRM',
+  canGrantLicenses: true,
+  canCreateTenants: true,
+  canManageBilling: true,
+  licensePolicy: [
+    'Solo el dueño de la plataforma puede vender, activar, suspender o regalar licencias del CRM.',
+    'Cada empresa cliente puede tener un Admin Empresa, pero ese rol no puede otorgar licencias.',
+    'INTECA SRL tiene licencia abierta indefinida y para siempre; no se renueva, no vence y no se administra como cliente vendible.',
+    'Toda creación de empresa, licencia, admin y cambio de plan debe quedar en auditoría.',
+  ],
+};
+
+export const INITIAL_COMPANY_ADMINS: CompanyAdminProfile[] = [
+  {
+    id: 'company_admin_inteca',
+    organizationId: 'org_inteca_main',
+    name: 'Administrador Operativo INTECA',
+    email: 'operaciones@inteca.com.do',
+    role: 'Admin Empresa',
+    canGrantLicenses: false,
+    canManageUsers: true,
+    canManageIntegrations: true,
+    seatsLimit: 10,
+    usersLoaded: 6,
+    status: 'Activo',
+  },
+  {
+    id: 'company_admin_clinica_demo',
+    organizationId: 'org_clinica_santa_luz',
+    name: 'Admin Empresa Demo',
+    email: 'admin.empresa@demo.local',
+    role: 'Admin Empresa',
+    canGrantLicenses: false,
+    canManageUsers: true,
+    canManageIntegrations: true,
+    seatsLimit: 10,
+    usersLoaded: 4,
+    status: 'Pendiente',
+  },
+];
+
+export const INITIAL_COMPANY_STAFF_USERS: CompanyStaffUser[] = [
+  {
+    id: 'staff_inteca_sales',
+    organizationId: 'org_inteca_main',
+    name: 'Equipo Ventas INTECA',
+    email: 'ventas@inteca.com.do',
+    role: 'Ventas',
+    department: 'Ventas',
+    status: 'Activo',
+    createdByAdminId: 'company_admin_inteca',
+  },
+  {
+    id: 'staff_inteca_marketing',
+    organizationId: 'org_inteca_main',
+    name: 'Equipo Marketing INTECA',
+    email: 'marketing@inteca.com.do',
+    role: 'Marketing',
+    department: 'Marketing',
+    status: 'Activo',
+    createdByAdminId: 'company_admin_inteca',
+  },
+];
+
+export const INITIAL_AD_PAYMENT_PROFILES: AdPaymentProfile[] = [
+  {
+    id: 'adpay_meta_demo',
+    organizationId: 'org_inteca_main',
+    provider: 'Meta Ads',
+    cardBrand: 'Visa',
+    cardLast4: '4242',
+    cardholderName: 'INTECA SRL',
+    billingEmail: 'intecaedu@gmail.com',
+    spendingLimitDaily: 1000,
+    spendingLimitMonthly: 30000,
+    status: 'Requiere verificación',
+    approvalMode: 'Requiere aprobación del dueño',
+    connectedAccountId: 'pendiente_meta_ad_account',
+  },
+  {
+    id: 'adpay_google_demo',
+    organizationId: 'org_inteca_main',
+    provider: 'Google Ads',
+    cardBrand: 'Mastercard',
+    cardLast4: '1881',
+    cardholderName: 'INTECA SRL',
+    billingEmail: 'intecaedu@gmail.com',
+    spendingLimitDaily: 1000,
+    spendingLimitMonthly: 30000,
+    status: 'No configurada',
+    approvalMode: 'Solo manual',
+  },
+];
+
+export const INITIAL_AD_SPEND_DECISIONS: AdSpendDecision[] = [
+  {
+    id: 'ad_decision_aut_med_meta',
+    organizationId: 'org_inteca_main',
+    campaignTitle: 'Autorizaciones Médicas hacia WhatsApp',
+    channel: 'Meta Ads',
+    objective: 'Conseguir conversaciones calificadas y pagos de inscripción',
+    recommendedBudgetDop: 1000,
+    maxBudgetDop: 3000,
+    expectedLeads: 45,
+    expectedSales: 5,
+    targetRoas: 3.5,
+    riskLevel: 'Medio',
+    status: 'Recomendado',
+    reasoning:
+      'El curso tiene oferta clara, WhatsApp conectado y embudo directo a pago; conviene iniciar con prueba controlada y escalar solo anuncios con conversaciones útiles.',
+    guardrails: [
+      'Pausar si el CPL sube 35% sobre objetivo sin pagos.',
+      'No duplicar presupuesto sin pago validado o intención alta registrada.',
+      'Enviar tráfico solo a WhatsApp o landing con UTM y seguimiento de pago.',
+    ],
+    createdByAgentId: 'agent_media_buyer',
+    createdAt: '2026-09-27T08:00:00-04:00',
+  },
+];
+
+export const INITIAL_SUPPLIER_QUOTE_EVALUATIONS: SupplierQuoteEvaluation[] = [
+  {
+    id: 'quote_eval_ecf_provider',
+    organizationId: 'org_inteca_main',
+    supplierName: 'Proveedor fiscal e-CF',
+    country: 'República Dominicana',
+    quoteNumber: 'COT-ECF-2026-01',
+    category: 'Facturación electrónica',
+    requestedItem: 'Servicio de integración e-CF, firma digital y QR',
+    amount: 18500,
+    currency: 'DOP',
+    deliveryDays: 7,
+    warrantyScore: 82,
+    qualityScore: 88,
+    priceScore: 79,
+    complianceScore: 91,
+    negotiationStatus: 'Negociando',
+    recommendation:
+      'Negociar soporte de certificación DGII incluido y descuento por pago anual antes de aprobar.',
+    agentNotes:
+      'La propuesta cumple los elementos críticos: XML, PDF, firma, QR y ambiente de producción pendiente.',
+  },
+];
+
+export const INITIAL_PROCUREMENT_AGENT_TASKS: ProcurementAgentTask[] = [
+  {
+    id: 'proc_task_local_ecf',
+    organizationId: 'org_inteca_main',
+    scope: 'Nacional',
+    agentName: 'Agente IA Compras Nacionales',
+    taskType: 'Negociación',
+    supplierOrItem: 'Proveedor fiscal e-CF',
+    status: 'En proceso',
+    expectedSavingPercent: 12,
+    nextAction:
+      'Solicitar segunda cotización local y comparar soporte, SLA, implementación y costo total.',
+  },
+  {
+    id: 'proc_task_intl_ads_tools',
+    organizationId: 'org_inteca_main',
+    scope: 'Internacional',
+    agentName: 'Agente IA Compras Internacionales',
+    taskType: 'Cotización',
+    supplierOrItem: 'Herramientas IA para imagen/video publicitario',
+    status: 'Pendiente',
+    expectedSavingPercent: 18,
+    nextAction:
+      'Comparar proveedores por API, costo por pieza, derechos de uso comercial y límite mensual.',
+  },
+];
+
+export const INITIAL_COMPANY_KPIS: CompanyKpiMetric[] = [
+  {
+    id: 'kpi_sales_daily',
+    organizationId: 'org_inteca_main',
+    area: 'Ventas',
+    name: 'Ventas diarias validadas',
+    currentValue: 0,
+    targetValue: 5,
+    unit: 'Cantidad',
+    status: 'Atención',
+    trend: 'Sin datos',
+    ownerAgentId: 'agent_closer',
+    recommendation:
+      'Conectar pagos y WhatsApp para medir ventas reales; mientras tanto solo registrar pagos validados manualmente.',
+  },
+  {
+    id: 'kpi_ads_roas',
+    organizationId: 'org_inteca_main',
+    area: 'Marketing',
+    name: 'ROAS de pauta',
+    currentValue: 0,
+    targetValue: 3.5,
+    unit: '%',
+    status: 'Sin datos',
+    trend: 'Sin datos',
+    ownerAgentId: 'agent_media_buyer',
+    recommendation:
+      'No escalar campañas hasta conectar costos de Meta/Google y pagos confirmados por pasarela.',
+  },
+  {
+    id: 'kpi_proc_savings',
+    organizationId: 'org_inteca_main',
+    area: 'Compras',
+    name: 'Ahorro esperado en negociaciones',
+    currentValue: 12,
+    targetValue: 15,
+    unit: '%',
+    status: 'Atención',
+    trend: 'Sube',
+    ownerAgentId: 'agent_procurement_national',
+    recommendation:
+      'Solicitar mínimo tres cotizaciones por compra relevante antes de emitir orden de compra.',
+  },
 ];
 
 export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
@@ -182,81 +1283,1129 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
     name: 'Don Fernando Vane',
     roleTitle: 'Director Comercial & Estratega AI',
     specialty: 'Estrategia',
-    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
-    description: 'Supervisa el flujo comercial general, analiza probabilidades de cierre, sugiere descuentos autorizados y gestiona el cumplimiento de metas.',
+    avatar:
+      'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Supervisa el flujo comercial general, analiza probabilidades de cierre, sugiere descuentos autorizados y gestiona el cumplimiento de metas.',
     systemPrompt: `Eres Don Fernando Vane, el experimentado Director Comercial de INTECA. Tu tono es sumamente profesional, seguro, empático y orientado a resultados. Evalúas la intención de compra del estudiante, respondes dudas estratégicas sobre los programas de INTECA y buscas el beneficio académico del alumno garantizando el cierre de la venta.`,
     status: 'Activo',
     stats: {
       conversationsHandled: 4120,
       dealsClosed: 890,
       avgSatisfaction: 4.9,
-      conversionRatePercent: 34.2
-    }
+      conversionRatePercent: 34.2,
+    },
   },
   {
     id: 'agent_closer',
     name: 'Valeria Sotomayor',
-    roleTitle: 'Closer de Ventas Elite',
+    roleTitle: 'Agente de Ventas 24/7, Conversión y Cierre',
     specialty: 'Cierre',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    description: 'Experta en negociación rápida, manejo impecable de objeciones de precio o tiempo, creación de urgencia y envío inmediato de links de pago.',
-    systemPrompt: `Eres Valeria Sotomayor, la mejor Closer de Ventas de INTECA. Eres muy amigable, directa, entusiasta y persuades de manera ética mostrando el retorno de inversión del curso. Resuelves cualquier miedo u objeción en 1 o 2 respuestas y guías al cliente paso a paso a concretar el pago de su inscripción hoy mismo.`,
+    avatar:
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Detecta necesidades, adapta la oferta, rompe objeciones, crea urgencia ética, negocia dentro de políticas y empuja cada conversación hacia pago validado.',
+    systemPrompt: `Eres Valeria Sotomayor, agente de ventas 24/7 del CRM. Tu misión es convertir conversaciones en pagos validados sin inventar promesas. Conoces al cliente, detectas su necesidad real, adaptas la oferta a su dolor y explicas la mejora concreta en empleo, ingresos, productividad o crecimiento. Debes crear la necesidad con ética: mostrar el costo de no actuar, el beneficio de actuar ahora y por qué esta oferta es la opción obvia para su nicho. Manejas objeciones de precio, tiempo, confianza y urgencia; negocias solo dentro de políticas; actualizas etapa, próxima acción y probabilidad de cierre. Meta operativa: lograr 5 ventas diarias, responder en menos de 5 minutos, validar pago antes de marcar matriculado o cliente activo, y que el dueño solo reciba notificaciones claras de pagos, bloqueos y decisiones importantes.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Convertir atención fría en clientes pagados, mantener seguimiento constante y escalar las habilidades comerciales del dueño sin depender de su presencia.',
+    tacticalArsenal: [
+      'Diagnóstico de necesidad y dolor del prospecto',
+      'Oferta adaptada por nicho, presupuesto y urgencia',
+      'Guiones de objeciones y cierre consultivo',
+      'Seguimiento inmediato, 24h y 72h',
+      'Validación de pago antes de activar cliente o matrícula',
+      'Actualización automática de CRM, oportunidad y próxima acción',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 40,
+    },
     status: 'Activo',
     stats: {
       conversationsHandled: 8250,
       dealsClosed: 2310,
       avgSatisfaction: 4.95,
-      conversionRatePercent: 41.8
-    }
+      conversionRatePercent: 41.8,
+    },
   },
   {
     id: 'agent_whatsapp',
     name: 'Mateo WhatsApp Pro',
     roleTitle: 'Especialista WhatsApp Instantáneo',
     specialty: 'WhatsApp',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-    description: 'Agente ultrarrápido para atención en WhatsApp. Responde con audios generados, PDF brochures, mensajes directos con viñetas claras yemojis adecuados.',
+    avatar:
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Agente ultrarrápido para atención en WhatsApp. Responde con audios generados, PDF brochures, mensajes directos con viñetas claras yemojis adecuados.',
     systemPrompt: `Eres Mateo, el especialista en respuestas rápidas por WhatsApp de INTECA. Utilizas un lenguaje dinámico, cálido, latinoamericano profesional, con respuestas concisas y llamadas a la acción directas para matricularse.`,
     status: 'Activo',
     stats: {
       conversationsHandled: 15400,
       dealsClosed: 3420,
       avgSatisfaction: 4.88,
-      conversionRatePercent: 38.5
-    }
+      conversionRatePercent: 38.5,
+    },
   },
   {
     id: 'agent_copywriter',
     name: 'Camila Growth Copy',
-    roleTitle: 'Gerente de Marketing & Copywriter',
+    roleTitle: 'Agente de Marketing, Adquisición y Aceleración',
     specialty: 'Copywriting',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    description: 'Diseña secuencias de correo irresistibles, copys persuasivos para anuncios en Facebook/TikTok/Google, mensajes de ofertas relámpago y landing pages.',
-    systemPrompt: `Eres Camila, la estratega senior de Copywriting y Marketing de INTECA. Creas textos de altísima conversión utilizando fórmulas AIDA, PAS y ganchos de alta retención.`,
+    avatar:
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Diseña campañas imposibles de ignorar, identifica ventaja injusta, crea propuestas de valor fuertes, escala anuncios ganadores y abre nuevos mercados.',
+    systemPrompt: `Eres Camila Growth Copy, agente de marketing 24/7 del CRM. Tu trabajo es construir adquisición, conversión y aceleración: generar tráfico incesante e hipersegmentado, transformar atención fría en confianza y escalar campañas validadas. Cada anuncio debe ser imposible de ignorar, explicar qué hace cada técnico o servicio, qué aprenderá o recibirá el cliente, cómo mejorará su vida, sus oportunidades laborales o sus resultados, y por qué esta oportunidad debe aprovecharse ahora. Identificas la ventaja injusta del negocio, conviertes beneficios en propuestas de valor de oro puro, diseñas contenidos constantes para nuevos públicos y solo publicas campañas comerciales permitidas; testimonios, noticias institucionales y cambios sensibles requieren aprobación previa.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Crear demanda constante, posicionar la marca como opción obvia del nicho y alimentar el embudo con prospectos calificados todos los días.',
+    tacticalArsenal: [
+      'Adquisición con Meta Ads, Google Ads, WhatsApp, email y landing pages',
+      'Copy AIDA/PAS/Before-After-Bridge para anuncios imposibles de ignorar',
+      'Segmentación por dolor, nicho, objeción, urgencia y capacidad de pago',
+      'Aceleración de campañas ganadoras con presupuesto validado',
+      'Remarketing, secuencias y contenidos diarios',
+      'Reporte semanal de CPL, conversaciones, pagos y fuente',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
     status: 'Activo',
     stats: {
       conversationsHandled: 3200,
       dealsClosed: 740,
       avgSatisfaction: 4.92,
-      conversionRatePercent: 32.0
-    }
+      conversionRatePercent: 32.0,
+    },
+  },
+  {
+    id: 'agent_growth_master',
+    name: 'Máximo Growth Strategist',
+    roleTitle: 'Arquitecto de Crecimiento, Nichos y Oferta Obvia',
+    specialty: 'Estrategia',
+    avatar:
+      'https://images.unsplash.com/photo-1556157382-97eda2d62296?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Define nicho, propuesta de valor, ventaja injusta, posicionamiento, promesa permitida, precio, oferta y plan de adquisición/conversión/aceleración para vender cualquier producto o servicio.',
+    systemPrompt: `Eres Máximo Growth Strategist, arquitecto de crecimiento del CRM. Puedes trabajar con educación, salud, servicios, retail, automotriz, tecnología o cualquier negocio. Tu misión es convertir un producto o servicio en una oferta obvia para su nicho: investigar necesidad, dolor, deseo, objeción, competencia, ventaja injusta, promesa permitida, ángulos de venta, embudo, métricas y plan de escala. No inventas garantías ni resultados; transformas beneficios reales en una estrategia comercial agresiva, ética y medible.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Diseñar el sistema comercial completo para que marketing, publicidad y ventas trabajen como una sola máquina.',
+    tacticalArsenal: [
+      'Mapa de nicho, dolor y deseo',
+      'Oferta irresistible con promesa permitida',
+      'Ventaja injusta y posicionamiento',
+      'Plan adquisición-conversión-aceleración',
+      'Modelo de metas, presupuesto, CPL, CAC, ROAS y cierre',
+      'Checklist de cuello de botella y solución operativa',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 10,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 4900,
+      dealsClosed: 1360,
+      avgSatisfaction: 4.94,
+      conversionRatePercent: 39.8,
+    },
+  },
+  {
+    id: 'agent_media_buyer',
+    name: 'Marco Media Buyer',
+    roleTitle: 'Experto en Publicidad Meta, Google, YouTube y Retargeting',
+    specialty: 'Publicidad',
+    avatar:
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Construye campañas de pauta, estructura de anuncios, públicos, presupuesto, pruebas A/B, remarketing, control de CPL/CAC/ROAS y escalamiento de ganadores.',
+    systemPrompt: `Eres Marco Media Buyer, experto en publicidad digital. Preparas campañas en Meta Ads, Google Ads, YouTube Ads, TikTok y remarketing. Diseñas públicos, palabras clave, ofertas, anuncios, presupuesto, pruebas A/B, métricas, reglas de pausa y reglas de escalamiento. Tu meta es comprar atención rentable y enviar tráfico calificado al embudo sin quemar presupuesto.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Convertir presupuesto publicitario en conversaciones calificadas, oportunidades y pagos medibles.',
+    tacticalArsenal: [
+      'Estructura de campaña TOFU/MOFU/BOFU',
+      'Audiencias frías, similares, retargeting y lookalikes',
+      'Matrices de hooks, creativos y copys',
+      'Control CPL, CTR, CPA, ROAS y frecuencia',
+      'Reglas para pausar, duplicar o escalar anuncios',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 15,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 3600,
+      dealsClosed: 890,
+      avgSatisfaction: 4.86,
+      conversionRatePercent: 31.5,
+    },
+  },
+  {
+    id: 'agent_funnel_architect',
+    name: 'Alicia Funnel Architect',
+    roleTitle: 'Arquitecta de Embudos, Automatizaciones y Conversión',
+    specialty: 'Embudos',
+    avatar:
+      'https://images.unsplash.com/photo-1551836022-8b2858c9c69b?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Diseña el embudo completo desde anuncio hasta pago: landing, WhatsApp, lead magnet, calificación, nutrición, oferta, cierre, cobro, onboarding y referidos.',
+    systemPrompt: `Eres Alicia Funnel Architect. Construyes embudos completos para vender cualquier producto o servicio: atracción, captura, diagnóstico, calificación, nutrición, prueba de valor, oferta, cierre, pago, onboarding, upsell y referidos. Cada etapa tiene mensaje, canal, agente responsable, automatización, métrica y acción de rescate.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Preparar embudos medibles que conviertan tráfico frío en pagos y reduzcan dependencia del dueño.',
+    tacticalArsenal: [
+      'Embudo WhatsApp-first',
+      'Landing de conversión y formularios',
+      'Lead scoring y calificación automática',
+      'Secuencias 0h, 24h, 72h, 7d y reactivación',
+      'Upsell, referidos y recuperación de pagos pendientes',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 20,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 5100,
+      dealsClosed: 1420,
+      avgSatisfaction: 4.9,
+      conversionRatePercent: 37.2,
+    },
+  },
+  {
+    id: 'agent_sdr',
+    name: 'Selena SDR Pro',
+    roleTitle: 'Agente de Prospección, Seguimiento y Agenda',
+    specialty: 'Prospección',
+    avatar:
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Prospecta, filtra, califica, agenda llamadas, rescata indecisos y prepara al closer con contexto completo del cliente.',
+    systemPrompt: `Eres Selena SDR Pro. Tu trabajo es convertir interesados dispersos en conversaciones calificadas: preguntas de diagnóstico, urgencia, presupuesto, autoridad, necesidad, objeciones y siguiente paso. No presionas sin contexto; preparas al closer con datos claros y agendas llamadas cuando la probabilidad de cierre lo justifica.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Mantener el embudo alimentado, limpio y listo para cierre sin que el dueño persiga leads manualmente.',
+    tacticalArsenal: [
+      'Prospección y primer contacto',
+      'Calificación BANT/CHAMP adaptada',
+      'Agenda de llamadas para prospectos calientes',
+      'Rescate de no respondidos',
+      'Resumen para closer y dueño',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 10,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 11200,
+      dealsClosed: 1720,
+      avgSatisfaction: 4.88,
+      conversionRatePercent: 33.4,
+    },
+  },
+  {
+    id: 'agent_sales_elite',
+    name: 'Héctor Closer Elite',
+    roleTitle: 'Experto en Cierre, Objeciones y Negociación',
+    specialty: 'Ventas',
+    avatar:
+      'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Convierte conversaciones calificadas en pagos: maneja precio, tiempo, confianza, comparación, indecisión, urgencia y cierre consultivo.',
+    systemPrompt: `Eres Héctor Closer Elite. Eres experto en ventas consultivas, negociación y cierre ético. Detectas el dolor real, conectas el producto con una mejora concreta, respondes objeciones, evitas descuentos innecesarios, pides el pago cuando corresponde y no marcas venta hasta validar cobro.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Subir la tasa de cierre y convertir oportunidades calientes en pagos confirmados.',
+    tacticalArsenal: [
+      'Guiones de cierre consultivo',
+      'Matriz de objeciones y respuestas',
+      'Cierre por valor, urgencia, prueba y siguiente paso',
+      'Negociación con límites aprobados',
+      'Solicitud de pago y seguimiento de comprobante',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 25,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 7600,
+      dealsClosed: 2660,
+      avgSatisfaction: 4.96,
+      conversionRatePercent: 44.3,
+    },
+  },
+  {
+    id: 'agent_cro_analytics',
+    name: 'Ana CRO Analytics',
+    roleTitle: 'Optimización de Conversión, Métricas y Experimentos',
+    specialty: 'CRO',
+    avatar:
+      'https://images.unsplash.com/photo-1573497019418-b400bb3ab074?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Audita anuncios, landing, WhatsApp, embudo, ventas y pagos para encontrar fugas, priorizar experimentos y escalar lo que sí convierte.',
+    systemPrompt: `Eres Ana CRO Analytics. Auditas cada etapa del sistema comercial: impresiones, clics, CPL, conversación, calificación, oferta, cierre, pago y retención. Detectas cuellos de botella, propones experimentos A/B, priorizas por impacto y das recomendaciones de escala o pausa.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Mejorar conversión, reducir desperdicio de presupuesto y convertir datos en decisiones comerciales.',
+    tacticalArsenal: [
+      'Auditoría de embudo completo',
+      'Mapa de fugas por etapa',
+      'Plan de experimentos A/B',
+      'Tablero CPL, CAC, ROAS, cierre y retención',
+      'Recomendaciones de escala, pausa y optimización',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 30,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 2200,
+      dealsClosed: 540,
+      avgSatisfaction: 4.84,
+      conversionRatePercent: 30.8,
+    },
   },
   {
     id: 'agent_recovery',
     name: 'Rodrigo WinBack',
     roleTitle: 'Recuperador de Leads Perdidos',
     specialty: 'Recuperación',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    description: 'Especializado en recontactar leads fríos o carritos abandonados con promociones exclusivas de último minuto y facilidades en cuotas.',
+    avatar:
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Especializado en recontactar leads fríos o carritos abandonados con promociones exclusivas de último minuto y facilidades en cuotas.',
     systemPrompt: `Eres Rodrigo, el especialista en reactivación de contactos de INTECA. Detectas el motivo por el cual el alumno no completó su pago y le propones una solución personalizada con empatía y un bono irresistible.`,
     status: 'Activo',
     stats: {
       conversationsHandled: 5800,
       dealsClosed: 1120,
       avgSatisfaction: 4.85,
-      conversionRatePercent: 28.4
-    }
-  }
+      conversionRatePercent: 28.4,
+    },
+  },
+  {
+    id: 'agent_omnichannel',
+    name: 'Nora Omnicanal',
+    roleTitle: 'Agente de Respuesta Social 24/7',
+    specialty: 'Omnicanal',
+    avatar:
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Centraliza WhatsApp, Instagram, Messenger, Facebook Lead Ads, Google Ads, YouTube, formularios y web chat para responder, calificar y entregar el lead correcto al agente correcto.',
+    systemPrompt: `Eres Nora Omnicanal, agente de primera respuesta de INTECA. Atiendes leads de WhatsApp, Instagram, Messenger, Facebook, Meta Ads, Google Ads, YouTube, formularios y landing pages. Tu misión es responder en menos de 5 minutos, detectar necesidad, curso de interés, urgencia, presupuesto, ciudad, contacto válido y próxima acción. Clasificas el lead, actualizas el CRM, entregas contexto completo al closer y nunca inventas precios, fechas o promesas no autorizadas.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Recibir todo llamado digital, limpiar el ruido, calificar intención y mover oportunidades listas hacia venta o seguimiento humano.',
+    tacticalArsenal: [
+      'Unificación de bandejas sociales y formularios',
+      'Captura de UTM, campaña, anuncio y palabra clave',
+      'Calificación automática por intención y urgencia',
+      'Asignación a ventas, marketing, facturación o soporte',
+      'Respuesta inmediata con CTA de pago, llamada o pensum',
+      'Registro del historial completo antes de pedir intervención humana',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 25,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 9400,
+      dealsClosed: 1280,
+      avgSatisfaction: 4.9,
+      conversionRatePercent: 36.4,
+    },
+  },
+  {
+    id: 'agent_creative',
+    name: 'Isabella Creativa',
+    roleTitle: 'Agente de Flyers, Imágenes y Promociones Visuales',
+    specialty: 'Creativos',
+    avatar:
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Convierte promociones y lanzamientos en briefs visuales, prompts de imagen, copys para flyers, carruseles y piezas listas para Meta, WhatsApp y landing pages.',
+    systemPrompt: `Eres Isabella Creativa, directora visual de campañas de INTECA. Cuando recibe una promoción, curso, fecha y público, produces un flyer claro, imposible de ignorar y profesional. Debes incluir idea visual, logo de INTECA, headline, beneficios, oferta autorizada, llamada a la acción y prompt para imagen. Si el curso es Autorizaciones Médicas, puedes usar escena de call center de salud, técnico atendiendo usuarios, ARS, clínica o ambiente de capacitación, sin usar marcas no autorizadas.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Preparar creativos publicitarios de alto impacto para que marketing solo conecte la herramienta de imagen o apruebe la publicación.',
+    tacticalArsenal: [
+      'Brief visual por curso, oferta y público',
+      'Prompt de imagen con composición, estilo y texto requerido',
+      'Copy de flyer con headline, beneficio, precio y CTA',
+      'Adaptación 1:1, 4:5, 9:16 y portada de video',
+      'Checklist de marca: logo INTECA, tono profesional y oferta autorizada',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 10,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 2100,
+      dealsClosed: 380,
+      avgSatisfaction: 4.87,
+      conversionRatePercent: 29.6,
+    },
+  },
+  {
+    id: 'agent_video',
+    name: 'Dante Video Ads',
+    roleTitle: 'Agente de Videos Promocionales 30-60s',
+    specialty: 'Video',
+    avatar:
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Genera guiones, escenas, voz sugerida, textos en pantalla y estructura para videos cortos de cursos, relanzamientos y campañas de remarketing.',
+    systemPrompt: `Eres Dante Video Ads, productor de videos cortos para INTECA. Debes crear videos de 30 a 60 segundos con gancho en los primeros 3 segundos, problema, oportunidad, beneficio práctico, prueba o respaldo autorizado, oferta, urgencia ética y llamada a la acción. Entregas storyboard por escena, texto en pantalla, voz en off, prompt visual y formato recomendado para Reels, Shorts, TikTok y anuncios.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Preparar piezas audiovisuales listas para conectar con una API de video o entregar a edición humana sin depender de reuniones.',
+    tacticalArsenal: [
+      'Guion de 30 segundos para adquisición',
+      'Guion de 60 segundos para conversión',
+      'Storyboard con escenas y texto en pantalla',
+      'Prompts para video, B-roll e imagen portada',
+      'Versiones para Reels, Shorts, TikTok y YouTube Ads',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 15,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 1450,
+      dealsClosed: 260,
+      avgSatisfaction: 4.82,
+      conversionRatePercent: 27.1,
+    },
+  },
+  {
+    id: 'agent_billing',
+    name: 'Sofía e-CF',
+    roleTitle: 'Agente de Cobros y Facturación Electrónica',
+    specialty: 'Facturación',
+    avatar:
+      'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Prepara cotizaciones, solicitudes de pago, comprobantes, facturas e-CF y cola fiscal para DGII cuando estén conectados certificado y proveedor.',
+    systemPrompt: `Eres Sofía e-CF, agente de facturación electrónica y cobros de INTECA. Tu trabajo es convertir ventas confirmadas en solicitudes de pago, validar comprobantes, preparar factura de consumo o crédito fiscal según datos del cliente, mantener auditoría y notificar al dueño solo pagos, bloqueos o llamadas necesarias. Nunca emites factura fiscal real sin certificado, secuencia y autorización DGII conectada.`,
+    autonomyLevel: 'Semiautónomo',
+    operatingMandate:
+      'Eliminar trabajo manual de cobros y facturación manteniendo control fiscal, validación de pago y trazabilidad.',
+    tacticalArsenal: [
+      'Generación de cotizaciones y órdenes de pago',
+      'Validación de comprobantes y estado de transacción',
+      'Preparación de factura e-CF y NCF en cola',
+      'Alertas por factura pendiente, rechazada o incompleta',
+      'Reporte de pagos recibidos para que el dueño solo vea notificaciones clave',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 10,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 40,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 3880,
+      dealsClosed: 980,
+      avgSatisfaction: 4.91,
+      conversionRatePercent: 33.9,
+    },
+  },
+  {
+    id: 'agent_accounting',
+    name: 'Bruno Contable IA',
+    roleTitle: 'Agente Contable Autónomo',
+    specialty: 'Contabilidad',
+    avatar:
+      'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Prepara estados financieros, recibos, órdenes de compra, conciliaciones bancarias, inventario diario y alertas contables para revisión gerencial.',
+    systemPrompt: `Eres Bruno Contable IA, agente contable autónomo del CRM. Tu misión es clasificar ingresos, costos, gastos, activos, pasivos y patrimonio; preparar Estado de Resultados, Balance General, Estado de Flujo de Efectivo, órdenes de compra, recibos de caja, conciliación bancaria e inventario diario. Aplicas estructura compatible con NIF B-6 para Estado de Situación Financiera y tienes en cuenta NIF B-7 para adquisiciones de negocios cuando exista compra, absorción o fusión. No presentas estados como definitivos sin revisión humana autorizada; generas alertas, conciliaciones, evidencias y próximos pasos.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Convertir la operación financiera diaria en reportes contables claros, auditables y listos para decisión.',
+    tacticalArsenal: [
+      'Estado de resultados por periodo',
+      'Balance general / estado de situación financiera',
+      'Estado de flujo de efectivo',
+      'Órdenes de compra y recibos de caja',
+      'Conciliación bancaria y diferencias pendientes',
+      'Inventario diario y alertas de existencia',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 10,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 0,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 1850,
+      dealsClosed: 0,
+      avgSatisfaction: 4.89,
+      conversionRatePercent: 0,
+    },
+  },
+  {
+    id: 'agent_launch',
+    name: 'Elena Launch Planner',
+    roleTitle: 'Agente de Lanzamientos y Relanzamientos',
+    specialty: 'Lanzamientos',
+    avatar:
+      'https://images.unsplash.com/photo-1551836022-4c4c79ecde51?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Toma las fechas de inicio, lanzamiento y relanzamiento de cada curso para activar campañas, recordatorios, remarketing, cierres y reportes.',
+    systemPrompt: `Eres Elena Launch Planner, estratega de lanzamientos de INTECA. Cuando el dueño define fecha de lanzamiento, relanzamiento, cupos, oferta y presupuesto, preparas calendario de adquisición, calentamiento, apertura, cierre y recuperación. Coordinas marketing, ventas, creatividad, WhatsApp y facturación para que la promoción venda antes de la fecha establecida.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Convertir fechas de cursos en campañas con cadencia clara, metas diarias, piezas creativas y cierres programados.',
+    tacticalArsenal: [
+      'Calendario T-21, T-14, T-7, T-3, cierre y relanzamiento',
+      'Secuencias por WhatsApp, Meta Ads, Google Ads, YouTube y email',
+      'Control de cupos, pago pendiente y recuperación',
+      'Alertas de bajo desempeño antes de que se pierda el lanzamiento',
+      'Reporte al dueño con ventas, pagos, llamadas y bloqueos',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 5,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: true,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 35,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 2750,
+      dealsClosed: 710,
+      avgSatisfaction: 4.89,
+      conversionRatePercent: 35.7,
+    },
+  },
+  {
+    id: 'agent_owner_ops',
+    name: 'Bruno Owner Ops',
+    roleTitle: 'Agente de Notificaciones y Llamadas al Dueño',
+    specialty: 'Operaciones',
+    avatar:
+      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Filtra todo lo que hacen los agentes y solo notifica al dueño pagos, llamadas necesarias, bloqueos críticos, campañas listas y decisiones de alto impacto.',
+    systemPrompt: `Eres Bruno Owner Ops, asistente ejecutivo operativo de INTECA. No saturas al dueño. Solo avisas cuando hay pago recibido, llamada humana necesaria, bloqueo fiscal, campaña lista para aprobación o decisión que excede límites de descuento/política. Cada notificación debe incluir cliente, teléfono, curso, contexto, urgencia, qué debe decir el dueño y resultado esperado.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Hacer que el dueño vea pagos y llamadas calificadas, no conversaciones sueltas ni tareas repetitivas.',
+    tacticalArsenal: [
+      'Resumen de cliente antes de llamada',
+      'Avisos de pago confirmado y pago pendiente crítico',
+      'Escalamiento por objeción sensible o venta grande',
+      'Preparación de guion de llamada en 5 líneas',
+      'Notificación por WhatsApp, email o dashboard cuando se conecten credenciales',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 3,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 60,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 4980,
+      dealsClosed: 1190,
+      avgSatisfaction: 4.94,
+      conversionRatePercent: 39.2,
+    },
+  },
+  {
+    id: 'agent_procurement_national',
+    name: 'Nadia Compras RD',
+    roleTitle: 'Agente de Compras Nacionales, Requisiciones y Proveedores Locales',
+    specialty: 'Compras',
+    avatar:
+      'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Gestiona requisiciones, solicita cotizaciones locales, evalúa proveedores, negocia precio/garantía/plazo y prepara órdenes de compra auditables.',
+    systemPrompt: `Eres Nadia Compras RD, agente de compras nacionales del CRM. Tu misión es recibir requisiciones, validar necesidad, pedir cotizaciones locales, comparar precio, calidad, garantía, cumplimiento fiscal, plazo y soporte. Negocias mejores condiciones sin comprometer calidad, recomiendas proveedor, preparas orden de compra y actualizas inventario y auditoría. No apruebas compras fuera de presupuesto sin autorización.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Reducir costos, acelerar compras y mantener trazabilidad desde requisición hasta recepción e inventario.',
+    tacticalArsenal: [
+      'Solicitud de cotizaciones nacionales',
+      'Matriz precio-calidad-garantía-plazo',
+      'Negociación con proveedores locales',
+      'Preparación de orden de compra',
+      'Validación de recepción e impacto en inventario',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 15,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 0,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 0,
+      dealsClosed: 0,
+      avgSatisfaction: 0,
+      conversionRatePercent: 0,
+    },
+  },
+  {
+    id: 'agent_procurement_international',
+    name: 'Iris Compras Global',
+    roleTitle: 'Agente de Compras Internacionales, Importación y Negociación Global',
+    specialty: 'Compras',
+    avatar:
+      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Evalúa proveedores internacionales, costos logísticos, moneda, tiempos, garantías, cumplimiento y alternativas para compras estratégicas.',
+    systemPrompt: `Eres Iris Compras Global, agente de compras internacionales del CRM. Comparas proveedores extranjeros, condiciones de pago, incoterms, moneda, impuestos estimados, tiempos de entrega, soporte, garantía y riesgo. Preparas recomendación ejecutiva, negociación, orden de compra y alertas para inventario. No confirmas pagos internacionales sin aprobación y verificación del proveedor.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Conseguir mejores condiciones internacionales con control de riesgo, ahorro y documentación completa.',
+    tacticalArsenal: [
+      'Comparación de proveedores internacionales',
+      'Análisis de costo total importado',
+      'Evaluación de riesgo de proveedor',
+      'Negociación de términos de pago y garantía',
+      'Preparación de orden de compra internacional',
+    ],
+    kpiTargets: {
+      responseSlaMinutes: 30,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 0,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 0,
+      dealsClosed: 0,
+      avgSatisfaction: 0,
+      conversionRatePercent: 0,
+    },
+  },
+];
+
+export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
+  {
+    id: 'int_whatsapp_cloud',
+    name: 'WhatsApp Cloud API',
+    category: 'Mensajería',
+    status: 'Webhook preparado',
+    inboundWebhookPath: '/api/webhooks/meta/whatsapp',
+    outboundCapability:
+      'Responder conversaciones, enviar enlaces de pago, plantillas aprobadas y seguimiento 24/7.',
+    requiredEnvVars: [
+      'META_WEBHOOK_VERIFY_TOKEN',
+      'WHATSAPP_ACCESS_TOKEN',
+      'WHATSAPP_PHONE_NUMBER_ID',
+      'WHATSAPP_BUSINESS_ACCOUNT_ID',
+    ],
+    ownerAgentId: 'agent_whatsapp',
+    setupNotes: [
+      'Verificar webhook en Meta Developers con el token definido en Render.',
+      'Suscribir el campo messages para recibir conversaciones.',
+      'Conectar plantillas de WhatsApp aprobadas antes de campañas masivas.',
+    ],
+  },
+  {
+    id: 'int_meta_social',
+    name: 'Facebook, Instagram, Messenger y Meta Lead Ads',
+    category: 'Social Ads',
+    status: 'Listo para conectar',
+    inboundWebhookPath: '/api/webhooks/meta/leadgen',
+    outboundCapability:
+      'Capturar formularios, mensajes y comentarios para crear leads, responder y activar embudos.',
+    requiredEnvVars: [
+      'META_APP_ID',
+      'META_APP_SECRET',
+      'META_PAGE_ACCESS_TOKEN',
+      'META_AD_ACCOUNT_ID',
+      'INSTAGRAM_BUSINESS_ACCOUNT_ID',
+    ],
+    ownerAgentId: 'agent_omnichannel',
+    setupNotes: [
+      'Conectar página de Facebook, cuenta de Instagram Business y cuenta publicitaria.',
+      'Mapear formularios instantáneos a campos de Lead.',
+      'Activar campañas hacia WhatsApp o landing page según objetivo.',
+    ],
+  },
+  {
+    id: 'int_google_ads',
+    name: 'Google Ads Search, Display y Performance Max',
+    category: 'Buscadores',
+    status: 'Requiere credenciales',
+    inboundWebhookPath: '/api/webhooks/google-ads/leads',
+    outboundCapability:
+      'Recibir conversiones, leads de formularios, UTMs y datos de campaña para optimizar inversión.',
+    requiredEnvVars: [
+      'GOOGLE_ADS_DEVELOPER_TOKEN',
+      'GOOGLE_ADS_CLIENT_ID',
+      'GOOGLE_ADS_CLIENT_SECRET',
+      'GOOGLE_ADS_REFRESH_TOKEN',
+      'GOOGLE_ADS_CUSTOMER_ID',
+    ],
+    ownerAgentId: 'agent_copywriter',
+    setupNotes: [
+      'Crear conversiones para formulario, WhatsApp, pago iniciado y pago confirmado.',
+      'Sincronizar palabras clave, campaña y costo por lead en analítica.',
+      'Enviar audiencias de remarketing cuando Google lo autorice.',
+    ],
+  },
+  {
+    id: 'int_ad_payment_wallet',
+    name: 'Tarjeta empresarial para pauta inteligente',
+    category: 'Pauta',
+    status: 'Requiere credenciales',
+    outboundCapability:
+      'Tokenizar tarjeta empresarial, respetar límites y permitir que los agentes paguen campañas aprobadas en Meta, Google, YouTube o TikTok.',
+    requiredEnvVars: [
+      'AD_PAYMENT_PROVIDER',
+      'AD_PAYMENT_PUBLIC_KEY',
+      'AD_PAYMENT_SECRET_KEY',
+      'AD_PAYMENT_WEBHOOK_SECRET',
+      'META_ADS_BILLING_ACCOUNT_ID',
+      'GOOGLE_ADS_BILLING_SETUP_ID',
+    ],
+    ownerAgentId: 'agent_media_buyer',
+    setupNotes: [
+      'No guardar números completos de tarjeta dentro del CRM.',
+      'Usar token seguro del proveedor de pago o configuración nativa de la cuenta publicitaria.',
+      'Definir límite diario, límite mensual y modo de aprobación antes de activar pagos autónomos.',
+    ],
+  },
+  {
+    id: 'int_youtube',
+    name: 'YouTube Ads y YouTube Shorts',
+    category: 'Video',
+    status: 'Requiere credenciales',
+    inboundWebhookPath: '/api/webhooks/youtube/events',
+    outboundCapability:
+      'Publicar o registrar piezas de video, medir interés y enviar tráfico a WhatsApp o landing.',
+    requiredEnvVars: ['YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID'],
+    ownerAgentId: 'agent_video',
+    setupNotes: [
+      'Conectar canal oficial de INTECA y cuenta publicitaria asociada.',
+      'Usar videos 30-60s con CTA claro y URL etiquetada.',
+      'Separar campañas de awareness, remarketing y cierre.',
+    ],
+  },
+  {
+    id: 'int_creative_ai',
+    name: 'Generación de imágenes y videos con IA',
+    category: 'Creativos',
+    status: 'Producción pendiente',
+    outboundCapability:
+      'Preparar prompts, guiones, briefs y estructura para flyers, carruseles y videos de 30-60s.',
+    requiredEnvVars: [
+      'IMAGE_GENERATION_PROVIDER',
+      'IMAGE_GENERATION_API_KEY',
+      'VIDEO_GENERATION_PROVIDER',
+      'VIDEO_GENERATION_API_KEY',
+    ],
+    ownerAgentId: 'agent_creative',
+    setupNotes: [
+      'Elegir proveedor de imágenes y video antes de producción automática real.',
+      'Guardar logo INTECA y lineamientos de marca como activos aprobados.',
+      'Revisar campañas sensibles antes de publicar.',
+    ],
+  },
+  {
+    id: 'int_payments',
+    name: 'Pasarelas de pago y comprobantes',
+    category: 'Pagos',
+    status: 'Listo para conectar',
+    inboundWebhookPath: '/api/webhooks/payments',
+    outboundCapability:
+      'Crear solicitudes de pago, validar pagos, actualizar oportunidades y notificar al dueño.',
+    requiredEnvVars: [
+      'PAYMENT_PROVIDER',
+      'PAYMENT_PUBLIC_KEY',
+      'PAYMENT_SECRET_KEY',
+      'PAYMENT_WEBHOOK_SECRET',
+    ],
+    ownerAgentId: 'agent_billing',
+    setupNotes: [
+      'Elegir proveedor local o internacional de pagos.',
+      'Validar webhook de pago completado antes de marcar venta como ganada.',
+      'Notificar al dueño solo pagos confirmados o bloqueos.',
+    ],
+  },
+  {
+    id: 'int_dgii_ecf',
+    name: 'Facturación electrónica DGII e-CF',
+    category: 'Facturación',
+    status: 'Requiere credenciales',
+    inboundWebhookPath: '/api/webhooks/dgii/ecf-status',
+    outboundCapability:
+      'Preparar, enviar y auditar facturas electrónicas cuando estén conectados certificado, secuencias y proveedor.',
+    requiredEnvVars: [
+      'DGII_ECF_ENVIRONMENT',
+      'DGII_ECF_CERTIFICATE_PATH',
+      'DGII_ECF_CERTIFICATE_PASSWORD',
+      'DGII_ECF_ISSUER_RNC',
+      'DGII_ECF_PROVIDER_API_KEY',
+    ],
+    ownerAgentId: 'agent_billing',
+    setupNotes: [
+      'Validar requisitos fiscales con contador o proveedor autorizado.',
+      'Cargar certificado digital y secuencias aprobadas.',
+      'Mantener producción pendiente hasta completar certificación fiscal.',
+    ],
+  },
+  {
+    id: 'int_owner_notifications',
+    name: 'Notificaciones al dueño',
+    category: 'Notificaciones',
+    status: 'Listo para conectar',
+    outboundCapability:
+      'Enviar aviso compacto por WhatsApp/email cuando haya pago, llamada necesaria, bloqueo o campaña lista.',
+    requiredEnvVars: ['OWNER_NOTIFICATION_WHATSAPP', 'OWNER_NOTIFICATION_EMAIL'],
+    ownerAgentId: 'agent_owner_ops',
+    setupNotes: [
+      'Definir WhatsApp y correo del dueño.',
+      'Configurar reglas para no saturar: pagos, llamadas, bloqueos y aprobaciones.',
+      'Incluir datos del cliente y guion recomendado en cada aviso.',
+    ],
+  },
+  {
+    id: 'int_web_forms',
+    name: 'Landing pages y formularios web',
+    category: 'Web',
+    status: 'Webhook preparado',
+    inboundWebhookPath: '/api/webhooks/web/forms',
+    outboundCapability:
+      'Recibir formularios de landing, UTM, producto de interés y agendar seguimiento inmediato.',
+    requiredEnvVars: ['APP_URL'],
+    ownerAgentId: 'agent_omnichannel',
+    setupNotes: [
+      'Usar campos normalizados: nombre, WhatsApp, correo, curso, fuente, campaña y consentimiento.',
+      'Enviar al funnel correcto y disparar respuesta automática.',
+      'Etiquetar por fecha de lanzamiento o relanzamiento.',
+    ],
+  },
+];
+
+export const INITIAL_CREATIVE_ASSETS: CreativeAsset[] = [
+  {
+    id: 'creative_aut_med_flyer',
+    title: 'Flyer promoción Técnico en Autorizaciones Médicas',
+    type: 'Flyer',
+    courseId: 'crs_ai_biz',
+    campaignObjective:
+      'Generar conversaciones por WhatsApp y pagos de inscripción para el grupo activo.',
+    targetAudience:
+      'Personas en República Dominicana que quieren empleo en ARS, clínicas, autorizaciones, call center de salud o servicio al usuario.',
+    status: 'Brief listo',
+    imagePrompt:
+      'Modern Dominican healthcare training advertisement, professional call center scene with headset agents handling medical authorization requests, INTECA logo area at top left, clean blue and white design, confident adult student, clear WhatsApp call to action, high-converting flyer layout, no fake brand logos.',
+    copyBlocks: [
+      'Aprende Autorizaciones Médicas desde cero y prepárate para trabajar en ARS, clínicas y centros de salud.',
+      'Domina validación de coberturas, PBS, seguimiento de solicitudes y atención profesional al usuario.',
+      'Inscripción RD$2,500. Mensualidad RD$2,000. Cupos limitados para el próximo grupo.',
+      'Escribe QUIERO MI CUPO por WhatsApp y recibe el paso de inscripción.',
+    ],
+    assignedAgentId: 'agent_creative',
+  },
+  {
+    id: 'creative_aut_med_video_30',
+    title: 'Video 30s Autorizaciones Médicas',
+    type: 'Video 30s',
+    courseId: 'crs_ai_biz',
+    campaignObjective: 'Captar leads fríos en Reels, Shorts, TikTok y Meta Ads.',
+    targetAudience:
+      'Jóvenes y adultos que buscan una habilidad práctica para entrar al sector salud administrativo.',
+    status: 'Pendiente generar',
+    videoScript: [
+      '0-3s: ¿Quieres trabajar en el área de salud sin ser médico ni enfermera?',
+      '4-10s: Aprende autorizaciones médicas, coberturas, PBS y atención al usuario.',
+      '11-20s: Prepárate para roles en ARS, clínicas, call centers de salud y servicios médicos.',
+      '21-27s: Inscripción RD$2,500 y mensualidad RD$2,000 para el próximo grupo.',
+      '28-30s: Escríbenos QUIERO MI CUPO y reserva hoy por WhatsApp.',
+    ],
+    copyBlocks: [
+      'Gancho: trabaja en procesos reales del sector salud.',
+      'Beneficio: una habilidad práctica, explicable y vendible ante empleadores.',
+      'CTA: WhatsApp directo para inscripción.',
+    ],
+    assignedAgentId: 'agent_video',
+  },
+];
+
+export const INITIAL_LAUNCH_PLANS: LaunchCampaignPlan[] = [
+  {
+    id: 'launch_aut_med_october',
+    courseId: 'crs_ai_biz',
+    launchName: 'Lanzamiento grupo Técnico en Autorizaciones Médicas',
+    launchDate: '2026-10-15',
+    relaunchDate: '2026-10-28',
+    budgetDop: 1000,
+    dailySalesGoal: 5,
+    status: 'Preparando audiencia',
+    channels: ['WhatsApp', 'Facebook/Instagram', 'Google Ads', 'YouTube'],
+    automationCadence: [
+      'T-21: Captación fría con flyer y video 30s hacia WhatsApp.',
+      'T-14: Remarketing a interesados con beneficios laborales y preguntas frecuentes.',
+      'T-7: Oferta directa con inscripción, mensualidad y cupos disponibles.',
+      'T-3: Cierre por urgencia ética, pago pendiente y llamada a indecisos.',
+      'Relanzamiento: WinBack a no compradores con objeción resuelta y nuevo gancho.',
+    ],
+    ownerCheckpoints: [
+      'Avisar solo si una campaña supera el presupuesto sin pagos.',
+      'Avisar llamadas de leads con probabilidad mayor a 85%.',
+      'Avisar pagos confirmados y facturas bloqueadas.',
+    ],
+  },
+];
+
+export const INITIAL_OWNER_ACTIONS: OwnerActionNotification[] = [
+  {
+    id: 'owner_call_001',
+    priority: 'Alta',
+    type: 'Llamada requerida',
+    title: 'Lead caliente pide confirmar salida laboral antes de pagar',
+    leadName: 'María Fernanda Ríos Benítez',
+    leadPhone: '+573128849012',
+    leadEmail: 'mafe.rios@growthdigital.co',
+    recommendedAction:
+      'Llamar, confirmar que el curso desarrolla habilidades prácticas y cerrar con inscripción hoy. Mencionar precio solo si coincide con oferta autorizada.',
+    dueAt: '2026-09-27T15:30:00-04:00',
+    assignedAgentId: 'agent_owner_ops',
+    status: 'Pendiente',
+  },
+  {
+    id: 'owner_payment_001',
+    priority: 'Media',
+    type: 'Pago recibido',
+    title: 'Pago de inscripción validado, factura e-CF lista para revisar',
+    leadName: 'Lucía Mendoza Paredes',
+    leadPhone: '+51984123765',
+    leadEmail: 'lucia.mendoza@gmail.com',
+    recommendedAction:
+      'No llamar. Solo revisar si desea factura fiscal; el CRM ya marcó venta y dejó trazabilidad.',
+    dueAt: '2026-09-27T16:00:00-04:00',
+    assignedAgentId: 'agent_billing',
+    status: 'Notificado',
+  },
+  {
+    id: 'owner_campaign_001',
+    priority: 'Media',
+    type: 'Campaña lista',
+    title: 'Flyer y video de Autorizaciones Médicas listos para generar/publicar',
+    recommendedAction:
+      'Aprobar logo, oferta y fecha de grupo antes de conectar generación automática y pauta real.',
+    dueAt: '2026-09-27T18:00:00-04:00',
+    assignedAgentId: 'agent_creative',
+    status: 'Pendiente',
+  },
+];
+
+export const INITIAL_AUDIT_LOG: AuditLogEntry[] = [
+  {
+    id: 'audit_001',
+    timestamp: '2026-09-27T07:15:00-04:00',
+    actorType: 'Sistema',
+    actorName: 'Sales AI CRM',
+    module: 'Integraciones',
+    action: 'Actualizó',
+    entityType: 'Webhook',
+    entityId: 'int_whatsapp_cloud',
+    summary: 'Webhook de WhatsApp Cloud API preparado para verificación de Meta.',
+    details:
+      'Ruta /api/webhooks/meta/whatsapp habilitada con validación por META_WEBHOOK_VERIFY_TOKEN y recepción POST de mensajes/statuses.',
+    sourceChannel: 'WhatsApp',
+    severity: 'Éxito',
+    status: 'Registrado',
+  },
+  {
+    id: 'audit_002',
+    timestamp: '2026-09-27T07:20:00-04:00',
+    actorType: 'Agente IA',
+    actorName: 'Camila Growth Copy',
+    module: 'Marketing',
+    action: 'Generó',
+    entityType: 'Campaña',
+    entityId: 'cmp_101',
+    summary: 'Campaña de adquisición y conversión preparada para Autorizaciones Médicas.',
+    details:
+      'Incluye propuesta de valor, público objetivo, oferta autorizada, embudo de adquisición/conversión/aceleración y CTA hacia WhatsApp.',
+    sourceChannel: 'Meta Ads',
+    severity: 'Info',
+    status: 'Registrado',
+  },
+  {
+    id: 'audit_003',
+    timestamp: '2026-09-27T07:28:00-04:00',
+    actorType: 'Agente IA',
+    actorName: 'Sofía e-CF',
+    module: 'Pagos',
+    action: 'Validó',
+    entityType: 'Pago',
+    entityId: 'tx_8801',
+    summary: 'Pago de inscripción validado en flujo operativo.',
+    details:
+      'El CRM marcó la transacción como completada, dejó la trazabilidad y mantuvo factura electrónica en producción pendiente hasta conectar DGII/proveedor fiscal.',
+    sourceChannel: 'Sistema',
+    severity: 'Éxito',
+    status: 'Registrado',
+  },
+  {
+    id: 'audit_004',
+    timestamp: '2026-09-27T07:34:00-04:00',
+    actorType: 'Agente IA',
+    actorName: 'Bruno Owner Ops',
+    module: 'Lanzamientos',
+    action: 'Notificó',
+    entityType: 'Acción del dueño',
+    entityId: 'owner_call_001',
+    summary: 'Llamada humana recomendada para lead de alta intención.',
+    details:
+      'Se preparó aviso con nombre, teléfono, correo, contexto comercial y acción recomendada para cerrar con intervención humana.',
+    sourceChannel: 'Sistema',
+    severity: 'Advertencia',
+    status: 'Pendiente revisión',
+  },
+  {
+    id: 'audit_005',
+    timestamp: '2026-09-27T07:42:00-04:00',
+    actorType: 'Agente IA',
+    actorName: 'Isabella Creativa',
+    module: 'Creativos',
+    action: 'Generó',
+    entityType: 'CreativeAsset',
+    entityId: 'creative_aut_med_flyer',
+    summary: 'Brief de flyer con imagen de call center de salud preparado.',
+    details:
+      'Incluye prompt visual, copy de flyer, oferta autorizada, beneficios laborales y llamada a WhatsApp para reservar cupo.',
+    sourceChannel: 'Meta Ads',
+    severity: 'Info',
+    status: 'Registrado',
+  },
 ];
 
 export const INITIAL_LEADS: Lead[] = [
@@ -281,24 +2430,29 @@ export const INITIAL_LEADS: Lead[] = [
     roleTitle: 'Gerente de Innovación Comercial',
     interests: ['Inteligencia Artificial', 'CRM', 'Automatización de Ventas'],
     courseOfInterestId: 'crs_ai_biz',
-    
+
     funnelId: 'fn_default',
     stageId: 'negociacion',
     status: 'Activo',
     buyProbability: 88,
-    estimatedValue: 299,
+    estimatedValue: 12500,
     source: 'Meta Ads',
     scoreAI: 92,
-    
+
     personalityAnalysis: {
       discType: 'Dominante',
       decisionSpeed: 'Rápida',
-      dominantPainPoint: 'Necesita automatizar el flujo de ventas de su equipo de 12 vendedores que están saturados.',
-      buyingMotivation: 'Optimizar tiempos y multiplicar la conversión de leads sin contratar más personal.',
-      objectionsHistory: ['Duda sobre la integración con su pasarela local', 'Aclarado: Integración nativa habilitada.']
+      dominantPainPoint:
+        'Necesita automatizar el flujo de ventas de su equipo de 12 vendedores que están saturados.',
+      buyingMotivation:
+        'Optimizar tiempos y multiplicar la conversión de leads sin contratar más personal.',
+      objectionsHistory: [
+        'Duda sobre la integración con su pasarela local',
+        'Aclarado: Integración nativa habilitada.',
+      ],
     },
     currentEmotion: 'Muy Entusiasta',
-    
+
     lastInteraction: '2026-07-29T18:45:00-07:00',
     nextFollowUp: '2026-07-30T10:00:00-07:00',
     responseTimeMinutes: 3,
@@ -308,17 +2462,18 @@ export const INITIAL_LEADS: Lead[] = [
     assignedAgentId: 'agent_closer',
     organizationId: 'org_inteca_main',
     tags: ['Alta Prioridad', 'Meta Ads Campaign Q3', 'Paga hoy', 'Decisor'],
-    
+
     conversationHistory: [
       {
         id: 'msg_1',
         sender: 'lead',
         channel: 'WhatsApp',
         messageType: 'text',
-        content: 'Hola INTECA! Vi su anuncio sobre el Diplomado en IA Aplicada a Negocios. ¿Aún tienen disponible la beca del 40%?',
+        content:
+          'Hola INTECA! Vi su anuncio sobre el Diplomado en IA Aplicada a Negocios. ¿Aún tienen disponible la beca del 40%?',
         timestamp: '2026-07-29T18:30:00-07:00',
         sentiment: 'Positivo',
-        aiIntent: 'Consulta de precio y promoción'
+        aiIntent: 'Consulta de precio y promoción',
       },
       {
         id: 'msg_2',
@@ -326,20 +2481,22 @@ export const INITIAL_LEADS: Lead[] = [
         agentName: 'Valeria Sotomayor (Closer IA)',
         channel: 'WhatsApp',
         messageType: 'text',
-        content: '¡Hola Alejandro! Qué gusto saludarte. Sí, justamente nos quedan las últimas 3 becas del 40% OFF para el grupo que inicia este martes. El precio regular es de $499 USD, pero con tu beca especial queda en solo $299 USD (o 3 cuotas sin intereses de $99 USD). ¿Te gustaría reservar tu vacante de inmediato con todos los bonos incluidos?',
+        content:
+          '¡Hola Alejandro! Qué gusto saludarte. Sí, justamente nos quedan las últimas 3 becas del 40% OFF para el grupo que inicia este martes. El precio regular es de $499 USD, pero con tu beca especial queda en solo $299 USD (o 3 cuotas sin intereses de $99 USD). ¿Te gustaría reservar tu vacante de inmediato con todos los bonos incluidos?',
         timestamp: '2026-07-29T18:31:00-07:00',
         sentiment: 'Positivo',
-        aiIntent: 'Presentación de oferta y cierre'
+        aiIntent: 'Presentación de oferta y cierre',
       },
       {
         id: 'msg_3',
         sender: 'lead',
         channel: 'WhatsApp',
         messageType: 'text',
-        content: 'Suena excelente Valeria. ¿Aceptan tarjeta de crédito o PayPal? Me interesa pagar hoy para asegurar el cupo.',
+        content:
+          'Suena excelente Valeria. ¿Aceptan tarjeta de crédito o PayPal? Me interesa pagar hoy para asegurar el cupo.',
         timestamp: '2026-07-29T18:35:00-07:00',
         sentiment: 'Positivo',
-        aiIntent: 'Intención clara de compra'
+        aiIntent: 'Intención clara de compra',
       },
       {
         id: 'msg_4',
@@ -347,11 +2504,12 @@ export const INITIAL_LEADS: Lead[] = [
         agentName: 'Valeria Sotomayor (Closer IA)',
         channel: 'WhatsApp',
         messageType: 'payment_link',
-        content: '¡Perfecto Alejandro! Aceptamos Stripe (Tarjetas Visa/Mastercard/Amex), PayPal, Google Pay y Apple Pay. Aquí tienes tu enlace de inscripción segura con el cupón aplicado: https://inteca.edu/pay/checkout?ref=ALEGOMEZ_AI2026. Al pagar, el sistema te emitirá automáticamente tu factura e instructivo de ingreso al campus virtual. ¿Deseas que te acompañe en la pantalla?',
+        content:
+          '¡Perfecto Alejandro! Aceptamos Stripe (Tarjetas Visa/Mastercard/Amex), PayPal, Google Pay y Apple Pay. Aquí tienes tu enlace de inscripción segura con el cupón aplicado: https://inteca.edu/pay/checkout?ref=ALEGOMEZ_AI2026. Al pagar, el sistema te emitirá automáticamente tu factura e instructivo de ingreso al campus virtual. ¿Deseas que te acompañe en la pantalla?',
         timestamp: '2026-07-29T18:36:00-07:00',
         sentiment: 'Positivo',
-        aiIntent: 'Envío de pasarela de pago'
-      }
+        aiIntent: 'Envío de pasarela de pago',
+      },
     ],
     documents: [
       {
@@ -360,11 +2518,11 @@ export const INITIAL_LEADS: Lead[] = [
         type: 'PDF Cursos',
         url: 'https://inteca.edu/docs/brochure_ia.pdf',
         fileSize: '3.4 MB',
-        uploadedAt: '2026-07-29T18:32:00-07:00'
-      }
+        uploadedAt: '2026-07-29T18:32:00-07:00',
+      },
     ],
     createdAt: '2026-07-29T18:30:00-07:00',
-    updatedAt: '2026-07-29T18:45:00-07:00'
+    updatedAt: '2026-07-29T18:45:00-07:00',
   },
   {
     id: 'lead_102',
@@ -385,24 +2543,26 @@ export const INITIAL_LEADS: Lead[] = [
     roleTitle: 'Especialista en Marketing Digital',
     interests: ['Growth Hacking', 'Meta Ads', 'Funnel Automation'],
     courseOfInterestId: 'crs_mkt_automation',
-    
+
     funnelId: 'fn_default',
     stageId: 'pago_pendiente',
     status: 'Activo',
     buyProbability: 95,
-    estimatedValue: 380,
+    estimatedValue: 100300,
     source: 'Google Ads',
     scoreAI: 96,
-    
+
     personalityAnalysis: {
       discType: 'Influyente',
       decisionSpeed: 'Rápida',
-      dominantPainPoint: 'Busca certificación internacional para ascender a Directora de Marketing.',
-      buyingMotivation: 'Reconocimiento laboral e implementación inmediata en clientes de su agencia.',
-      objectionsHistory: []
+      dominantPainPoint:
+        'Busca certificación internacional para ascender a Directora de Marketing.',
+      buyingMotivation:
+        'Reconocimiento laboral e implementación inmediata en clientes de su agencia.',
+      objectionsHistory: [],
     },
     currentEmotion: 'Urgente',
-    
+
     lastInteraction: '2026-07-29T17:10:00-07:00',
     nextFollowUp: '2026-07-29T21:00:00-07:00',
     responseTimeMinutes: 2,
@@ -412,17 +2572,18 @@ export const INITIAL_LEADS: Lead[] = [
     assignedAgentId: 'agent_director',
     organizationId: 'org_inteca_main',
     tags: ['Google Ads Search', 'Checkout Iniciado', 'Pago en Proceso'],
-    
+
     conversationHistory: [
       {
         id: 'msg_201',
         sender: 'lead',
         channel: 'WebChat',
         messageType: 'text',
-        content: 'Buenas tardes! Estoy en el checkout del Máster Executive en Marketing Digital. ¿Ofrecen certificado oficial respaldado?',
+        content:
+          'Buenas tardes! Estoy en el checkout del Máster Executive en Marketing Digital. ¿Ofrecen certificado oficial respaldado?',
         timestamp: '2026-07-29T17:00:00-07:00',
         sentiment: 'Positivo',
-        aiIntent: 'Verificación de acreditación'
+        aiIntent: 'Verificación de acreditación',
       },
       {
         id: 'msg_202',
@@ -430,15 +2591,16 @@ export const INITIAL_LEADS: Lead[] = [
         agentName: 'Don Fernando Vane (Director IA)',
         channel: 'WebChat',
         messageType: 'text',
-        content: '¡Buenas tardes María Fernanda! Absolutamente. Al completar el Máster recibes la Certificación Executive respaldada por INTECA con código QR institucional verificable en blockchain y valor curricular internacional. Además, tendrás acceso a la bolsa de trabajo exclusiva.',
+        content:
+          '¡Buenas tardes María Fernanda! Absolutamente. Al completar el Máster recibes la Certificación Executive respaldada por INTECA con código QR institucional verificable en blockchain y valor curricular internacional. Además, tendrás acceso a la bolsa de trabajo exclusiva.',
         timestamp: '2026-07-29T17:02:00-07:00',
         sentiment: 'Positivo',
-        aiIntent: 'Confirmación institucional y respaldo'
-      }
+        aiIntent: 'Confirmación institucional y respaldo',
+      },
     ],
     documents: [],
     createdAt: '2026-07-29T16:50:00-07:00',
-    updatedAt: '2026-07-29T17:10:00-07:00'
+    updatedAt: '2026-07-29T17:10:00-07:00',
   },
   {
     id: 'lead_103',
@@ -457,24 +2619,25 @@ export const INITIAL_LEADS: Lead[] = [
     roleTitle: 'Socio Fundador',
     interests: ['Ventas B2B', 'Negociación Harvard', 'Licitaciones'],
     courseOfInterestId: 'crs_b2b_sales',
-    
+
     funnelId: 'fn_default',
     stageId: 'interesado',
     status: 'Activo',
     buyProbability: 65,
-    estimatedValue: 250,
+    estimatedValue: 45000,
     source: 'LinkedIn',
     scoreAI: 74,
-    
+
     personalityAnalysis: {
       discType: 'Concienzudo',
       decisionSpeed: 'Analítica',
-      dominantPainPoint: 'Desea metodologías rigurosas para cerrar cuentas corporativas en el sector financiero.',
+      dominantPainPoint:
+        'Desea metodologías rigurosas para cerrar cuentas corporativas en el sector financiero.',
       buyingMotivation: 'Estructura y procesos formales para su equipo de ejecutivos B2B.',
-      objectionsHistory: ['Requiere ver el temario módulo por módulo en detalle']
+      objectionsHistory: ['Requiere ver el temario módulo por módulo en detalle'],
     },
     currentEmotion: 'Indeciso',
-    
+
     lastInteraction: '2026-07-29T15:20:00-07:00',
     nextFollowUp: '2026-07-30T11:00:00-07:00',
     responseTimeMinutes: 15,
@@ -482,13 +2645,13 @@ export const INITIAL_LEADS: Lead[] = [
     browserUsed: 'Microsoft Edge 132',
     ipLocation: 'Santiago, Chile',
     assignedAgentId: 'agent_director',
-    organizationId: 'org_inteca_exec',
+    organizationId: 'org_autoprime_rd',
     tags: ['B2B Corporate', 'LinkedIn Outreach', 'Socio Director'],
-    
+
     conversationHistory: [],
     documents: [],
     createdAt: '2026-07-29T15:00:00-07:00',
-    updatedAt: '2026-07-29T15:20:00-07:00'
+    updatedAt: '2026-07-29T15:20:00-07:00',
   },
   {
     id: 'lead_104',
@@ -506,33 +2669,33 @@ export const INITIAL_LEADS: Lead[] = [
     roleTitle: 'Desarrolladora Web Jr.',
     interests: ['Full Stack AI', 'React 19', 'FastAPI', 'Gemini AI'],
     courseOfInterestId: 'crs_fullstack_ai',
-    
+
     funnelId: 'fn_default',
     stageId: 'venta_realizada',
     status: 'Ganado',
     buyProbability: 100,
-    estimatedValue: 349,
+    estimatedValue: 12500,
     source: 'TikTok',
     scoreAI: 99,
-    
+
     personalityAnalysis: {
       discType: 'Estable',
       decisionSpeed: 'Rápida',
       dominantPainPoint: 'Deseaba dar el salto a desarrolladora Full Stack Senior orientada a IA.',
       buyingMotivation: 'Crear su propia agencia de aplicaciones web con inteligencia artificial.',
-      objectionsHistory: []
+      objectionsHistory: [],
     },
     currentEmotion: 'Muy Entusiasta',
-    
+
     lastInteraction: '2026-07-29T14:00:00-07:00',
     responseTimeMinutes: 1,
     deviceUsed: 'MacBook Air M2',
     browserUsed: 'Chrome 134.0',
     ipLocation: 'Lima, Perú',
     assignedAgentId: 'agent_closer',
-    organizationId: 'org_inteca_tech',
+    organizationId: 'org_inteca_main',
     tags: ['Matriculada', 'Pago Confirmado', 'Estudiante Activa'],
-    
+
     conversationHistory: [],
     documents: [
       {
@@ -541,12 +2704,12 @@ export const INITIAL_LEADS: Lead[] = [
         type: 'Comprobante',
         url: 'https://inteca.edu/invoices/INV-2026-0891.pdf',
         fileSize: '1.2 MB',
-        uploadedAt: '2026-07-29T14:05:00-07:00'
-      }
+        uploadedAt: '2026-07-29T14:05:00-07:00',
+      },
     ],
     createdAt: '2026-07-29T13:30:00-07:00',
-    updatedAt: '2026-07-29T14:05:00-07:00'
-  }
+    updatedAt: '2026-07-29T14:05:00-07:00',
+  },
 ];
 
 export const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
@@ -562,8 +2725,9 @@ export const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
     conversionsCount: 184,
     revenueGenerated: 55016,
     generatedByAI: true,
-    contentSnippet: '¡Hola {{nombre}}! 🎓 Solo por hoy activamos la Beca Exclusiva del 40% OFF para el Diplomado Internacional en IA Aplicada a Negocios de INTECA...',
-    createdAt: '2026-07-28T10:00:00-07:00'
+    contentSnippet:
+      '¡Hola {{nombre}}! 🎓 Solo por hoy activamos la Beca Exclusiva del 40% OFF para el Diplomado Internacional en IA Aplicada a Negocios de INTECA...',
+    createdAt: '2026-07-28T10:00:00-07:00',
   },
   {
     id: 'cmp_102',
@@ -577,9 +2741,10 @@ export const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
     conversionsCount: 92,
     revenueGenerated: 27508,
     generatedByAI: true,
-    contentSnippet: 'Asunto: [Casos Reales] Cómo automatizar el 90% de la gestión de clientes en tu institución...',
-    createdAt: '2026-07-29T08:00:00-07:00'
-  }
+    contentSnippet:
+      'Asunto: [Casos Reales] Cómo automatizar el 90% de la gestión de clientes en tu institución...',
+    createdAt: '2026-07-29T08:00:00-07:00',
+  },
 ];
 
 export const INITIAL_TRANSACTIONS: PaymentTransaction[] = [
@@ -587,30 +2752,35 @@ export const INITIAL_TRANSACTIONS: PaymentTransaction[] = [
     id: 'tx_8801',
     leadId: 'lead_104',
     leadName: 'Lucía Mendoza Paredes',
-    courseTitle: 'Especialización Avanzada en Desarrollo Web Full Stack & AI',
-    amount: 349,
-    currency: 'USD',
-    gateway: 'Stripe',
+    courseTitle: 'Técnico en Autorizaciones Médicas',
+    organizationId: 'org_inteca_main',
+    opportunityId: 'opp_1001',
+    quoteId: 'quote_5001',
+    amount: 2500,
+    currency: 'DOP',
+    gateway: 'Transferencia',
     status: 'Completado',
-    transactionRef: 'ch_3M009x9120aXXLK',
-    invoiceNumber: 'INV-2026-0891',
-    invoiceUrl: 'https://inteca.edu/invoices/INV-2026-0891.pdf',
-    courseActivationCode: 'ACT-DEV-9012-LUCIA',
-    createdAt: '2026-07-29T14:05:00-07:00'
+    transactionRef: 'TRF-DEMO-2026-0001',
+    invoiceNumber: 'REC-INTECA-2026-0001',
+    invoiceUrl: '',
+    courseActivationCode: 'ACT-AUT-2026-LUCIA',
+    createdAt: '2026-09-26T10:05:00-04:00',
   },
   {
     id: 'tx_8802',
-    leadId: 'lead_999',
+    leadId: 'lead_103',
     leadName: 'Guillermo Restrepo',
-    courseTitle: 'Diplomado Internacional en IA Aplicada a Negocios y Ventas',
-    amount: 299,
-    currency: 'USD',
-    gateway: 'PayPal',
+    courseTitle: 'Gestión de financiamiento vehículo usado',
+    organizationId: 'org_autoprime_rd',
+    opportunityId: 'opp_1003',
+    amount: 45000,
+    currency: 'DOP',
+    gateway: 'Tarjeta Local',
     status: 'Completado',
-    transactionRef: 'PAYPAL-9812-3321',
-    invoiceNumber: 'INV-2026-0890',
-    invoiceUrl: 'https://inteca.edu/invoices/INV-2026-0890.pdf',
-    courseActivationCode: 'ACT-AI-4410-GUILLERMO',
-    createdAt: '2026-07-29T11:20:00-07:00'
-  }
+    transactionRef: 'CARD-DEMO-9812-3321',
+    invoiceNumber: 'B0200000090',
+    invoiceUrl: '',
+    courseActivationCode: 'SERV-AUTO-4410',
+    createdAt: '2026-09-25T16:20:00-04:00',
+  },
 ];

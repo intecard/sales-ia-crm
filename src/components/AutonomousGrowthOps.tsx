@@ -42,6 +42,8 @@ const statusTone = (status: string) => {
   if (status === 'Webhook preparado')
     return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
   if (status === 'Modo demo') return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
+  if (status === 'Producción pendiente')
+    return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
   if (status === 'Listo para conectar')
     return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
   return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
@@ -91,7 +93,7 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
       `Campaña de adquisición para ${title}: Meta Ads, Google Ads y video corto hacia WhatsApp.`,
       `Fecha de lanzamiento: ${launchDate}. Relanzamiento: ${relaunchDate || 'sin definir'}.`,
       `Presupuesto de prueba: RD$${budgetDop.toLocaleString()} con meta mínima de ${dailyGoal} ventas diarias.`,
-      'Agentes asignados: Elena planifica, Camila pauta, Isabella crea flyers, Dante arma video y Valeria cierra.',
+      'Agentes asignados: Lanzamientos planifica, Publicidad pauta, Creativos diseña flyers, Video Ads prepara guiones y Ventas cierra.',
       'Avisos al dueño: pagos confirmados, llamadas de alta probabilidad, bloqueos fiscales y campañas listas.',
     ]);
   };

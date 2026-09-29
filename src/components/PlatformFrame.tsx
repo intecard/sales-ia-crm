@@ -106,7 +106,9 @@ export const PlatformFrame: React.FC<PlatformFrameProps> = ({ platform, children
         <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-full text-xs">
           <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
           <span>
-            Simulador Móvil {platform === 'android' ? 'Android (APK Native)' : 'iOS (App Store Native)'} — Sincronizado
+            Simulador Móvil{' '}
+            {platform === 'android' ? 'Android (APK Native)' : 'iOS (App Store Native)'} —
+            Sincronizado
           </span>
         </div>
       </div>

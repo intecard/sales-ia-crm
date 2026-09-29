@@ -10,7 +10,7 @@ import {
   HardDrive,
   FileCode,
   Mic,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react';
 import { LeadDocument, Lead } from '../types';
 
@@ -28,7 +28,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ leads }) => {
       allDocuments.push({
         doc: d,
         leadName: `${l.firstName} ${l.lastName}`,
-        leadEmail: l.email
+        leadEmail: l.email,
       });
     });
   });
@@ -36,7 +36,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ leads }) => {
   const filteredDocs = allDocuments.filter((item) =>
     `${item.doc.title} ${item.leadName} ${item.doc.type}`
       .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+      .includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -48,9 +48,12 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ leads }) => {
             <FolderLock className="w-3.5 h-3.5 text-cyan-300" />
             <span>Bóveda Digital de Documentos & Encriptación AES-256</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-white">Documentos, Contratos & Audios Organizados por Cliente</h1>
+          <h1 className="text-2xl font-extrabold text-white">
+            Documentos, Contratos & Audios Organizados por Cliente
+          </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Resguardo seguro de comprobantes, contratos de matrícula, certificados blockchain, audios de WhatsApp y fichas técnicas.
+            Resguardo seguro de comprobantes, contratos de matrícula, certificados blockchain,
+            audios de WhatsApp y fichas técnicas.
           </p>
         </div>
 
@@ -82,7 +85,9 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ leads }) => {
                   {item.doc.type}
                 </span>
                 <h3 className="font-bold text-xs text-white mt-1 truncate">{item.doc.title}</h3>
-                <p className="text-[11px] text-slate-400">Cliente: <strong className="text-slate-200">{item.leadName}</strong></p>
+                <p className="text-[11px] text-slate-400">
+                  Cliente: <strong className="text-slate-200">{item.leadName}</strong>
+                </p>
               </div>
             </div>
 
