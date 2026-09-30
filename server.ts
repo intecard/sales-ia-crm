@@ -17,8 +17,14 @@ const DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
 
 app.disable('x-powered-by');
+
+if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1' || process.env.RENDER) {
+  app.set('trust proxy', 1);
+}
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '1mb' }));
+
 app.use(
   '/api',
   rateLimit({
