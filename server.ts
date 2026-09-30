@@ -139,6 +139,244 @@ const serverAuditEvents: Array<
   z.infer<typeof auditEventSchema> & { id: string; timestamp: string }
 > = [];
 
+const processedWhatsAppMessageIds = new Set<string>();
+
+const INTECA_AGENT_KNOWLEDGE_BASE = `
+INTECA SRL, tambien conocida como Instituto Tecnico del Caribe e Instituto Nacional de Tecnologia y Capacitacion Aplicada, es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, Ley 87-01, farmacologia aplicada, enfermeria y capacitacion profesional.
+
+Canales oficiales:
+- Sitio web: https://www.inteca.com.do
+- Instagram: @formacion.inteca
+- WhatsApp principal: 809-643-5502
+- Correo institucional actual: intecaedu@gmail.com
+
+Curso principal confirmado:
+- Nombre: Tecnico u Oficial de Autorizaciones Medicas.
+- Modalidad: virtual.
+- Duracion: 5 meses.
+- Precio confirmado: inscripcion RD$2,500 y mensualidad RD$2,000.
+- Contenido: PBS, flujo de autorizaciones, validacion de coberturas, precertificaciones, atencion al afiliado, procesos ARS, SISALRIL, CNSS, SDSS, Ley 87-01, reclamos y casos practicos.
+- Beneficio: prepara al participante para comprender y ejecutar procesos reales de autorizaciones medicas en ARS, clinicas, hospitales, farmacias y centros de salud.
+
+Otros programas confirmados o previstos:
+- Precertificaciones medicas.
+- Atencion al usuario en salud.
+- Farmacologia aplicada.
+- Ley 87-01.
+- Facturacion medica.
+- Enfermeria, con duracion confirmada de 1 ano.
+- Cursos del sector salud.
+- Precios base usados por INTECA cuando no exista otra tarifa aprobada: inscripcion RD$2,500 y mensualidad RD$2,000.
+
+Horarios confirmados para ofertas virtuales cuando esten disponibles:
+- Lunes a viernes: 3:00 p. m. a 5:00 p. m. y 7:00 p. m. a 9:00 p. m.
+- Sabados: 10:00 a. m. a 12:00 m. y 2:00 p. m. a 4:00 p. m.
+- Domingos: 9:00 a. m. a 11:00 a. m.
+
+Reglas comerciales para agentes:
+- Responder con tono dominicano profesional, claro, empatico y orientado a cierre.
+- Explicar que aprendera la persona, como puede mejorar sus oportunidades laborales y por que conviene iniciar.
+- Crear urgencia etica sin prometer empleo garantizado, ingresos garantizados, cupos falsos ni resultados irreales.
+- Si el prospecto muestra interes, pedir nombre, telefono, curso de interes, horario preferido y si desea iniciar con la inscripcion.
+- Si pregunta por pagos, orientar a que un asesor confirme el metodo de pago disponible o compartir instrucciones solo si estan configuradas oficialmente.
+- Si falta informacion, reconocerlo y solicitar que un asesor humano confirme antes de prometer.
+- Nunca inventar certificaciones, alianzas, descuentos, fechas de inicio, testimonios o beneficios no aprobados.
+`;
+
+function trimWhatsAppReply(text: string) {
+  return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1_500);
+}
+
+function buildFallbackWhatsAppReply(customerName: string | undefined, userMessage: string) {
+  const greetingName = customerName ? ` ${customerName}` : '';
+  const lowerMessage = userMessage.toLowerCase();
+
+  if (lowerMessage.includes('autoriz')) {
+    return trimWhatsAppReply(`Hola${greetingName}, gracias por escribir a INTECA.
+
+Si te interesa el curso de Tecnico u Oficial de Autorizaciones Medicas, te cuento lo esencial:
+
+- Modalidad virtual.
+- Duracion: 5 meses.
+- Inscripcion: RD$2,500.
+- Mensualidad: RD$2,000.
+- Aprenderas procesos de autorizaciones, validacion de coberturas, PBS, precertificaciones, atencion al afiliado, Ley 87-01, SISALRIL, CNSS y casos practicos del sector salud.
+
+Este curso te prepara para entender como trabajan las ARS, clinicas, hospitales y centros de salud en el area de autorizaciones medicas.
+
+Para orientarte mejor, dime por favor:
+1. Tu nombre completo.
+2. Si tienes experiencia en salud o empiezas desde cero.
+3. Que horario prefieres: tarde, noche, sabado o domingo.`);
+  }
+
+  return trimWhatsAppReply(`Hola${greetingName}, gracias por escribir a INTECA.
+
+Somos una institucion de formacion tecnica enfocada en cursos del sector salud. Tenemos programas como Autorizaciones Medicas, Precertificaciones Medicas, Atencion al Usuario, Facturacion Medica, Ley 87-01, Farmacologia Aplicada y Enfermeria.
+
+Para ayudarte bien, dime:
+1. Que curso te interesa.
+2. Si prefieres horario de tarde, noche o fin de semana.
+3. Si deseas informacion para inscribirte.`);
+}
+
+function getWhatsAppMessageText(message: any) {
+  if (message?.type === 'text' && typeof message.text?.body === 'string') {
+    return message.text.body.trim();
+  }
+
+  if (message?.type === 'button' && typeof message.button?.text === 'string') {
+    return message.button.text.trim();
+  }
+
+  const interactive = message?.interactive;
+  if (message?.type === 'interactive') {
+    const buttonText = interactive?.button_reply?.title;
+    const listText = interactive?.list_reply?.title;
+    if (typeof buttonText === 'string') return buttonText.trim();
+    if (typeof listText === 'string') return listText.trim();
+  }
+
+  return `Mensaje recibido de tipo ${message?.type || 'desconocido'}.`;
+}
+
+function findWhatsAppContactName(event: any, waId: string) {
+  const contacts =
+    event.entry?.flatMap(
+      (entry: any) => entry.changes?.flatMap((change: any) => change.value?.contacts || []) || [],
+    ) || [];
+  const contact = contacts.find((item: any) => item?.wa_id === waId);
+  return contact?.profile?.name;
+}
+
+async function generateWhatsAppAutoReply(userMessage: string, customerName?: string) {
+  const fallback = buildFallbackWhatsAppReply(customerName, userMessage);
+
+  if (!process.env.GEMINI_API_KEY) {
+    return fallback;
+  }
+
+  try {
+    const ai = getGeminiClient();
+    const prompt = `
+Eres el agente comercial de WhatsApp de INTECA. Responde al prospecto usando un estilo humano, profesional, claro y orientado a conversion.
+
+BASE DE CONOCIMIENTO AUTORIZADA:
+${INTECA_AGENT_KNOWLEDGE_BASE}
+
+NOMBRE DEL PROSPECTO: ${customerName || 'No especificado'}
+MENSAJE DEL PROSPECTO:
+"${userMessage}"
+
+INSTRUCCIONES:
+1. Responde en espanol dominicano profesional.
+2. No inventes datos, fechas, descuentos, certificaciones ni garantias.
+3. Si pregunta por autorizaciones medicas, incluye duracion 5 meses, modalidad virtual, inscripcion RD$2,500 y mensualidad RD$2,000.
+4. Explica beneficio laboral y practico en pocas lineas.
+5. Cierra con una pregunta que capture datos o acerque al pago.
+6. Mantente por debajo de 1,200 caracteres para WhatsApp.
+`;
+
+    const response = await ai.models.generateContent({
+      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.55,
+      },
+    });
+
+    return trimWhatsAppReply(response.text || fallback) || fallback;
+  } catch (error) {
+    console.error('Error generating WhatsApp auto reply:', error);
+    return fallback;
+  }
+}
+
+async function sendWhatsAppTextMessage(to: string, body: string) {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const graphApiVersion = process.env.META_GRAPH_API_VERSION || 'v22.0';
+
+  if (!accessToken || !phoneNumberId) {
+    throw new Error('WHATSAPP_SEND_NOT_CONFIGURED');
+  }
+
+  const response = await fetch(
+    `https://graph.facebook.com/${graphApiVersion}/${phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'text',
+        text: {
+          preview_url: false,
+          body,
+        },
+      }),
+    },
+  );
+
+  const responseBody = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.error('WhatsApp Cloud API send failed', {
+      status: response.status,
+      responseBody,
+    });
+    throw new Error('WHATSAPP_SEND_FAILED');
+  }
+
+  return responseBody;
+}
+
+async function processWhatsAppInboundMessages(messages: any[], event: any) {
+  if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
+    return;
+  }
+
+  for (const message of messages) {
+    const messageId = message?.id;
+    const from = message?.from;
+    if (!from || !messageId || processedWhatsAppMessageIds.has(messageId)) {
+      continue;
+    }
+
+    processedWhatsAppMessageIds.add(messageId);
+    if (processedWhatsAppMessageIds.size > 1_000) {
+      const firstMessageId = processedWhatsAppMessageIds.values().next().value;
+      if (typeof firstMessageId === 'string') {
+        processedWhatsAppMessageIds.delete(firstMessageId);
+      }
+    }
+
+    const userMessage = getWhatsAppMessageText(message);
+    const customerName = findWhatsAppContactName(event, from);
+    const reply = await generateWhatsAppAutoReply(userMessage, customerName);
+
+    await sendWhatsAppTextMessage(from, reply);
+
+    recordServerAudit({
+      actorType: 'Agente IA',
+      actorName: 'Agente WhatsApp INTECA',
+      module: 'WhatsApp',
+      action: 'Respondió',
+      entityType: 'WhatsAppMessage',
+      entityId: messageId,
+      summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
+      details: `Prospecto: ${customerName || from}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
+      sourceChannel: 'WhatsApp',
+      severity: 'Éxito',
+      status: 'Registrado',
+    });
+  }
+}
+
 function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
   const entry = {
     id: `srv_audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -370,6 +608,27 @@ app.post('/api/webhooks/meta/whatsapp', (req, res) => {
       statuses: statuses.length,
       receivedAt: new Date().toISOString(),
     });
+
+    if (messages.length > 0) {
+      void processWhatsAppInboundMessages(messages, event).catch((error) => {
+        console.error('Error sending WhatsApp auto reply:', error);
+        recordServerAudit({
+          actorType: 'Agente IA',
+          actorName: 'Agente WhatsApp INTECA',
+          module: 'WhatsApp',
+          action: 'Falló',
+          entityType: 'WhatsAppAutoReply',
+          summary: 'No se pudo enviar la respuesta automatizada por WhatsApp.',
+          details:
+            error instanceof Error
+              ? `${error.name}: ${error.message}`
+              : 'Error desconocido al responder por WhatsApp.',
+          sourceChannel: 'WhatsApp',
+          severity: 'Crítico',
+          status: 'Pendiente revisión',
+        });
+      });
+    }
 
     return res.sendStatus(200);
   } catch (error) {
