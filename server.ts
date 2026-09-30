@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
+import { existsSync, readFileSync } from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
@@ -183,6 +184,80 @@ Reglas comerciales para agentes:
 - Nunca inventar certificaciones, alianzas, descuentos, fechas de inicio, testimonios o beneficios no aprobados.
 `;
 
+const INTECA_AGENT_KNOWLEDGE_FILES = [
+  'docs/knowledge/base_conocimiento_agentes_inteca.md',
+  'docs/knowledge/inteca_guia_institucional_cursos_y_areas_laborales.md',
+];
+
+let cachedIntecaAgentKnowledgeBase: string | null = null;
+
+function getAgentKnowledgeMaxChars() {
+  const configuredLimit = Number(process.env.AGENT_KNOWLEDGE_MAX_CHARS || 48_000);
+  if (!Number.isFinite(configuredLimit) || configuredLimit < 10_000) {
+    return 48_000;
+  }
+  return configuredLimit;
+}
+
+function readAgentKnowledgeFile(relativePath: string) {
+  const absolutePath = path.join(process.cwd(), relativePath);
+  if (!existsSync(absolutePath)) {
+    return '';
+  }
+
+  return readFileSync(absolutePath, 'utf-8').trim();
+}
+
+function getIntecaAgentKnowledgeBase() {
+  if (cachedIntecaAgentKnowledgeBase) {
+    return cachedIntecaAgentKnowledgeBase;
+  }
+
+  const fileKnowledge = INTECA_AGENT_KNOWLEDGE_FILES.map((relativePath) => {
+    const content = readAgentKnowledgeFile(relativePath);
+    if (!content) return '';
+    return `FUENTE: ${relativePath}\n${content}`;
+  }).filter(Boolean);
+
+  const combinedKnowledge = [INTECA_AGENT_KNOWLEDGE_BASE.trim(), ...fileKnowledge]
+    .join('\n\n---\n\n')
+    .replace(/\n{4,}/g, '\n\n\n')
+    .trim();
+
+  const maxChars = getAgentKnowledgeMaxChars();
+  cachedIntecaAgentKnowledgeBase =
+    combinedKnowledge.length > maxChars
+      ? `${combinedKnowledge.slice(0, maxChars)}\n\n[Base de conocimiento recortada por limite operativo. Prioriza datos confirmados y escala si falta informacion.]`
+      : combinedKnowledge;
+
+  return cachedIntecaAgentKnowledgeBase;
+}
+
+function buildAgentKnowledgePrompt(scope: string) {
+  return `
+BASE DE CONOCIMIENTO INSTITUCIONAL PARA TODOS LOS AGENTES DE INTECA
+Alcance de uso: ${scope}.
+
+${getIntecaAgentKnowledgeBase()}
+
+REGLAS DE CONVERSACION, PARAFRASEO Y SEGURIDAD:
+- Puedes conversar de forma fluida, profesional, empatica y natural, usando espanol dominicano neutro.
+- Puedes parafrasear para adaptar el mensaje al canal, al nivel del cliente y a su necesidad.
+- No cambies datos sensibles: precios, duraciones, fechas, horarios, condiciones, avales, advertencias, requisitos, limitaciones, pagos ni certificaciones.
+- No inventes beneficios, cupos, empleos garantizados, pasantias, alianzas, descuentos, testimonios, resultados, pagos aprobados ni facturas emitidas.
+- Si la informacion no esta confirmada en la base o en el contexto de la solicitud, dilo con claridad y escala a Luis o a un asesor autorizado.
+- Cuando hables por INTECA, presenta los cursos como oportunidades de formacion practica y mejora profesional, sin prometer resultados garantizados.
+- Si el contexto pertenece a otra empresa, usa estas reglas como guia de calidad, pero no presentes datos de INTECA como si fueran de esa empresa.
+`;
+}
+
+function getIntecaKnowledgeSourcesStatus() {
+  return INTECA_AGENT_KNOWLEDGE_FILES.map((relativePath) => ({
+    path: relativePath,
+    loaded: Boolean(readAgentKnowledgeFile(relativePath)),
+  }));
+}
+
 function trimWhatsAppReply(text: string) {
   return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1_500);
 }
@@ -262,7 +337,7 @@ async function generateWhatsAppAutoReply(userMessage: string, customerName?: str
 Eres el agente comercial de WhatsApp de INTECA. Responde al prospecto usando un estilo humano, profesional, claro y orientado a conversion.
 
 BASE DE CONOCIMIENTO AUTORIZADA:
-${INTECA_AGENT_KNOWLEDGE_BASE}
+${buildAgentKnowledgePrompt('WhatsApp, ventas consultivas, captacion de leads y seguimiento comercial')}
 
 NOMBRE DEL PROSPECTO: ${customerName || 'No especificado'}
 MENSAJE DEL PROSPECTO:
@@ -270,7 +345,7 @@ MENSAJE DEL PROSPECTO:
 
 INSTRUCCIONES:
 1. Responde en espanol dominicano profesional.
-2. No inventes datos, fechas, descuentos, certificaciones ni garantias.
+2. Puedes parafrasear con naturalidad, pero no inventes datos, fechas, descuentos, certificaciones ni garantias.
 3. Si pregunta por autorizaciones medicas, incluye duracion 5 meses, modalidad virtual, inscripcion RD$2,500 y mensualidad RD$2,000.
 4. Explica beneficio laboral y practico en pocas lineas.
 5. Cierra con una pregunta que capture datos o acerque al pago.
@@ -423,6 +498,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     authConfigured: Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD),
+    agentKnowledgeConfigured: getIntecaKnowledgeSourcesStatus().some((source) => source.loaded),
     integrations: {
       whatsappConfigured: Boolean(
         process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
@@ -461,6 +537,19 @@ app.get('/api/runtime/config', (_req, res) => {
     growthSystemAiPath: '/api/ai/generate-growth-system',
     ecfInvoiceAiPath: '/api/ai/generate-ecf-invoice',
     accountingReportAiPath: '/api/ai/generate-accounting-report',
+    agentKnowledgeStatusPath: '/api/knowledge/inteca/status',
+  });
+});
+
+app.get('/api/knowledge/inteca/status', (_req, res) => {
+  const knowledge = getIntecaAgentKnowledgeBase();
+  res.json({
+    success: true,
+    sources: getIntecaKnowledgeSourcesStatus(),
+    loadedCharacters: knowledge.length,
+    maxCharacters: getAgentKnowledgeMaxChars(),
+    canParaphrase: true,
+    rule: 'Los agentes pueden parafrasear con fluidez, pero no pueden inventar ni alterar datos institucionales confirmados.',
   });
 });
 
@@ -818,6 +907,8 @@ ${systemPrompt || 'Eres un asesor comercial profesional. No inventes precios, pr
 ORGANIZACIÓN: ${organizationName || 'Organización principal'}
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
+${buildAgentKnowledgePrompt('ventas, seguimiento, soporte comercial, objeciones y conversacion con leads')}
+
 CONTEXTO DEL LEAD:
 - Nombre: ${leadName || 'Cliente'}
 - Correo: ${leadEmail || 'No especificado'}
@@ -834,7 +925,7 @@ MENSAJE MÁS RECIENTE DEL CLIENTE:
 
 INSTRUCCIONES DE RESPUESTA:
 1. Responde de manera sumamente natural, profesional, persuasiva y empática.
-2. Utiliza únicamente la información proporcionada en el contexto y el historial.
+2. Utiliza la base de conocimiento, el contexto y el historial. Puedes parafrasear, pero no alterar datos confirmados.
 3. No prometas descuentos, disponibilidad, pagos o condiciones que no estén expresamente autorizados.
 4. Mantén una llamada a la acción clara, sin afirmar que ejecutaste acciones externas.
 5. Si falta información, indícalo y solicita intervención humana.
@@ -888,6 +979,8 @@ app.post('/api/ai/qualify-lead', async (req, res) => {
 
     const prompt = `
 Analiza la siguiente información comercial y realiza una calificación orientativa. No uses características sensibles y no inventes datos ausentes:
+
+${buildAgentKnowledgePrompt('calificacion de leads, deteccion de necesidades, recomendacion de cursos y proximos pasos comerciales')}
 
 DATOS DEL LEAD:
 ${JSON.stringify(leadData, null, 2)}
@@ -975,6 +1068,8 @@ Eres especialista de marketing de ${organizationName || 'una organización comer
 
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
+${buildAgentKnowledgePrompt('marketing, publicidad, propuestas de valor, flyers, anuncios, embudos y contenido persuasivo')}
+
 TIPO DE CONTENIDO: ${contentType || 'WhatsApp Campaign'}
 PÚBLICO OBJETIVO: ${targetAudience || 'Profesionales interesados en IA'}
 PRODUCTO O SERVICIO: ${courseTitle || 'No especificado'}
@@ -988,6 +1083,7 @@ Instrucciones:
 3. Explica la función práctica del técnico, producto o servicio; qué aprenderá/recibirá el cliente; cómo mejora su vida, empleo, ingresos u operación.
 4. Crea urgencia ética: oportunidad clara, beneficio fuerte y costo de no actuar.
 5. No prometas resultados garantizados ni cifras irreales. Si una meta es aspiracional, preséntala como objetivo operativo.
+6. Puedes parafrasear la base institucional para hacer anuncios mas humanos, directos y atractivos, conservando los datos confirmados.
 
 Proporciona el resultado estructurado en JSON con los campos:
 - title: Título o asunto de la campaña
@@ -1097,6 +1193,8 @@ TASA DE CIERRE ESTIMADA: ${closeRatePercent || 12}%
 CUELLO DE BOTELLA: ${bottleneck || 'No especificado'}
 CANALES: ${(channels || ['Meta Ads', 'Google Ads', 'YouTube', 'WhatsApp', 'Landing Page']).join(', ')}
 
+${buildAgentKnowledgePrompt('sistema de crecimiento, marketing agresivo etico, ventas optimizadas, operaciones escalables, KPIs y auditoria')}
+
 Reglas:
 1. Trata las metas de ventas, ROAS o 80% como objetivos operativos, nunca como garantias.
 2. No inventes avales, testimonios, descuentos, fechas, certificaciones ni resultados que no fueron suministrados.
@@ -1106,6 +1204,7 @@ Reglas:
 6. Debe servir para Meta Ads, Google Ads, YouTube, WhatsApp, landing, email y retargeting.
 7. Indica que debe aprobar el dueno y que puede ejecutar cada agente de IA.
 8. Incluye plan para romper el cuello de botella y escalar sin depender de trabajo manual del dueno.
+9. Puedes parafrasear la base de conocimiento para crear mensajes mas potentes, pero sin cambiar hechos confirmados.
 
 Devuelve JSON estricto con:
 - marketDiagnosis: diagnostico del nicho, dolores, deseos, disparadores y objeciones.
@@ -1221,12 +1320,15 @@ LANZAMIENTO: ${launchDate || 'No especificado'}
 RELANZAMIENTO: ${relaunchDate || 'No especificado'}
 MARCA: ${brandInstructions || 'Usar logo INTECA, tono profesional, claro, educativo y orientado a resultados.'}
 
+${buildAgentKnowledgePrompt('briefs creativos, flyers, videos de 30 a 60 segundos, carruseles, reels, shorts y anuncios visuales')}
+
 Reglas:
 1. No inventes avales, precios, fechas ni garantías no indicadas.
 2. La pieza debe crear deseo y necesidad de forma ética, con beneficio práctico y CTA fuerte.
 3. Si es flyer, incluye escena visual, texto principal, CTA, elementos obligatorios y prompt de imagen en inglés.
 4. Si es video, incluye guion por segundos, texto en pantalla, voz en off, escenas, portada y CTA.
 5. Debe ser útil para Meta Ads, WhatsApp, YouTube Shorts/Reels y landing.
+6. Puedes parafrasear con estilo publicitario, pero manteniendo exactamente precios, duraciones, advertencias y condiciones confirmadas.
 
 Devuelve JSON estricto con:
 - title
@@ -1358,6 +1460,8 @@ NOTAS: ${notes || 'Sin notas'}
 ITEMS:
 ${JSON.stringify(items, null, 2)}
 
+${buildAgentKnowledgePrompt('facturacion electronica dominicana e-CF, datos institucionales, auditoria fiscal y documentos pendientes de revision')}
+
 Reglas:
 1. Incluye encabezado fiscal con emisor, receptor, RNC, dirección fiscal y fecha.
 2. Incluye número e-CF pendiente de secuencia real si no fue suministrado.
@@ -1366,6 +1470,7 @@ Reglas:
 5. Incluye campos de firma digital y QR como pendientes si no hay certificado conectado.
 6. No afirmes envío a DGII sin credenciales reales.
 7. Devuelve JSON estricto y auditable.
+8. Puedes parafrasear notas y explicaciones para el cliente, pero no alterar montos, RNC, comprobantes, impuestos ni estados fiscales.
 `;
 
     const response = await ai.models.generateContent({
@@ -1442,6 +1547,8 @@ NOTAS: ${notes || 'Sin notas'}
 DATOS FUENTE:
 ${JSON.stringify(sourceData, null, 2)}
 
+${buildAgentKnowledgePrompt('contabilidad, reportes administrativos, ordenes de compra, recibos, conciliacion, inventario, KPIs y auditoria')}
+
 Reglas:
 1. Para Estado de resultados, resume ingresos, costos, gastos y utilidad.
 2. Para Balance general, presenta activos, pasivos y patrimonio. Usa estructura compatible con NIF B-6.
@@ -1450,6 +1557,7 @@ Reglas:
 5. Si aplica adquisición de negocios, menciona NIF B-7 y los puntos de valuación.
 6. No marques documento como aprobado sin revisión humana autorizada.
 7. Devuelve JSON estricto con resumen, tablas, alertas y próximos pasos.
+8. Puedes explicar y resumir con lenguaje profesional, pero no inventar soportes, pagos, saldos, aprobaciones ni conciliaciones.
 `;
 
     const response = await ai.models.generateContent({

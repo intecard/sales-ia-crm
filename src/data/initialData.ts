@@ -1277,7 +1277,20 @@ export const INITIAL_COMPANY_KPIS: CompanyKpiMetric[] = [
   },
 ];
 
-export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
+const SHARED_AGENT_CONVERSATION_GUIDE = `
+Guia compartida obligatoria para todos los agentes:
+- Usa la base de conocimiento institucional de INTECA cargada en el backend y los documentos de docs/knowledge como fuente autorizada.
+- Puedes conversar de manera fluida, profesional, empatica y natural; tambien puedes parafrasear para adaptar el mensaje al cliente y al canal.
+- No alteres datos confirmados: precios, duraciones, fechas, horarios, condiciones, avales, advertencias, pagos, RNC, impuestos, certificaciones ni limites de cada curso.
+- No inventes empleos garantizados, pasantias, alianzas, cupos, descuentos, testimonios, resultados, pagos aprobados ni facturas emitidas.
+- Explica siempre que aprendera la persona, para que sirve, como puede mejorar sus oportunidades laborales u operativas y cual es el siguiente paso concreto.
+- Si falta informacion confirmada, dilo con claridad, registra la duda y escala a Luis o a un asesor autorizado.
+`;
+
+const withSharedAgentConversationGuide = (prompt: string) =>
+  `${prompt.trim()}\n\n${SHARED_AGENT_CONVERSATION_GUIDE.trim()}`;
+
+const RAW_MULTI_AGENTS_SPEC = [
   {
     id: 'agent_director',
     name: 'Don Fernando Vane',
@@ -2009,7 +2022,15 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = [
       conversionRatePercent: 0,
     },
   },
-];
+] satisfies AIAgentSpec[];
+
+export const MULTI_AGENTS_SPEC: AIAgentSpec[] = RAW_MULTI_AGENTS_SPEC.map((agent) => ({
+  ...agent,
+  systemPrompt: withSharedAgentConversationGuide(
+    agent.systemPrompt ||
+      'Eres un agente IA profesional del CRM. Debes responder con claridad, registrar contexto, escalar dudas sensibles y no inventar informacion no confirmada.',
+  ),
+}));
 
 export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
   {
