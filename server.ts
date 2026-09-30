@@ -18,6 +18,16 @@ const DEPLOYMENT_MODE =
 
 app.disable('x-powered-by');
 
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
+const DEFAULT_GEMINI_FALLBACK_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+];
+const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
+
 if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1' || process.env.RENDER) {
   app.set('trust proxy', 1);
 }
