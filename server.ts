@@ -487,6 +487,8 @@ function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
 
 // Lazy initialization of Gemini Client
 let aiClient: GoogleGenAI | null = null;
+const temporarilyUnavailableGeminiModels = new Map<string, number>();
+
 function getGeminiClient(): GoogleGenAI {
   if (!aiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -505,6 +507,68 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
+function getGeminiModelCandidates() {
+  const fallbackModels =
+    process.env.GEMINI_FALLBACK_MODELS?.split(',').map((model) => model.trim()).filter(Boolean) ||
+    DEFAULT_GEMINI_FALLBACK_MODELS;
+
+  return Array.from(new Set([process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, ...fallbackModels]));
+}
+
+function getAvailableGeminiModelCandidates() {
+  const now = Date.now();
+  return getGeminiModelCandidates().filter((model) => {
+    const retryAfter = temporarilyUnavailableGeminiModels.get(model) || 0;
+    return retryAfter <= now;
+  });
+}
+
+function summarizeGeminiError(error: unknown) {
+  if (error && typeof error === 'object') {
+    const errorLike = error as { message?: unknown; name?: unknown; status?: unknown };
+    return {
+      name: typeof errorLike.name === 'string' ? errorLike.name : 'Error',
+      status: errorLike.status,
+      message: typeof errorLike.message === 'string' ? errorLike.message : 'Sin mensaje',
+    };
+  }
+
+  return {
+    name: 'Error',
+    status: undefined,
+    message: String(error),
+  };
+}
+
+async function generateGeminiContentWithFallback(contents: string, config?: Record<string, unknown>) {
+  let lastError: unknown;
+  const modelCandidates = getAvailableGeminiModelCandidates();
+
+  if (modelCandidates.length === 0) {
+    throw new Error('GEMINI_MODELS_TEMPORARILY_UNAVAILABLE');
+  }
+
+  for (const model of modelCandidates) {
+    try {
+      const ai = getGeminiClient();
+      return await ai.models.generateContent({
+        model,
+        contents,
+        config,
+      });
+    } catch (error) {
+      lastError = error;
+      temporarilyUnavailableGeminiModels.set(model, Date.now() + GEMINI_MODEL_RETRY_DELAY_MS);
+      console.error('Gemini generateContent failed', {
+        model,
+        retryAfterMs: GEMINI_MODEL_RETRY_DELAY_MS,
+        ...summarizeGeminiError(error),
+      });
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('GEMINI_GENERATE_CONTENT_FAILED');
+}
 // Health Check API
 app.get('/api/health', (req, res) => {
   res.json({
