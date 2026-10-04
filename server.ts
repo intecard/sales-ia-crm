@@ -13,11 +13,8 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const DEPLOYMENT_MODE =
+let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-
-app.disable('x-powered-by');
-
 const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
   'gemini-2.5-flash',
@@ -28,13 +25,12 @@ const DEFAULT_GEMINI_FALLBACK_MODELS = [
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
+app.disable('x-powered-by');
 if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1' || process.env.RENDER) {
   app.set('trust proxy', 1);
 }
-
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '1mb' }));
-
 app.use(
   '/api',
   rateLimit({
@@ -75,6 +71,14 @@ const qualifyRequestSchema = z.object({
 const authLoginRequestSchema = z.object({
   email: z.string().email().max(200),
   password: z.string().min(1).max(200),
+});
+
+const integrationConfigureRequestSchema = z.object({
+  adminEmail: z.string().email().max(200),
+  adminPassword: z.string().min(1).max(200),
+  forceProduction: z.boolean().optional(),
+  redeploy: z.boolean().optional(),
+  variables: z.record(z.string(), z.string().max(20_000)).default({}),
 });
 
 const marketingRequestSchema = z.object({
@@ -157,6 +161,24 @@ const serverAuditEvents: Array<
 > = [];
 
 const processedWhatsAppMessageIds = new Set<string>();
+
+function getConfiguredAdminCredentials() {
+  return {
+    email: process.env.ADMIN_EMAIL || process.env.CRM_ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD || process.env.CRM_ADMIN_PASSWORD,
+  };
+}
+
+function validateAdminCredentials(email: string, password: string) {
+  const configuredCredentials = getConfiguredAdminCredentials();
+  const expectedEmail = configuredCredentials.email || 'admin@inteca.com.do';
+  const expectedPassword = configuredCredentials.password || 'Inteca2026!';
+
+  return (
+    email.trim().toLowerCase() === expectedEmail.trim().toLowerCase() &&
+    password === expectedPassword
+  );
+}
 
 const INTECA_AGENT_KNOWLEDGE_BASE = `
 INTECA SRL, tambien conocida como Instituto Tecnico del Caribe e Instituto Nacional de Tecnologia y Capacitacion Aplicada, es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, Ley 87-01, farmacologia aplicada, enfermeria y capacitacion profesional.
@@ -348,7 +370,6 @@ async function generateWhatsAppAutoReply(userMessage: string, customerName?: str
   }
 
   try {
-    const ai = getGeminiClient();
     const prompt = `
 Eres el agente comercial de WhatsApp de INTECA. Responde al prospecto usando un estilo humano, profesional, claro y orientado a conversion.
 
@@ -368,12 +389,8 @@ INSTRUCCIONES:
 6. Mantente por debajo de 1,200 caracteres para WhatsApp.
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.55,
-      },
+    const response = await generateGeminiContentWithFallback(prompt, {
+      temperature: 0.55,
     });
 
     return trimWhatsAppReply(response.text || fallback) || fallback;
@@ -569,17 +586,303 @@ async function generateGeminiContentWithFallback(contents: string, config?: Reco
 
   throw lastError instanceof Error ? lastError : new Error('GEMINI_GENERATE_CONTENT_FAILED');
 }
+
+const INTEGRATION_ENVIRONMENT_GROUPS = [
+  {
+    id: 'int_supabase_database',
+    name: 'Supabase Database, Auth y Storage',
+    category: 'Base de datos',
+    requiredEnvVars: [
+      'SUPABASE_URL',
+      'SUPABASE_ANON_KEY',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_JWT_SECRET',
+      'SUPABASE_STORAGE_BUCKET',
+    ],
+  },
+  {
+    id: 'int_render_deployment',
+    name: 'Render Deploy, Environment y Webhooks',
+    category: 'Hosting',
+    requiredEnvVars: ['APP_URL', 'RENDER_SERVICE_ID', 'RENDER_API_KEY', 'TRUST_PROXY'],
+  },
+  {
+    id: 'int_gemini_ai',
+    name: 'Gemini AI y modelos de respaldo',
+    category: 'IA',
+    requiredEnvVars: ['GEMINI_API_KEY', 'GEMINI_MODEL', 'GEMINI_FALLBACK_MODELS'],
+  },
+  {
+    id: 'int_whatsapp_cloud',
+    name: 'WhatsApp Cloud API',
+    category: 'Mensajería',
+    requiredEnvVars: [
+      'META_WEBHOOK_VERIFY_TOKEN',
+      'WHATSAPP_ACCESS_TOKEN',
+      'WHATSAPP_PHONE_NUMBER_ID',
+      'WHATSAPP_BUSINESS_ACCOUNT_ID',
+    ],
+    webhookPath: '/api/webhooks/meta/whatsapp',
+  },
+  {
+    id: 'int_meta_social',
+    name: 'Facebook, Instagram, Messenger y Meta Lead Ads',
+    category: 'Social Ads',
+    requiredEnvVars: [
+      'META_APP_ID',
+      'META_APP_SECRET',
+      'META_PAGE_ACCESS_TOKEN',
+      'META_AD_ACCOUNT_ID',
+      'INSTAGRAM_BUSINESS_ACCOUNT_ID',
+    ],
+    webhookPath: '/api/webhooks/meta/leadgen',
+  },
+  {
+    id: 'int_google_ads',
+    name: 'Google Ads Search, Display y Performance Max',
+    category: 'Buscadores',
+    requiredEnvVars: [
+      'GOOGLE_ADS_DEVELOPER_TOKEN',
+      'GOOGLE_ADS_CLIENT_ID',
+      'GOOGLE_ADS_CLIENT_SECRET',
+      'GOOGLE_ADS_REFRESH_TOKEN',
+      'GOOGLE_ADS_CUSTOMER_ID',
+    ],
+    webhookPath: '/api/webhooks/google-ads/leads',
+  },
+  {
+    id: 'int_ad_payment_wallet',
+    name: 'Tarjeta empresarial para pauta inteligente',
+    category: 'Pauta',
+    requiredEnvVars: [
+      'AD_PAYMENT_PROVIDER',
+      'AD_PAYMENT_PUBLIC_KEY',
+      'AD_PAYMENT_SECRET_KEY',
+      'AD_PAYMENT_WEBHOOK_SECRET',
+      'META_ADS_BILLING_ACCOUNT_ID',
+      'GOOGLE_ADS_BILLING_SETUP_ID',
+    ],
+  },
+  {
+    id: 'int_youtube',
+    name: 'YouTube Ads y YouTube Shorts',
+    category: 'Video',
+    requiredEnvVars: ['YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID'],
+    webhookPath: '/api/webhooks/youtube/events',
+  },
+  {
+    id: 'int_creative_ai',
+    name: 'Generación de imágenes y videos con IA',
+    category: 'Creativos',
+    requiredEnvVars: [
+      'IMAGE_GENERATION_PROVIDER',
+      'IMAGE_GENERATION_API_KEY',
+      'VIDEO_GENERATION_PROVIDER',
+      'VIDEO_GENERATION_API_KEY',
+    ],
+  },
+  {
+    id: 'int_payments',
+    name: 'Pasarelas de pago y comprobantes',
+    category: 'Pagos',
+    requiredEnvVars: [
+      'PAYMENT_PROVIDER',
+      'PAYMENT_PUBLIC_KEY',
+      'PAYMENT_SECRET_KEY',
+      'PAYMENT_WEBHOOK_SECRET',
+    ],
+    webhookPath: '/api/webhooks/payments',
+  },
+  {
+    id: 'int_dgii_ecf',
+    name: 'Facturación electrónica DGII e-CF',
+    category: 'Facturación',
+    requiredEnvVars: [
+      'DGII_ECF_ENVIRONMENT',
+      'DGII_ECF_CERTIFICATE_PATH',
+      'DGII_ECF_CERTIFICATE_PASSWORD',
+      'DGII_ECF_ISSUER_RNC',
+      'DGII_ECF_PROVIDER_API_KEY',
+    ],
+    webhookPath: '/api/webhooks/dgii/ecf-status',
+  },
+  {
+    id: 'int_owner_notifications',
+    name: 'Notificaciones al dueño',
+    category: 'Notificaciones',
+    requiredEnvVars: ['OWNER_NOTIFICATION_WHATSAPP', 'OWNER_NOTIFICATION_EMAIL'],
+  },
+  {
+    id: 'int_web_forms',
+    name: 'Landing pages y formularios web',
+    category: 'Web',
+    requiredEnvVars: ['APP_URL'],
+    webhookPath: '/api/webhooks/web/forms',
+  },
+];
+
+const CONFIGURATION_EXTRA_ENV_VARS = [
+  'ADMIN_EMAIL',
+  'ADMIN_PASSWORD',
+  'ADMIN_NAME',
+  'ADMIN_ORGANIZATION',
+  'AGENT_KNOWLEDGE_MAX_CHARS',
+  'APP_URL',
+  'CRM_ADMIN_EMAIL',
+  'CRM_ADMIN_PASSWORD',
+  'DEPLOYMENT_MODE',
+  'GEMINI_MODEL_RETRY_DELAY_MS',
+  'NODE_ENV',
+  'VITE_DEPLOYMENT_MODE',
+];
+
+const CONFIGURABLE_ENV_VARS = new Set([
+  ...CONFIGURATION_EXTRA_ENV_VARS,
+  ...INTEGRATION_ENVIRONMENT_GROUPS.flatMap((group) => group.requiredEnvVars),
+]);
+
+function normalizeConfigurableEnvVars(variables: Record<string, string>) {
+  const accepted: Record<string, string> = {};
+  const invalidKeys: string[] = [];
+
+  for (const [rawKey, rawValue] of Object.entries(variables)) {
+    const key = rawKey.trim().toUpperCase();
+    const value = rawValue.trim();
+
+    if (!key || !value) {
+      continue;
+    }
+
+    if (!CONFIGURABLE_ENV_VARS.has(key)) {
+      invalidKeys.push(key);
+      continue;
+    }
+
+    accepted[key] = value;
+  }
+
+  return { accepted, invalidKeys };
+}
+
+function applyRuntimeEnvVars(variables: Record<string, string>) {
+  for (const [key, value] of Object.entries(variables)) {
+    process.env[key] = value;
+  }
+
+  DEPLOYMENT_MODE =
+    process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
+
+  if (
+    variables.GEMINI_API_KEY ||
+    variables.GEMINI_MODEL ||
+    variables.GEMINI_FALLBACK_MODELS ||
+    variables.GEMINI_MODEL_RETRY_DELAY_MS
+  ) {
+    aiClient = null;
+    temporarilyUnavailableGeminiModels.clear();
+  }
+}
+
+async function updateRenderEnvVar(
+  serviceId: string,
+  apiKey: string,
+  key: string,
+  value: string,
+) {
+  const response = await fetch(
+    `https://api.render.com/v1/services/${encodeURIComponent(serviceId)}/env-vars/${encodeURIComponent(key)}`,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ value }),
+    },
+  );
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      typeof body === 'object' && body && 'message' in body
+        ? String((body as { message?: unknown }).message)
+        : `Render API HTTP ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return body;
+}
+
+async function triggerRenderDeploy(serviceId: string, apiKey: string) {
+  const response = await fetch(
+    `https://api.render.com/v1/services/${encodeURIComponent(serviceId)}/deploys`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ clearCache: 'do_not_clear' }),
+    },
+  );
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      typeof body === 'object' && body && 'message' in body
+        ? String((body as { message?: unknown }).message)
+        : `Render deploy HTTP ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return body;
+}
+
+function buildIntegrationEnvironmentStatus() {
+  return INTEGRATION_ENVIRONMENT_GROUPS.map((group) => {
+    const configuredEnvVars = group.requiredEnvVars.filter((envVar) =>
+      Boolean(process.env[envVar]),
+    );
+    const missingEnvVars = group.requiredEnvVars.filter((envVar) => !process.env[envVar]);
+
+    return {
+      ...group,
+      configured: missingEnvVars.length === 0,
+      configuredEnvVars,
+      missingEnvVars,
+    };
+  });
+}
+
 // Health Check API
 app.get('/api/health', (req, res) => {
+  const integrationStatus = buildIntegrationEnvironmentStatus();
+  const isIntegrationConfigured = (id: string) =>
+    Boolean(integrationStatus.find((integration) => integration.id === id)?.configured);
+
   res.json({
     status: 'ok',
     app: 'Sales AI CRM',
     deploymentMode: DEPLOYMENT_MODE,
     timestamp: new Date().toISOString(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    geminiModels: {
+      configured: getGeminiModelCandidates(),
+      currentlyAvailable: getAvailableGeminiModelCandidates(),
+      retryDelayMs: GEMINI_MODEL_RETRY_DELAY_MS,
+    },
     authConfigured: Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD),
     agentKnowledgeConfigured: getIntecaKnowledgeSourcesStatus().some((source) => source.loaded),
     integrations: {
+      supabaseConfigured: isIntegrationConfigured('int_supabase_database'),
+      renderConfigured: Boolean(process.env.APP_URL && (process.env.RENDER || process.env.RENDER_SERVICE_ID)),
+      geminiConfigured: isIntegrationConfigured('int_gemini_ai'),
       whatsappConfigured: Boolean(
         process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
       ),
@@ -596,7 +899,164 @@ app.get('/api/health', (req, res) => {
       dgiiConfigured: Boolean(
         process.env.DGII_ECF_PROVIDER_API_KEY || process.env.DGII_ECF_CERTIFICATE_PATH,
       ),
+      creativeAiConfigured: isIntegrationConfigured('int_creative_ai'),
+      youtubeConfigured: isIntegrationConfigured('int_youtube'),
     },
+  });
+});
+
+app.get('/api/integrations/status', (_req, res) => {
+  res.json({
+    success: true,
+    appUrl: process.env.APP_URL || `http://localhost:${PORT}`,
+    deploymentMode: DEPLOYMENT_MODE,
+    renderPersistenceReady: Boolean(process.env.RENDER_API_KEY && process.env.RENDER_SERVICE_ID),
+    checkedAt: new Date().toISOString(),
+    groups: buildIntegrationEnvironmentStatus(),
+  });
+});
+
+app.post('/api/integrations/configure', async (req, res) => {
+  const parsed = integrationConfigureRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'INVALID_INTEGRATION_CONFIG_REQUEST',
+      details: parsed.error.flatten(),
+    });
+  }
+
+  const { adminEmail, adminPassword, forceProduction, redeploy } = parsed.data;
+  if (!validateAdminCredentials(adminEmail, adminPassword)) {
+    recordServerAudit({
+      actorType: 'Usuario',
+      actorName: adminEmail,
+      module: 'Integraciones',
+      action: 'Falló',
+      entityType: 'ProductionConfig',
+      summary: 'Intento rechazado de modificar credenciales de producción.',
+      details: `Correo: ${adminEmail}. No se revelaron ni guardaron secretos.`,
+      sourceChannel: 'Web',
+      severity: 'Crítico',
+      status: 'Pendiente revisión',
+    });
+
+    return res.status(401).json({
+      success: false,
+      error: 'INVALID_ADMIN_CONFIRMATION',
+      message: 'Confirma el correo y la contraseña del administrador para guardar credenciales.',
+    });
+  }
+
+  const { accepted, invalidKeys } = normalizeConfigurableEnvVars(parsed.data.variables);
+  const productionDefaults: Record<string, string> = forceProduction
+    ? {
+        DEPLOYMENT_MODE: 'production',
+        VITE_DEPLOYMENT_MODE: 'production',
+        TRUST_PROXY: 'true',
+        WHATSAPP_AUTO_REPLY_ENABLED: accepted.WHATSAPP_AUTO_REPLY_ENABLED || 'true',
+        META_GRAPH_API_VERSION: accepted.META_GRAPH_API_VERSION || 'v22.0',
+      }
+    : {};
+  const variablesToApply: Record<string, string> = {
+    ...productionDefaults,
+    ...accepted,
+  };
+
+  if (Object.keys(variablesToApply).length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'NO_CONFIG_VALUES',
+      message: 'No se recibieron credenciales o variables validas para guardar.',
+      invalidKeys,
+    });
+  }
+
+  applyRuntimeEnvVars(variablesToApply);
+
+  const renderApiKey = variablesToApply.RENDER_API_KEY || process.env.RENDER_API_KEY;
+  const renderServiceId = variablesToApply.RENDER_SERVICE_ID || process.env.RENDER_SERVICE_ID;
+  const renderPersistence = {
+    attempted: Boolean(renderApiKey && renderServiceId),
+    persistedVariables: [] as string[],
+    failedVariables: [] as Array<{ key: string; error: string }>,
+    skippedReason: '',
+  };
+  let deploy:
+    | { requested: boolean; success: boolean; id?: string; status?: string; error?: string }
+    | undefined;
+
+  if (renderApiKey && renderServiceId) {
+    for (const [key, value] of Object.entries(variablesToApply)) {
+      try {
+        await updateRenderEnvVar(renderServiceId, renderApiKey, key, value);
+        renderPersistence.persistedVariables.push(key);
+      } catch (error) {
+        renderPersistence.failedVariables.push({
+          key,
+          error: error instanceof Error ? error.message : 'Render API error',
+        });
+      }
+    }
+
+    if (redeploy && renderPersistence.failedVariables.length === 0) {
+      try {
+        const deployResponse = await triggerRenderDeploy(renderServiceId, renderApiKey);
+        const deployLike = deployResponse as { id?: unknown; status?: unknown };
+        deploy = {
+          requested: true,
+          success: true,
+          id: typeof deployLike.id === 'string' ? deployLike.id : undefined,
+          status: typeof deployLike.status === 'string' ? deployLike.status : 'queued',
+        };
+      } catch (error) {
+        deploy = {
+          requested: true,
+          success: false,
+          error: error instanceof Error ? error.message : 'No se pudo iniciar el deploy.',
+        };
+      }
+    } else {
+      deploy = {
+        requested: Boolean(redeploy),
+        success: false,
+        error: redeploy
+          ? 'No se inicio deploy porque algunas variables no se guardaron en Render.'
+          : 'Deploy no solicitado.',
+      };
+    }
+  } else {
+    renderPersistence.skippedReason =
+      'Falta RENDER_API_KEY o RENDER_SERVICE_ID. Los cambios se aplicaron solo al proceso actual.';
+  }
+
+  recordServerAudit({
+    actorType: 'Usuario',
+    actorName: adminEmail,
+    module: 'Integraciones',
+    action: 'Configuró',
+    entityType: 'ProductionConfig',
+    summary: 'Credenciales y modo de producción actualizados desde el CRM.',
+    details: `Variables recibidas: ${Object.keys(variablesToApply).join(', ')}. Variables rechazadas: ${
+      invalidKeys.join(', ') || 'ninguna'
+    }. Persistidas en Render: ${renderPersistence.persistedVariables.join(', ') || 'ninguna'}.`,
+    sourceChannel: 'Web',
+    severity: renderPersistence.failedVariables.length > 0 ? 'Advertencia' : 'Éxito',
+    status: renderPersistence.failedVariables.length > 0 ? 'Pendiente revisión' : 'Registrado',
+  });
+
+  return res.json({
+    success: renderPersistence.failedVariables.length === 0,
+    message:
+      renderPersistence.failedVariables.length === 0
+        ? 'Configuracion aplicada. Los secretos no se devuelven por seguridad.'
+        : 'Configuracion aplicada parcialmente. Revisa las variables que Render no pudo guardar.',
+    deploymentMode: DEPLOYMENT_MODE,
+    savedVariables: Object.keys(variablesToApply),
+    invalidKeys,
+    renderPersistence,
+    deploy,
+    groups: buildIntegrationEnvironmentStatus(),
   });
 });
 
@@ -641,8 +1101,9 @@ app.post('/api/auth/login', (req, res) => {
       .json({ success: false, error: 'INVALID_LOGIN_REQUEST', details: parsed.error.flatten() });
   }
 
-  const configuredEmail = process.env.ADMIN_EMAIL || process.env.CRM_ADMIN_EMAIL;
-  const configuredPassword = process.env.ADMIN_PASSWORD || process.env.CRM_ADMIN_PASSWORD;
+  const configuredCredentials = getConfiguredAdminCredentials();
+  const configuredEmail = configuredCredentials.email;
+  const configuredPassword = configuredCredentials.password;
   const isProductionLike =
     process.env.NODE_ENV === 'production' || DEPLOYMENT_MODE === 'production';
 
@@ -656,13 +1117,7 @@ app.post('/api/auth/login', (req, res) => {
     }
   }
 
-  const expectedEmail = configuredEmail || 'admin@inteca.com.do';
-  const expectedPassword = configuredPassword || 'Inteca2026!';
-  const emailMatches =
-    parsed.data.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
-  const passwordMatches = parsed.data.password === expectedPassword;
-
-  if (!emailMatches || !passwordMatches) {
+  if (!validateAdminCredentials(parsed.data.email, parsed.data.password)) {
     recordServerAudit({
       actorType: 'Usuario',
       actorName: parsed.data.email,
@@ -686,7 +1141,7 @@ app.post('/api/auth/login', (req, res) => {
   const session = {
     mode: 'real',
     userName: process.env.ADMIN_NAME || 'Luis Ramirez',
-    email: expectedEmail,
+    email: configuredEmail || 'admin@inteca.com.do',
     role: 'Super Admin CRM',
     organizationName: process.env.ADMIN_ORGANIZATION || 'INTECA SRL',
     token: `crm_${crypto.randomBytes(24).toString('hex')}`,
@@ -970,8 +1425,6 @@ app.post('/api/ai/chat-agent', async (req, res) => {
       businessContext,
     } = parsed.data;
 
-    const ai = getGeminiClient();
-
     const formattedHistory = Array.isArray(conversationHistory)
       ? conversationHistory
           .map(
@@ -1016,12 +1469,8 @@ INSTRUCCIONES DE RESPUESTA:
 10. Sugiere próxima acción de seguimiento si no compra ahora.
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: promptInstruction,
-      config: {
-        temperature: 0.7,
-      },
+    const response = await generateGeminiContentWithFallback(promptInstruction, {
+      temperature: 0.7,
     });
 
     const replyText = response.text?.trim();
@@ -1055,8 +1504,6 @@ app.post('/api/ai/qualify-lead', async (req, res) => {
         .json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
     }
     const { leadData } = parsed.data;
-    const ai = getGeminiClient();
-
     const prompt = `
 Analiza la siguiente información comercial y realiza una calificación orientativa. No uses características sensibles y no inventes datos ausentes:
 
@@ -1077,12 +1524,9 @@ Infiere y genera en formato JSON estricto los siguientes campos:
 9. recommendedNextAction (siguiente paso sugerido para el vendedor o agente IA)
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+    const response = await generateGeminiContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
           type: Type.OBJECT,
           properties: {
             aiScore: { type: Type.NUMBER },
@@ -1102,7 +1546,6 @@ Infiere y genera en formato JSON estricto los siguientes campos:
             'discType',
             'recommendedNextAction',
           ],
-        },
       },
     });
 
@@ -1141,8 +1584,6 @@ app.post('/api/ai/generate-marketing', async (req, res) => {
       businessContext,
       tacticalMode,
     } = parsed.data;
-    const ai = getGeminiClient();
-
     const prompt = `
 Eres especialista de marketing de ${organizationName || 'una organización comercial'}. Genera contenido publicitario sin inventar beneficios, certificaciones, precios ni promociones.
 
@@ -1177,12 +1618,9 @@ Proporciona el resultado estructurado en JSON con los campos:
 - funnelPlan: Tres pasos concretos para adquisición, conversión y aceleración.
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+    const response = await generateGeminiContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
           type: Type.OBJECT,
           properties: {
             title: { type: Type.STRING },
@@ -1218,7 +1656,6 @@ Proporciona el resultado estructurado en JSON con los campos:
             },
           },
           required: ['title', 'bodyText', 'callToAction'],
-        },
       },
     });
 
@@ -1258,8 +1695,6 @@ app.post('/api/ai/generate-growth-system', async (req, res) => {
       bottleneck,
       channels,
     } = parsed.data;
-    const ai = getGeminiClient();
-
     const prompt = `
 Eres un director senior de crecimiento, marketing, publicidad, embudos y ventas para ${organizationName || 'la empresa'}.
 Tu trabajo es preparar un sistema comercial completo para vender cualquier producto o servicio con ejecucion 24/7, medicion, auditoria y enfoque a resultados.
@@ -1303,12 +1738,9 @@ Devuelve JSON estricto con:
 - implementationChecklist: pasos de ejecucion para dejar el sistema listo.
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+    const response = await generateGeminiContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
           type: Type.OBJECT,
           properties: {
             marketDiagnosis: { type: Type.OBJECT },
@@ -1335,7 +1767,6 @@ Devuelve JSON estricto con:
             'kpiPlan',
             'ownerNotifications',
           ],
-        },
       },
     });
 
@@ -1386,8 +1817,6 @@ app.post('/api/ai/generate-creative-brief', async (req, res) => {
       brandInstructions,
     } = parsed.data;
 
-    const ai = getGeminiClient();
-
     const prompt = `
 Eres un director creativo de performance marketing para ${organizationName || 'INTECA'}.
 Debes crear un brief listo para una herramienta de generación de imágenes o video.
@@ -1422,12 +1851,9 @@ Devuelve JSON estricto con:
 - requiredApprovals: lista de cosas que debe aprobar el dueño antes de publicar
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+    const response = await generateGeminiContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
           type: Type.OBJECT,
           properties: {
             title: { type: Type.STRING },
@@ -1468,7 +1894,6 @@ Devuelve JSON estricto con:
             },
           },
           required: ['title', 'creativeType', 'imagePrompt', 'copyBlocks'],
-        },
       },
     });
 
@@ -1520,8 +1945,6 @@ app.post('/api/ai/generate-ecf-invoice', async (req, res) => {
       paymentStatus,
       notes,
     } = parsed.data;
-    const ai = getGeminiClient();
-
     const prompt = `
 Eres Sofía e-CF, agente de facturación electrónica para ${organizationName || 'la empresa'}.
 Debes preparar la estructura de una factura electrónica e-CF dominicana lista para XML, PDF, firma digital y QR.
@@ -1553,12 +1976,9 @@ Reglas:
 8. Puedes parafrasear notas y explicaciones para el cliente, pero no alterar montos, RNC, comprobantes, impuestos ni estados fiscales.
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+    const response = await generateGeminiContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
           type: Type.OBJECT,
           properties: {
             fiscalHeader: { type: Type.OBJECT },
@@ -1573,7 +1993,6 @@ Reglas:
             auditNotes: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
           required: ['fiscalHeader', 'eCfNumber', 'lineItems', 'taxBreakdown', 'auditNotes'],
-        },
       },
     });
 
@@ -1614,8 +2033,6 @@ app.post('/api/ai/generate-accounting-report', async (req, res) => {
     }
 
     const { organizationName, period, reportType, sourceData, notes } = parsed.data;
-    const ai = getGeminiClient();
-
     const prompt = `
 Eres Bruno Contable IA, agente contable autónomo para ${organizationName || 'la empresa'}.
 Debes preparar un documento contable estructurado, auditable y listo para revisión.
@@ -1640,12 +2057,9 @@ Reglas:
 8. Puedes explicar y resumir con lenguaje profesional, pero no inventar soportes, pagos, saldos, aprobaciones ni conciliaciones.
 `;
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+    const response = await generateGeminiContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
           type: Type.OBJECT,
           properties: {
             reportTitle: { type: Type.STRING },
@@ -1659,7 +2073,6 @@ Reglas:
             approvalStatus: { type: Type.STRING },
           },
           required: ['reportTitle', 'period', 'executiveSummary', 'totals', 'nextActions'],
-        },
       },
     });
 
