@@ -1,7 +1,7 @@
 {
   "name": "sales-ai-crm",
   "private": true,
-  "version": "1.2.8-real-only",
+  "version": "1.3.1",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -13,11 +13,10 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "echo check skipped"
+    "check": "npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
-    "@supabase/supabase-js": "^2.117.2",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",

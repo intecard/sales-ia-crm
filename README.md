@@ -24,6 +24,9 @@ INTECA SRL queda configurada como empresa principal con licencia gratis permanen
 - Tema claro/oscuro persistente en login y dentro del CRM.
 - Multiempresa, roles y licencia gratis permanente para INTECA.
 - Webhooks listos para WhatsApp Cloud API, Meta Lead Ads, Google Ads, YouTube, formularios web, pagos y DGII/e-CF.
+- Centro de configuracion real de produccion para validar variables, conectores y agentes sin exponer secretos.
+- Endpoint `/api/agents/runtime/manifest` para ver estado operativo de cada agente, plataformas requeridas y bloqueos concretos.
+- Esquema Supabase inicial para cola persistente, ejecuciones, evidencias, integraciones por empresa y auditoria.
 
 ## Modos incluidos
 
@@ -130,6 +133,8 @@ Usa tu dominio real delante de cada ruta:
 /api/ai/generate-accounting-report
 /api/health
 /api/runtime/config
+/api/integrations/status
+/api/agents/runtime/manifest
 ```
 
 Ejemplo WhatsApp Cloud API:
@@ -149,6 +154,12 @@ messages
 El CRM queda listo para conectar plataformas externas. Sin credenciales oficiales, el sistema muestra los modulos, rutas, agentes y flujos, pero no puede publicar anuncios, enviar WhatsApp real, cobrar tarjetas ni emitir e-CF ante DGII.
 
 Eso no es un fallo del CRM: esas acciones requieren tokens, permisos, certificados, proveedores y aprobaciones externas.
+
+Documentos operativos incluidos:
+
+- `docs/RENDER_VARIABLES_MATRIX.md`: variables reales de Render, funcion, origen, servicio y prueba.
+- `docs/AGENT_CONNECTOR_ACCEPTANCE_MATRIX.md`: matriz agente/plataforma/evidencia/pendiente.
+- `docs/supabase/001_agent_runtime_schema.sql`: esquema base para persistencia real de agentes.
 
 ## Comandos utiles
 

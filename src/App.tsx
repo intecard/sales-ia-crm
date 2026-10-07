@@ -1251,6 +1251,7 @@ export function App() {
             {activeTab === 'agents' && (
               <AIAgentsCommand
                 agents={agents}
+                integrations={EXTERNAL_INTEGRATIONS_READINESS}
                 onUpdateAgent={handleUpdateAgent}
                 onNavigateToChat={() => setActiveTab('chat')}
               />

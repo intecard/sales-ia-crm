@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bot,
   Sparkles,
@@ -15,17 +15,110 @@ import {
   Edit3,
   Save,
   Brain,
+  PlugZap,
+  Database,
+  Server,
+  ExternalLink,
+  RefreshCw,
+  KeyRound,
+  AlertTriangle,
+  Globe2,
 } from 'lucide-react';
-import { AIAgentSpec } from '../types';
+import { AIAgentSpec, ExternalIntegration, IntegrationCategory, IntegrationStatus } from '../types';
 
 interface AIAgentsCommandProps {
   agents: AIAgentSpec[];
+  integrations: ExternalIntegration[];
   onUpdateAgent: (agent: AIAgentSpec) => void;
   onNavigateToChat: () => void;
 }
 
+interface RuntimeIntegrationGroup {
+  id: string;
+  name: string;
+  category: IntegrationCategory;
+  requiredEnvVars: string[];
+  configuredEnvVars: string[];
+  missingEnvVars: string[];
+  configured: boolean;
+  webhookPath?: string;
+}
+
+interface RuntimeIntegrationStatus {
+  success: boolean;
+  appUrl: string;
+  deploymentMode: string;
+  checkedAt: string;
+  groups: RuntimeIntegrationGroup[];
+}
+
+const UNIVERSAL_AGENT_CONNECTOR_IDS = [
+  'int_supabase_database',
+  'int_render_deployment',
+  'int_gemini_ai',
+];
+
+const CONNECTORS_BY_SPECIALTY: Partial<Record<AIAgentSpec['specialty'], string[]>> = {
+  WhatsApp: ['int_whatsapp_cloud'],
+  Omnicanal: ['int_whatsapp_cloud', 'int_meta_social', 'int_google_ads', 'int_web_forms'],
+  Marketing: ['int_meta_social', 'int_google_ads', 'int_web_forms', 'int_owner_notifications'],
+  Copywriting: ['int_meta_social', 'int_google_ads', 'int_web_forms'],
+  Publicidad: ['int_meta_social', 'int_google_ads', 'int_ad_payment_wallet', 'int_youtube'],
+  Video: ['int_youtube', 'int_creative_ai'],
+  Creativos: ['int_creative_ai', 'int_meta_social'],
+  Cierre: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
+  Ventas: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
+  Prospección: ['int_whatsapp_cloud', 'int_meta_social', 'int_web_forms'],
+  Embudos: ['int_whatsapp_cloud', 'int_meta_social', 'int_google_ads', 'int_web_forms'],
+  CRO: ['int_meta_social', 'int_google_ads', 'int_payments'],
+  Facturación: ['int_payments', 'int_dgii_ecf', 'int_owner_notifications'],
+  Contabilidad: ['int_payments', 'int_dgii_ecf'],
+  Compras: ['int_owner_notifications'],
+  KPIs: ['int_meta_social', 'int_google_ads', 'int_payments', 'int_dgii_ecf'],
+  Lanzamientos: ['int_whatsapp_cloud', 'int_meta_social', 'int_google_ads', 'int_youtube'],
+  Operaciones: ['int_owner_notifications', 'int_web_forms'],
+};
+
+const PLATFORM_QUICK_LINKS = [
+  { name: 'Supabase', category: 'Base de datos', url: 'https://supabase.com/dashboard/projects' },
+  { name: 'Render', category: 'Hosting', url: 'https://dashboard.render.com/' },
+  {
+    name: 'Meta Developers',
+    category: 'Social Ads',
+    url: 'https://developers.facebook.com/apps/1654488056297391/',
+  },
+  {
+    name: 'WhatsApp Cloud',
+    category: 'Mensajería',
+    url: 'https://developers.facebook.com/apps/1654488056297391/whatsapp-business/wa-settings/',
+  },
+  { name: 'Google Ads', category: 'Buscadores', url: 'https://ads.google.com/' },
+  { name: 'YouTube Studio', category: 'Video', url: 'https://studio.youtube.com/' },
+  { name: 'Google Cloud', category: 'IA', url: 'https://console.cloud.google.com/' },
+] satisfies Array<{ name: string; category: IntegrationCategory; url: string }>;
+
+const getIntegrationIcon = (category: IntegrationCategory) => {
+  if (category === 'Base de datos') return Database;
+  if (category === 'Hosting') return Server;
+  if (category === 'IA') return Brain;
+  if (category === 'Mensajería') return MessageSquare;
+  if (category === 'Social Ads' || category === 'Buscadores' || category === 'Web') return Globe2;
+  if (category === 'Pagos' || category === 'Pauta') return DollarSign;
+  return PlugZap;
+};
+
+const getStatusStyle = (status: IntegrationStatus | 'Incompleto') => {
+  if (status === 'Conectado') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+  if (status === 'Webhook preparado') return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+  if (status === 'Incompleto' || status === 'Requiere credenciales') {
+    return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+  }
+  return 'bg-slate-800 text-slate-300 border-slate-700';
+};
+
 export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
   agents,
+  integrations,
   onUpdateAgent,
   onNavigateToChat,
 }) => {
@@ -33,6 +126,68 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
   const [isEditingPrompt, setIsEditingPrompt] = useState(false);
   const [editedPrompt, setEditedPrompt] = useState(agents[0]?.systemPrompt || '');
   const [maxDiscountPercent, setMaxDiscountPercent] = useState<number>(40);
+  const [showConnectionPanel, setShowConnectionPanel] = useState(false);
+  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeIntegrationStatus | null>(null);
+  const [isCheckingIntegrations, setIsCheckingIntegrations] = useState(false);
+  const [integrationCheckError, setIntegrationCheckError] = useState<string | null>(null);
+
+  const fetchIntegrationStatus = async () => {
+    setIsCheckingIntegrations(true);
+    setIntegrationCheckError(null);
+
+    try {
+      const response = await fetch('/api/integrations/status');
+      if (!response.ok) throw new Error('No se pudo consultar /api/integrations/status');
+      const data = (await response.json()) as RuntimeIntegrationStatus;
+      setRuntimeStatus(data);
+    } catch (error) {
+      setIntegrationCheckError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo comprobar el estado de las integraciones.',
+      );
+    } finally {
+      setIsCheckingIntegrations(false);
+    }
+  };
+
+  useEffect(() => {
+    const statusCheckTimer = window.setTimeout(() => {
+      void fetchIntegrationStatus();
+    }, 0);
+
+    return () => window.clearTimeout(statusCheckTimer);
+  }, []);
+
+  const runtimeGroupById = useMemo(() => {
+    return new Map((runtimeStatus?.groups || []).map((group) => [group.id, group]));
+  }, [runtimeStatus]);
+
+  const selectedAgentIntegrations = useMemo(() => {
+    const selectedIds = new Set<string>([
+      ...UNIVERSAL_AGENT_CONNECTOR_IDS,
+      ...(CONNECTORS_BY_SPECIALTY[selectedAgent.specialty] || []),
+      ...integrations
+        .filter((integration) => integration.ownerAgentId === selectedAgent.id)
+        .map((integration) => integration.id),
+    ]);
+
+    return integrations.filter((integration) => selectedIds.has(integration.id));
+  }, [integrations, selectedAgent.id, selectedAgent.specialty]);
+
+  const configuredConnectorCount = selectedAgentIntegrations.filter((integration) => {
+    const runtimeGroup = runtimeGroupById.get(integration.id);
+    if (runtimeGroup) return runtimeGroup.configured;
+    return integration.status === 'Conectado';
+  }).length;
+
+  const totalMissingEnvVars = selectedAgentIntegrations.reduce((total, integration) => {
+    return total + (runtimeGroupById.get(integration.id)?.missingEnvVars.length || 0);
+  }, 0);
+
+  const quickLinksForAgent = PLATFORM_QUICK_LINKS.filter((link) =>
+    selectedAgentIntegrations.some((integration) => integration.category === link.category),
+  );
 
   const handleSelectAgent = (ag: AIAgentSpec) => {
     setSelectedAgent(ag);
@@ -166,7 +321,19 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
               </div>
 
               {/* Status Controls */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowConnectionPanel((current) => !current)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 transition-all cursor-pointer"
+                >
+                  <PlugZap className="w-3.5 h-3.5" />
+                  <span>Configurar conexiones</span>
+                  <span className="ml-1 rounded-full bg-slate-950/70 px-1.5 py-0.5 text-[10px] text-white">
+                    {configuredConnectorCount}/{selectedAgentIntegrations.length}
+                  </span>
+                </button>
+
                 <button
                   onClick={handleToggleStatus}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
@@ -220,6 +387,187 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
                 </p>
               </div>
             </div>
+
+            {showConnectionPanel && (
+              <div className="bg-slate-950 p-4 rounded-xl border border-blue-500/30 space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <PlugZap className="w-4 h-4 text-blue-300" />
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                        Conexiones reales para que el agente trabaje
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+                      Este panel indica qué debes completar en Render, Supabase, Meta y demás
+                      plataformas para que {selectedAgent.name} pueda operar con datos reales,
+                      webhooks y credenciales de producción.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-full px-2.5 py-1 font-bold">
+                      {configuredConnectorCount}/{selectedAgentIntegrations.length} conectores listos
+                    </span>
+                    {totalMissingEnvVars > 0 && (
+                      <span className="text-[11px] bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded-full px-2.5 py-1 font-bold">
+                        {totalMissingEnvVars} variables pendientes
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void fetchIntegrationStatus()}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] font-bold text-slate-200 hover:border-blue-400"
+                    >
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ${isCheckingIntegrations ? 'animate-spin' : ''}`}
+                      />
+                      Revisar estado
+                    </button>
+                  </div>
+                </div>
+
+                {integrationCheckError && (
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{integrationCheckError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                  {selectedAgentIntegrations.map((integration) => {
+                    const runtimeGroup = runtimeGroupById.get(integration.id);
+                    const missingEnvVars = runtimeGroup?.missingEnvVars || [];
+                    const configuredEnvVars = runtimeGroup?.configuredEnvVars || [];
+                    const isConfigured = runtimeGroup
+                      ? runtimeGroup.configured
+                      : integration.status === 'Conectado';
+                    const statusLabel: IntegrationStatus | 'Incompleto' = isConfigured
+                      ? 'Conectado'
+                      : runtimeGroup
+                        ? 'Incompleto'
+                        : integration.status;
+                    const Icon = getIntegrationIcon(integration.category);
+                    const webhookPath = runtimeGroup?.webhookPath || integration.inboundWebhookPath;
+                    const fullWebhookUrl =
+                      webhookPath && runtimeStatus?.appUrl
+                        ? `${runtimeStatus.appUrl}${webhookPath}`
+                        : webhookPath;
+
+                    return (
+                      <div
+                        key={integration.id}
+                        className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="h-9 w-9 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
+                              <Icon className="h-4 w-4 text-blue-300" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-white">{integration.name}</p>
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                {integration.category}
+                              </p>
+                            </div>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-black ${getStatusStyle(
+                              statusLabel,
+                            )}`}
+                          >
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          {integration.outboundCapability}
+                        </p>
+
+                        {fullWebhookUrl && (
+                          <div className="rounded-lg bg-slate-950 border border-slate-800 p-2">
+                            <p className="text-[10px] uppercase font-bold text-cyan-300">
+                              Webhook / endpoint
+                            </p>
+                            <p className="break-all text-[11px] text-slate-300 mt-1">
+                              {fullWebhookUrl}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <KeyRound className="w-3.5 h-3.5 text-amber-300" />
+                            <p className="text-[10px] uppercase font-bold text-slate-400">
+                              Variables en Render Environment
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {integration.requiredEnvVars.map((envVar) => {
+                              const isPresent = configuredEnvVars.includes(envVar);
+                              const isMissing =
+                                missingEnvVars.includes(envVar) ||
+                                (!runtimeGroup && integration.status !== 'Conectado');
+
+                              return (
+                                <span
+                                  key={envVar}
+                                  className={`rounded-full border px-2 py-1 text-[10px] font-bold ${
+                                    isPresent
+                                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                      : isMissing
+                                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                        : 'border-slate-700 bg-slate-950 text-slate-400'
+                                  }`}
+                                >
+                                  {envVar}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          {integration.setupNotes.slice(0, 3).map((note) => (
+                            <div key={note} className="flex items-start gap-2 text-[11px] text-slate-400">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+                              <span>{note}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-2">
+                    Accesos rápidos de configuración
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {quickLinksForAgent.map((link) => (
+                      <a
+                        key={`${link.name}-${link.url}`}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-200 hover:border-blue-400 hover:text-blue-300"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {link.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-xs text-indigo-100">
+                  <strong>Orden correcto:</strong> primero guardar variables en Render, luego
+                  verificar webhooks en Meta/Google/pasarelas, después refrescar este panel y por
+                  último probar con un lead real. Los agentes no deben ejecutar campañas, cobros o
+                  facturas reales si el conector aparece incompleto.
+                </div>
+              </div>
+            )}
 
             {/* Negotiation Parameters Limits */}
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">

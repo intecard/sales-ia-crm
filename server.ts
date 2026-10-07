@@ -8,21 +8,6 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import {
-  checkSupabaseHealth,
-  upsertCrmLead,
-  getOrCreateCrmConversation,
-  saveInboundCrmMessage,
-  saveOutboundCrmMessage,
-  updateMessageDeliveryStatus,
-  getConversationHistoryForPrompt,
-  getCrmLeadsList,
-  getCrmConversationsList,
-  getCrmMessagesByConversation,
-  setConversationAiStatus,
-  recordPersistentAuditEvent,
-  getMemoryAuditLogs,
-} from './server/supabaseService';
 
 dotenv.config();
 
@@ -30,65 +15,22 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
-  'gemini-1.5-flash',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
-  'gemini-1.5-pro',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
-
-let lastGeminiErrorDetails: {
-  timestamp: string;
-  model: string;
-  status?: unknown;
-  code?: unknown;
-  message: string;
-} | null = null;
-
-function verifyMetaSignature(req: express.Request): boolean {
-  const signatureHeader = req.headers['x-hub-signature-256'];
-  const appSecret = process.env.META_APP_SECRET?.trim();
-  if (!appSecret) {
-    return true;
-  }
-  if (!signatureHeader || typeof signatureHeader !== 'string') {
-    console.warn('Meta webhook missing x-hub-signature-256');
-    return false;
-  }
-  const [algo, signature] = signatureHeader.split('=');
-  if (algo !== 'sha256' || !signature) {
-    return false;
-  }
-  const rawBody = (req as any).rawBody;
-  if (!rawBody) {
-    return false;
-  }
-  try {
-    const expectedSignature = crypto
-      .createHmac('sha256', appSecret)
-      .update(rawBody)
-      .digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(signature, 'utf8'), Buffer.from(expectedSignature, 'utf8'));
-  } catch (error) {
-    console.error('Error verifying Meta signature:', error);
-    return false;
-  }
-}
 
 app.disable('x-powered-by');
 if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1' || process.env.RENDER) {
   app.set('trust proxy', 1);
 }
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(
-  express.json({
-    limit: '1mb',
-    verify: (req: any, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
+app.use(express.json({ limit: '1mb' }));
 app.use(
   '/api',
   rateLimit({
@@ -420,49 +362,31 @@ function findWhatsAppContactName(event: any, waId: string) {
   return contact?.profile?.name;
 }
 
-async function generateWhatsAppAutoReply(
-  userMessage: string,
-  customerName?: string,
-  conversationId?: string,
-) {
+async function generateWhatsAppAutoReply(userMessage: string, customerName?: string) {
   const fallback = buildFallbackWhatsAppReply(customerName, userMessage);
 
   if (!process.env.GEMINI_API_KEY) {
     return fallback;
   }
 
-  let formattedHistory = '';
-  if (conversationId) {
-    try {
-      const historyItems = await getConversationHistoryForPrompt(conversationId, 6);
-      if (historyItems.length > 0) {
-        formattedHistory = historyItems.map((h) => `${h.role}: ${h.content}`).join('\n');
-      }
-    } catch {
-      // Ignorar fallo de historial
-    }
-  }
-
   try {
     const prompt = `
-Eres el agente comercial de WhatsApp de INTECA (Instituto Técnico del Caribe). Responde al prospecto usando un estilo humano, profesional, claro, empático y orientado a conversión.
+Eres el agente comercial de WhatsApp de INTECA. Responde al prospecto usando un estilo humano, profesional, claro y orientado a conversion.
 
-BASE DE CONOCIMIENTO AUTORIZADA DE INTECA:
+BASE DE CONOCIMIENTO AUTORIZADA:
 ${buildAgentKnowledgePrompt('WhatsApp, ventas consultivas, captacion de leads y seguimiento comercial')}
 
 NOMBRE DEL PROSPECTO: ${customerName || 'No especificado'}
-${formattedHistory ? `HISTORIAL DE LA CONVERSACIÓN PREVIA:\n${formattedHistory}\n` : ''}
-MENSAJE ACTUAL DEL PROSPECTO:
+MENSAJE DEL PROSPECTO:
 "${userMessage}"
 
-INSTRUCCIONES CLAVE DE RESPUESTA:
-1. Responde en español dominicano profesional, cálido y enfocado a orientar y matricular.
-2. Si el prospecto saluda o pregunta en general por cursos, salúdalo por su nombre (si está disponible), menciona que INTECA ofrece carreras técnicas del sector salud (Técnico de Autorizaciones Médicas, Precertificaciones Médicas, Facturación Médica, Farmacología, etc.) y pregúntale cuál le interesa o qué meta laboral tiene.
-3. Si pregunta por Técnico de Autorizaciones Médicas: duración 5 meses, modalidad virtual, inscripción RD$2,500 y mensualidad RD$2,000. Explica que aprenderá procesos de cobertura, PBS, precertificaciones, SISALRIL y Ley 87-01 con alta demanda en ARS y clínicas.
-4. Si el historial ya respondió una pregunta previa, no repitas la misma bienvenida ni el mismo texto; avanza en la conversación hacia la inscripción, horario preferido o método de pago.
-5. Puedes parafrasear con naturalidad, pero no inventes datos, fechas, descuentos ni condiciones que no estén en la base autorizada.
-6. Cierra con una pregunta orientada a la acción (ej. "¿Te gustaría información para inscribirte hoy o prefieres conocer los horarios disponibles?").
-7. Mantén el mensaje por debajo de 1,000 caracteres para facilitar la lectura en WhatsApp móvil.
+INSTRUCCIONES:
+1. Responde en espanol dominicano profesional.
+2. Puedes parafrasear con naturalidad, pero no inventes datos, fechas, descuentos, certificaciones ni garantias.
+3. Si pregunta por autorizaciones medicas, incluye duracion 5 meses, modalidad virtual, inscripcion RD$2,500 y mensualidad RD$2,000.
+4. Explica beneficio laboral y practico en pocas lineas.
+5. Cierra con una pregunta que capture datos o acerque al pago.
+6. Mantente por debajo de 1,200 caracteres para WhatsApp.
 `;
 
     const response = await generateGeminiContentWithFallback(prompt, {
@@ -485,8 +409,6 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
     throw new Error('WHATSAPP_SEND_NOT_CONFIGURED');
   }
 
-  const cleanTo = to.replace(/[^\d]/g, '');
-
   const response = await fetch(
     `https://graph.facebook.com/${graphApiVersion}/${phoneNumberId}/messages`,
     {
@@ -498,7 +420,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to: cleanTo,
+        to,
         type: 'text',
         text: {
           preview_url: false,
@@ -515,13 +437,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
       status: response.status,
       responseBody,
     });
-    const errorData = (responseBody as any)?.error || {};
-    const err = new Error(
-      `WHATSAPP_SEND_FAILED: ${errorData.message || response.statusText || 'Error de envío'} (código: ${errorData.code || response.status})`,
-    );
-    (err as any).metaError = errorData;
-    (err as any).status = response.status;
-    throw err;
+    throw new Error('WHATSAPP_SEND_FAILED');
   }
 
   return responseBody;
@@ -535,203 +451,41 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
   for (const message of messages) {
     const messageId = message?.id;
     const from = message?.from;
-    if (!from || !messageId) {
+    if (!from || !messageId || processedWhatsAppMessageIds.has(messageId)) {
       continue;
+    }
+
+    processedWhatsAppMessageIds.add(messageId);
+    if (processedWhatsAppMessageIds.size > 1_000) {
+      const firstMessageId = processedWhatsAppMessageIds.values().next().value;
+      if (typeof firstMessageId === 'string') {
+        processedWhatsAppMessageIds.delete(firstMessageId);
+      }
     }
 
     const userMessage = getWhatsAppMessageText(message);
     const customerName = findWhatsAppContactName(event, from);
-    const messageType = message?.type || 'text';
+    const reply = await generateWhatsAppAutoReply(userMessage, customerName);
 
-    // 1. Registrar o actualizar Lead en Supabase / Memoria
-    const lead = await upsertCrmLead({
-      name: customerName || `Prospecto WhatsApp ${from}`,
-      phone: from,
-      whatsapp: from,
-      source: 'WhatsApp',
-      notes: `Mensaje inicial recibido por WhatsApp Cloud API: "${userMessage.slice(0, 100)}"`,
-    });
+    await sendWhatsAppTextMessage(from, reply);
 
-    // 2. Obtener o crear conversación en Supabase / Memoria
-    const conversation = await getOrCreateCrmConversation({
-      leadId: lead.id,
-      channel: 'whatsapp',
-      externalContactId: from,
-      channelAccountId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
-    });
-
-    // 3. Guardar mensaje entrante de forma duradera (con deduplicación)
-    const { message: inboundMsg, isDuplicate } = await saveInboundCrmMessage({
-      conversationId: conversation.id,
-      leadId: lead.id,
-      content: userMessage,
-      senderName: customerName || from,
-      channel: 'whatsapp',
-      messageType: (['text', 'image', 'audio', 'document', 'interactive'].includes(messageType)
-        ? messageType
-        : 'text') as any,
-      externalMessageId: messageId,
-      rawPayload: message,
-    });
-
-    if (isDuplicate) {
-      console.log('Mensaje de WhatsApp duplicado omitido:', messageId);
-      continue;
-    }
-
-    // 4. Auditoría de recepción en base de datos
-    await recordPersistentAuditEvent({
-      actorType: 'Webhook',
-      actorName: 'Meta WhatsApp Cloud API',
+    recordServerAudit({
+      actorType: 'Agente IA',
+      actorName: 'Agente WhatsApp INTECA',
       module: 'WhatsApp',
-      action: 'Recibió',
+      action: 'Respondió',
       entityType: 'WhatsAppMessage',
       entityId: messageId,
-      summary: `Mensaje recibido de ${customerName || from}.`,
-      details: `Teléfono: ${from}. Contenido: "${userMessage}". Lead ID: ${lead.id}. Conv ID: ${conversation.id}.`,
+      summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
+      details: `Prospecto: ${customerName || from}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
       sourceChannel: 'WhatsApp',
-      severity: 'Info',
+      severity: 'Éxito',
       status: 'Registrado',
     });
-
-    // 5. Verificar si la respuesta automática de IA está habilitada para esta conversación
-    if (!conversation.ai_auto_reply_enabled) {
-      await recordPersistentAuditEvent({
-        actorType: 'Agente IA',
-        actorName: 'Agente WhatsApp INTECA',
-        module: 'WhatsApp',
-        action: 'Pausado',
-        entityType: 'WhatsAppAutoReply',
-        summary: `Respuesta automática omitida: supervisión humana activa para ${customerName || from}.`,
-        details: `La conversación ${conversation.id} está en modo manual/humano.`,
-        sourceChannel: 'WhatsApp',
-        severity: 'Info',
-        status: 'Registrado',
-      });
-      continue;
-    }
-
-    // 6. Generar respuesta con Agente IA (Gemini) usando historial conversacional
-    let reply = '';
-    let aiGenerationFailed = false;
-    try {
-      reply = await generateWhatsAppAutoReply(userMessage, customerName, conversation.id);
-    } catch (err) {
-      aiGenerationFailed = true;
-      reply = buildFallbackWhatsAppReply(customerName, userMessage);
-    }
-
-    // 7. Enviar respuesta por WhatsApp Cloud API
-    let metaSendResult: any = null;
-    let metaSendError: any = null;
-    try {
-      metaSendResult = await sendWhatsAppTextMessage(from, reply);
-    } catch (sendErr: any) {
-      metaSendError = sendErr;
-      console.error('Error enviando mensaje por WhatsApp Cloud API:', sendErr);
-    }
-
-    const outboundWamid = metaSendResult?.messages?.[0]?.id;
-
-    // 8. Guardar mensaje saliente en Supabase / Memoria
-    await saveOutboundCrmMessage({
-      conversationId: conversation.id,
-      leadId: lead.id,
-      content: reply,
-      senderType: 'ai_agent',
-      senderName: 'Agente WhatsApp INTECA',
-      channel: 'whatsapp',
-      messageType: 'text',
-      externalMessageId: outboundWamid,
-      status: metaSendError ? 'failed' : 'sent',
-      errorDetails: metaSendError
-        ? {
-            message: metaSendError.message,
-            metaError: metaSendError.metaError,
-            status: metaSendError.status,
-          }
-        : null,
-      rawPayload: metaSendResult || {},
-    });
-
-    // 9. Registrar auditoría del resultado
-    if (metaSendError) {
-      await recordPersistentAuditEvent({
-        actorType: 'Agente IA',
-        actorName: 'Agente WhatsApp INTECA',
-        module: 'WhatsApp',
-        action: 'Falló',
-        entityType: 'WhatsAppAutoReply',
-        summary: `Fallo al enviar respuesta por WhatsApp a ${from}.`,
-        details: `Causa: ${metaSendError.message}. Meta error: ${JSON.stringify(metaSendError.metaError || {})}. Respuesta no entregada: "${reply}".`,
-        sourceChannel: 'WhatsApp',
-        severity: 'Crítico',
-        status: 'Pendiente revisión',
-      });
-    } else {
-      await recordPersistentAuditEvent({
-        actorType: 'Agente IA',
-        actorName: 'Agente WhatsApp INTECA',
-        module: 'WhatsApp',
-        action: 'Respondió',
-        entityType: 'WhatsAppMessage',
-        entityId: outboundWamid || messageId,
-        summary: `Respuesta automatizada entregada a WhatsApp API para ${customerName || from}.`,
-        details: `Prospecto: ${customerName || from} (${from}). WAMID: ${outboundWamid || 'N/A'}. Respuesta: "${reply}". ${aiGenerationFailed ? '[Nota: Usó mensaje institucional de respaldo]' : '[Generado por Gemini IA]'}`,
-        sourceChannel: 'WhatsApp',
-        severity: 'Éxito',
-        status: 'Registrado',
-      });
-    }
-  }
-}
-
-async function processWhatsAppStatuses(statuses: any[]) {
-  for (const statusItem of statuses) {
-    const wamid = statusItem?.id;
-    const status = statusItem?.status; // 'sent', 'delivered', 'read', 'failed'
-    const recipientId = statusItem?.recipient_id;
-    const errors = statusItem?.errors;
-
-    if (!wamid || !status) continue;
-
-    const mappedStatus =
-      status === 'delivered'
-        ? 'delivered'
-        : status === 'read'
-          ? 'read'
-          : status === 'failed'
-            ? 'failed'
-            : 'sent';
-
-    await updateMessageDeliveryStatus({
-      externalMessageId: wamid,
-      status: mappedStatus as any,
-      errorDetails: errors ? { errors } : undefined,
-    });
-
-    if (status === 'failed') {
-      const errorMsg = errors?.[0]?.message || errors?.[0]?.title || 'Error de entrega en Meta';
-      const errorCode = errors?.[0]?.code || 'unknown';
-      await recordPersistentAuditEvent({
-        actorType: 'Webhook',
-        actorName: 'Meta WhatsApp Cloud API',
-        module: 'WhatsApp',
-        action: 'FalloEntrega',
-        entityType: 'WhatsAppStatus',
-        entityId: wamid,
-        summary: `Fallo de entrega de mensaje WhatsApp a ${recipientId || 'destinatario'}.`,
-        details: `Código: ${errorCode}. Detalle: ${errorMsg}. WAMID: ${wamid}.`,
-        sourceChannel: 'WhatsApp',
-        severity: 'Crítico',
-        status: 'Pendiente revisión',
-      });
-    }
   }
 }
 
 function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
-  void recordPersistentAuditEvent(event);
   const entry = {
     id: `srv_audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     timestamp: new Date().toISOString(),
@@ -760,37 +514,22 @@ function getGeminiClient(): GoogleGenAI {
     }
     aiClient = new GoogleGenAI({
       apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
     });
   }
   return aiClient;
 }
 
-const KNOWN_VALID_GEMINI_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-2.0-flash-lite-preview-02-05',
-];
-
-function sanitizeGeminiModelName(model: string): string {
-  const trimmed = model.trim();
-  // Corregir nombres ficticios o de versiones no existentes
-  if (trimmed === 'gemini-3.6-flash' || trimmed === 'gemini-3.5-flash' || trimmed === 'gemini-2.5-flash') {
-    return 'gemini-2.0-flash';
-  }
-  if (trimmed === 'gemini-2.0-flash-lite') {
-    return 'gemini-2.0-flash';
-  }
-  return trimmed;
-}
-
 function getGeminiModelCandidates() {
-  const envModel = process.env.GEMINI_MODEL ? sanitizeGeminiModelName(process.env.GEMINI_MODEL) : DEFAULT_GEMINI_MODEL;
-  const envFallbacks =
-    process.env.GEMINI_FALLBACK_MODELS?.split(',').map(sanitizeGeminiModelName).filter(Boolean) ||
+  const fallbackModels =
+    process.env.GEMINI_FALLBACK_MODELS?.split(',').map((model) => model.trim()).filter(Boolean) ||
     DEFAULT_GEMINI_FALLBACK_MODELS;
 
-  return Array.from(new Set([envModel, ...envFallbacks, ...KNOWN_VALID_GEMINI_MODELS]));
+  return Array.from(new Set([process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, ...fallbackModels]));
 }
 
 function getAvailableGeminiModelCandidates() {
@@ -803,11 +542,10 @@ function getAvailableGeminiModelCandidates() {
 
 function summarizeGeminiError(error: unknown) {
   if (error && typeof error === 'object') {
-    const errorLike = error as { message?: unknown; name?: unknown; status?: unknown; code?: unknown };
+    const errorLike = error as { message?: unknown; name?: unknown; status?: unknown };
     return {
       name: typeof errorLike.name === 'string' ? errorLike.name : 'Error',
       status: errorLike.status,
-      code: errorLike.code,
       message: typeof errorLike.message === 'string' ? errorLike.message : 'Sin mensaje',
     };
   }
@@ -815,20 +553,13 @@ function summarizeGeminiError(error: unknown) {
   return {
     name: 'Error',
     status: undefined,
-    code: undefined,
     message: String(error),
   };
 }
 
 async function generateGeminiContentWithFallback(contents: string, config?: Record<string, unknown>) {
   let lastError: unknown;
-  let modelCandidates = getAvailableGeminiModelCandidates();
-
-  if (modelCandidates.length === 0) {
-    // Si todos los modelos expiraron su cooldown, reiniciar la lista
-    temporarilyUnavailableGeminiModels.clear();
-    modelCandidates = getGeminiModelCandidates();
-  }
+  const modelCandidates = getAvailableGeminiModelCandidates();
 
   if (modelCandidates.length === 0) {
     throw new Error('GEMINI_MODELS_TEMPORARILY_UNAVAILABLE');
@@ -837,28 +568,18 @@ async function generateGeminiContentWithFallback(contents: string, config?: Reco
   for (const model of modelCandidates) {
     try {
       const ai = getGeminiClient();
-      const result = await ai.models.generateContent({
+      return await ai.models.generateContent({
         model,
         contents,
         config,
       });
-      lastGeminiErrorDetails = null;
-      return result;
     } catch (error) {
       lastError = error;
-      const errorSummary = summarizeGeminiError(error);
-      lastGeminiErrorDetails = {
-        timestamp: new Date().toISOString(),
-        model,
-        status: errorSummary.status,
-        code: errorSummary.code,
-        message: errorSummary.message,
-      };
       temporarilyUnavailableGeminiModels.set(model, Date.now() + GEMINI_MODEL_RETRY_DELAY_MS);
       console.error('Gemini generateContent failed', {
         model,
         retryAfterMs: GEMINI_MODEL_RETRY_DELAY_MS,
-        ...errorSummary,
+        ...summarizeGeminiError(error),
       });
     }
   }
@@ -873,7 +594,10 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     category: 'Base de datos',
     requiredEnvVars: [
       'SUPABASE_URL',
+      'SUPABASE_ANON_KEY',
       'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_JWT_SECRET',
+      'SUPABASE_STORAGE_BUCKET',
     ],
   },
   {
@@ -994,6 +718,109 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     category: 'Web',
     requiredEnvVars: ['APP_URL'],
     webhookPath: '/api/webhooks/web/forms',
+  },
+];
+
+const AGENT_RUNTIME_REGISTRY = [
+  {
+    id: 'agent_whatsapp',
+    name: 'Agente IA WhatsApp',
+    function: 'Atención, respuesta, seguimiento y transferencia humana por WhatsApp.',
+    requiredIntegrationIds: ['int_whatsapp_cloud', 'int_gemini_ai', 'int_supabase_database'],
+    optionalIntegrationIds: ['int_owner_notifications', 'int_payments'],
+    executableTools: ['whatsapp.receive_message', 'whatsapp.send_text', 'crm.create_lead', 'audit.record'],
+    humanIntervention:
+      'Pago, reclamo sensible, promesa no autorizada, error de envío o conversación fuera de la ventana permitida.',
+  },
+  {
+    id: 'agent_omnichannel',
+    name: 'Agente IA Omnicanal',
+    function: 'Captura, normaliza y enruta leads desde web, redes, Meta, Google y WhatsApp.',
+    requiredIntegrationIds: ['int_web_forms', 'int_supabase_database'],
+    optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_whatsapp_cloud'],
+    executableTools: ['webforms.receive', 'meta.lead_event', 'googleads.lead_event', 'crm.route_lead'],
+    humanIntervention: 'Lead duplicado incierto, fuente sin consentimiento o credencial revocada.',
+  },
+  {
+    id: 'agent_closer',
+    name: 'Agente IA Ventas',
+    function: 'Seguimiento comercial, cierre, actualización de oportunidad y solicitud de pago.',
+    requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
+    optionalIntegrationIds: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
+    executableTools: ['crm.update_opportunity', 'crm.schedule_followup', 'payments.create_request'],
+    humanIntervention: 'Descuento fuera de política, promesa sensible, pago dudoso o llamada necesaria.',
+  },
+  {
+    id: 'agent_copywriter',
+    name: 'Agente IA Marketing',
+    function: 'Crea campañas, copys, embudos y propuestas de valor para adquisición y conversión.',
+    requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
+    optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_youtube', 'int_creative_ai'],
+    executableTools: ['marketing.generate_copy', 'campaign.prepare', 'audit.record'],
+    humanIntervention: 'Testimonios, noticias institucionales, promesas sensibles o gasto publicitario.',
+  },
+  {
+    id: 'agent_media_buyer',
+    name: 'Agente IA Publicidad',
+    function: 'Prepara, valida y optimiza campañas pagadas con límites y aprobación del dueño.',
+    requiredIntegrationIds: ['int_supabase_database'],
+    optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_ad_payment_wallet'],
+    executableTools: ['ads.prepare_campaign', 'ads.read_metrics', 'budget.validate_limits'],
+    humanIntervention: 'Activación de gasto, cambio de presupuesto, campaña pública o cuenta sin permisos.',
+  },
+  {
+    id: 'agent_creative',
+    name: 'Agente IA Creativo',
+    function: 'Genera briefs, flyers, carruseles, prompts, piezas visuales y evidencias de revisión.',
+    requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
+    optionalIntegrationIds: ['int_creative_ai', 'int_meta_social', 'int_whatsapp_cloud'],
+    executableTools: ['creative.prepare_brief', 'creative.generate_asset', 'asset.store'],
+    humanIntervention: 'Uso de marca sin activo aprobado, proveedor sin credencial o pieza sensible.',
+  },
+  {
+    id: 'agent_video',
+    name: 'Agente IA Video',
+    function: 'Prepara guiones, videos cortos, metadatos, miniaturas y publicación autorizada.',
+    requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
+    optionalIntegrationIds: ['int_creative_ai', 'int_youtube'],
+    executableTools: ['video.prepare_script', 'video.generate_asset', 'youtube.prepare_upload'],
+    humanIntervention: 'Publicación real, reclamo de derechos, canal sin autorización o cuota agotada.',
+  },
+  {
+    id: 'agent_billing',
+    name: 'Agente IA Facturación e-CF',
+    function: 'Prepara pagos, comprobantes, borradores e-CF, XML/PDF y cola fiscal auditada.',
+    requiredIntegrationIds: ['int_supabase_database'],
+    optionalIntegrationIds: ['int_payments', 'int_dgii_ecf', 'int_owner_notifications'],
+    executableTools: ['payments.verify', 'ecf.prepare_xml', 'ecf.validate_required_fields', 'audit.record'],
+    humanIntervention: 'Emisión fiscal, certificado faltante, secuencia no autorizada o rechazo DGII.',
+  },
+  {
+    id: 'agent_accounting',
+    name: 'Agente IA Contable',
+    function: 'Prepara reportes contables, conciliaciones, inventario, recibos y estados financieros.',
+    requiredIntegrationIds: ['int_supabase_database'],
+    optionalIntegrationIds: ['int_payments', 'int_dgii_ecf'],
+    executableTools: ['accounting.prepare_report', 'bank.reconcile', 'inventory.prepare_daily_report'],
+    humanIntervention: 'Reporte definitivo, conciliación con diferencia, criterio fiscal o cierre contable.',
+  },
+  {
+    id: 'agent_procurement_national',
+    name: 'Agente IA Compras Nacionales',
+    function: 'Gestiona requisiciones, cotizaciones locales, comparativos, órdenes e inventario.',
+    requiredIntegrationIds: ['int_supabase_database'],
+    optionalIntegrationIds: ['int_owner_notifications'],
+    executableTools: ['procurement.create_request', 'procurement.evaluate_quotes', 'inventory.update'],
+    humanIntervention: 'Aprobación de compra, contrato, pago o proveedor con riesgo.',
+  },
+  {
+    id: 'agent_owner_ops',
+    name: 'Agente IA Dueño',
+    function: 'Filtra avances y notifica solo pagos, llamadas, bloqueos, campañas listas y decisiones.',
+    requiredIntegrationIds: ['int_supabase_database'],
+    optionalIntegrationIds: ['int_owner_notifications', 'int_whatsapp_cloud'],
+    executableTools: ['owner.notify', 'audit.summarize', 'crm.escalate'],
+    humanIntervention: 'Decisión estratégica, bloqueo crítico o acción que comprometa gasto externo.',
   },
 ];
 
@@ -1136,13 +963,46 @@ function buildIntegrationEnvironmentStatus() {
   });
 }
 
+function buildAgentRuntimeManifest() {
+  const integrations = buildIntegrationEnvironmentStatus();
+  const integrationById = new Map(integrations.map((integration) => [integration.id, integration]));
+
+  return AGENT_RUNTIME_REGISTRY.map((agent) => {
+    const requiredIntegrations = agent.requiredIntegrationIds.map((id) => integrationById.get(id));
+    const optionalIntegrations = agent.optionalIntegrationIds.map((id) => integrationById.get(id));
+    const missingRequired = requiredIntegrations.flatMap((integration) =>
+      integration ? integration.missingEnvVars.map((envVar) => `${integration.name}:${envVar}`) : [],
+    );
+    const missingOptional = optionalIntegrations.flatMap((integration) =>
+      integration ? integration.missingEnvVars.map((envVar) => `${integration.name}:${envVar}`) : [],
+    );
+    const status =
+      missingRequired.length === 0
+        ? missingOptional.length === 0
+          ? 'operativo'
+          : 'degradado'
+        : 'bloqueado_por_credenciales';
+
+    return {
+      ...agent,
+      status,
+      requiredIntegrations: requiredIntegrations.filter(Boolean),
+      optionalIntegrations: optionalIntegrations.filter(Boolean),
+      missingRequired,
+      missingOptional,
+      evidence:
+        missingRequired.length === 0
+          ? 'Variables requeridas presentes; requiere prueba real del proveedor antes de ejecutar acciones externas.'
+          : 'No se declara operativo porque faltan variables requeridas.',
+    };
+  });
+}
+
 // Health Check API
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', (req, res) => {
   const integrationStatus = buildIntegrationEnvironmentStatus();
   const isIntegrationConfigured = (id: string) =>
     Boolean(integrationStatus.find((integration) => integration.id === id)?.configured);
-
-  const supabaseHealth = await checkSupabaseHealth();
 
   res.json({
     status: 'ok',
@@ -1155,16 +1015,8 @@ app.get('/api/health', async (req, res) => {
       currentlyAvailable: getAvailableGeminiModelCandidates(),
       retryDelayMs: GEMINI_MODEL_RETRY_DELAY_MS,
     },
-    lastGeminiError: lastGeminiErrorDetails,
     authConfigured: Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD),
     agentKnowledgeConfigured: getIntecaKnowledgeSourcesStatus().some((source) => source.loaded),
-    supabaseHealth: {
-      configured: supabaseHealth.configured,
-      healthy: supabaseHealth.healthy,
-      tablesFound: supabaseHealth.tablesFound,
-      urlHost: supabaseHealth.urlHost,
-      error: supabaseHealth.error,
-    },
     integrations: {
       supabaseConfigured: isIntegrationConfigured('int_supabase_database'),
       renderConfigured: Boolean(process.env.APP_URL && (process.env.RENDER || process.env.RENDER_SERVICE_ID)),
@@ -1199,6 +1051,24 @@ app.get('/api/integrations/status', (_req, res) => {
     renderPersistenceReady: Boolean(process.env.RENDER_API_KEY && process.env.RENDER_SERVICE_ID),
     checkedAt: new Date().toISOString(),
     groups: buildIntegrationEnvironmentStatus(),
+  });
+});
+
+app.get('/api/agents/runtime/manifest', (_req, res) => {
+  res.json({
+    success: true,
+    checkedAt: new Date().toISOString(),
+    deploymentMode: DEPLOYMENT_MODE,
+    configurationPrecedence: [
+      '1. Credenciales por empresa guardadas en backend seguro o Supabase con cifrado.',
+      '2. Variables de entorno del servidor en Render para integraciones globales.',
+      '3. Valores de ejemplo solo para UI; nunca se usan como acceso real.',
+    ],
+    persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
+    queue: process.env.SUPABASE_URL
+      ? 'cola persistente preparada por esquema SQL incluido'
+      : 'cola persistente pendiente de Supabase',
+    agents: buildAgentRuntimeManifest(),
   });
 });
 
@@ -1364,6 +1234,7 @@ app.get('/api/runtime/config', (_req, res) => {
     ecfInvoiceAiPath: '/api/ai/generate-ecf-invoice',
     accountingReportAiPath: '/api/ai/generate-accounting-report',
     agentKnowledgeStatusPath: '/api/knowledge/inteca/status',
+    agentRuntimeManifestPath: '/api/agents/runtime/manifest',
   });
 });
 
@@ -1481,14 +1352,8 @@ app.get('/api/webhooks/meta/whatsapp', (req, res) => {
   return res.sendStatus(403);
 });
 
-// Meta expects a quick 200 response. Store/process asynchronously with Supabase persistence.
+// Meta expects a quick 200 response. Store/process asynchronously when persistence is wired.
 app.post('/api/webhooks/meta/whatsapp', (req, res) => {
-  // 1. Validación criptográfica de firma HMAC-SHA256 si META_APP_SECRET está configurado
-  if (!verifyMetaSignature(req)) {
-    console.warn('Firma de webhook de Meta inválida');
-    return res.status(401).send('Invalid signature');
-  }
-
   const event = req.body;
 
   try {
@@ -1506,235 +1371,51 @@ app.post('/api/webhooks/meta/whatsapp', (req, res) => {
         (entry: any) => entry.changes?.flatMap((change: any) => change.value?.statuses || []) || [],
       ) || [];
 
+    recordServerAudit({
+      actorType: 'Webhook',
+      actorName: 'Meta WhatsApp Cloud API',
+      module: 'Integraciones',
+      action: 'Recibió',
+      entityType: 'WhatsAppEvent',
+      summary: 'Evento recibido desde WhatsApp Cloud API.',
+      details: `Mensajes: ${messages.length}. Estados: ${statuses.length}.`,
+      sourceChannel: 'WhatsApp',
+      severity: 'Info',
+      status: 'Registrado',
+    });
+
     console.log('Meta WhatsApp webhook received', {
       messages: messages.length,
       statuses: statuses.length,
       receivedAt: new Date().toISOString(),
     });
 
-    // Responder 200 de inmediato a Meta para cumplir el SLA de 20s y evitar reintentos forzados
-    res.sendStatus(200);
-
-    // Procesar mensajes entrantes de forma duradera y asíncrona
     if (messages.length > 0) {
       void processWhatsAppInboundMessages(messages, event).catch((error) => {
-        console.error('Error al procesar mensajes entrantes de WhatsApp:', error);
+        console.error('Error sending WhatsApp auto reply:', error);
+        recordServerAudit({
+          actorType: 'Agente IA',
+          actorName: 'Agente WhatsApp INTECA',
+          module: 'WhatsApp',
+          action: 'Falló',
+          entityType: 'WhatsAppAutoReply',
+          summary: 'No se pudo enviar la respuesta automatizada por WhatsApp.',
+          details:
+            error instanceof Error
+              ? `${error.name}: ${error.message}`
+              : 'Error desconocido al responder por WhatsApp.',
+          sourceChannel: 'WhatsApp',
+          severity: 'Crítico',
+          status: 'Pendiente revisión',
+        });
       });
     }
 
-    // Procesar estados de entrega recibidos de Meta (sent, delivered, read, failed)
-    if (statuses.length > 0) {
-      void processWhatsAppStatuses(statuses).catch((error) => {
-        console.error('Error al procesar estados de entrega de WhatsApp:', error);
-      });
-    }
+    return res.sendStatus(200);
   } catch (error) {
-    console.error('Error en webhook de WhatsApp:', error);
-    if (!res.headersSent) {
-      return res.sendStatus(200);
-    }
+    console.error('Error processing Meta WhatsApp webhook:', error);
+    return res.sendStatus(200);
   }
-});
-
-// ==============================================================================
-// CRM & PERSISTENCE API ENDPOINTS (Conexión Frontend CRM <-> Supabase Backend)
-// ==============================================================================
-
-// Obtener todos los Leads almacenados
-app.get('/api/crm/leads', async (_req, res) => {
-  try {
-    const leads = await getCrmLeadsList();
-    res.json({ success: true, count: leads.length, leads });
-  } catch (err) {
-    console.error('Error in GET /api/crm/leads:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_FETCH_LEADS' });
-  }
-});
-
-// Crear o actualizar un Lead
-app.post('/api/crm/leads', async (req, res) => {
-  try {
-    const lead = await upsertCrmLead(req.body);
-    res.json({ success: true, lead });
-  } catch (err) {
-    console.error('Error in POST /api/crm/leads:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_CREATE_LEAD' });
-  }
-});
-
-app.put('/api/crm/leads/:id', async (req, res) => {
-  try {
-    const lead = await upsertCrmLead({ ...req.body, id: req.params.id });
-    res.json({ success: true, lead });
-  } catch (err) {
-    console.error('Error in PUT /api/crm/leads/:id:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_UPDATE_LEAD' });
-  }
-});
-
-// Obtener conversaciones activas (con información del Lead y último mensaje)
-app.get('/api/crm/conversations', async (_req, res) => {
-  try {
-    const conversations = await getCrmConversationsList();
-    res.json({ success: true, count: conversations.length, conversations });
-  } catch (err) {
-    console.error('Error in GET /api/crm/conversations:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_FETCH_CONVERSATIONS' });
-  }
-});
-
-// Obtener mensajes de una conversación específica
-app.get('/api/crm/conversations/:id/messages', async (req, res) => {
-  try {
-    const messages = await getCrmMessagesByConversation(req.params.id);
-    res.json({ success: true, count: messages.length, messages });
-  } catch (err) {
-    console.error('Error in GET /api/crm/conversations/:id/messages:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_FETCH_MESSAGES' });
-  }
-});
-
-// Enviar mensaje manual desde el CRM por WhatsApp (Supervisión humana o intervención)
-app.post('/api/crm/conversations/:id/send', async (req, res) => {
-  try {
-    const { content, senderName, leadId, externalContactId, channel } = req.body;
-    if (!content || typeof content !== 'string') {
-      return res.status(400).json({ success: false, error: 'CONTENT_REQUIRED' });
-    }
-
-    const convId = req.params.id;
-    let outboundWamid: string | undefined;
-    let metaSendError: any = null;
-
-    if (channel === 'whatsapp' || !channel) {
-      if (!externalContactId) {
-        return res.status(400).json({ success: false, error: 'PHONE_REQUIRED_FOR_WHATSAPP' });
-      }
-
-      try {
-        const sendResult = await sendWhatsAppTextMessage(externalContactId, content.trim());
-        outboundWamid = sendResult?.messages?.[0]?.id;
-      } catch (err: any) {
-        metaSendError = err;
-        console.error('Manual send via WhatsApp Cloud API failed:', err);
-      }
-    }
-
-    const savedMsg = await saveOutboundCrmMessage({
-      conversationId: convId,
-      leadId: leadId || '',
-      content: content.trim(),
-      senderType: 'human_agent',
-      senderName: senderName || 'Asesor CRM',
-      channel: channel || 'whatsapp',
-      messageType: 'text',
-      externalMessageId: outboundWamid,
-      status: metaSendError ? 'failed' : 'sent',
-      errorDetails: metaSendError ? { message: metaSendError.message, metaError: metaSendError.metaError } : null,
-      rawPayload: metaSendError ? { error: metaSendError.message } : {},
-    });
-
-    await recordPersistentAuditEvent({
-      actorType: 'Usuario',
-      actorName: senderName || 'Asesor CRM',
-      module: 'WhatsApp',
-      action: metaSendError ? 'Falló' : 'Envió',
-      entityType: 'ManualMessage',
-      entityId: outboundWamid || savedMsg.id,
-      summary: metaSendError
-        ? `Fallo al enviar mensaje manual a ${externalContactId}.`
-        : `Mensaje manual enviado por WhatsApp a ${externalContactId}.`,
-      details: metaSendError
-        ? `Error: ${metaSendError.message}`
-        : `Contenido: "${content.trim()}". WAMID: ${outboundWamid || 'N/A'}.`,
-      sourceChannel: 'WhatsApp',
-      severity: metaSendError ? 'Crítico' : 'Éxito',
-      status: metaSendError ? 'Pendiente revisión' : 'Registrado',
-    });
-
-    if (metaSendError) {
-      return res.status(502).json({
-        success: false,
-        error: 'WHATSAPP_SEND_FAILED',
-        message: metaSendError.message,
-        details: metaSendError.metaError,
-        savedMessage: savedMsg,
-      });
-    }
-
-    res.json({ success: true, message: savedMsg, wamid: outboundWamid });
-  } catch (err) {
-    console.error('Error in POST /api/crm/conversations/:id/send:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_SEND_MESSAGE' });
-  }
-});
-
-// Conmutar IA automática para una conversación
-app.patch('/api/crm/conversations/:id/toggle-ai', async (req, res) => {
-  try {
-    const { enabled } = req.body;
-    if (typeof enabled !== 'boolean') {
-      return res.status(400).json({ success: false, error: 'ENABLED_BOOLEAN_REQUIRED' });
-    }
-    const success = await setConversationAiStatus(req.params.id, enabled);
-    res.json({ success, ai_auto_reply_enabled: enabled });
-  } catch (err) {
-    console.error('Error in toggle-ai:', err);
-    res.status(500).json({ success: false, error: 'FAILED_TO_TOGGLE_AI' });
-  }
-});
-
-// Diagnóstico directo de Gemini AI
-app.get('/api/ai/diagnostics', async (_req, res) => {
-  const apiKeyConfigured = Boolean(process.env.GEMINI_API_KEY);
-  if (!apiKeyConfigured) {
-    return res.status(503).json({
-      success: false,
-      error: 'GEMINI_API_KEY_NOT_SET',
-      message: 'Falta configurar GEMINI_API_KEY en variables de entorno.',
-    });
-  }
-
-  const startTime = Date.now();
-  try {
-    const testResponse = await generateGeminiContentWithFallback("Responde solo: 'INTECA IA ACTIVA'", {
-      temperature: 0.1,
-    });
-    const latencyMs = Date.now() - startTime;
-    res.json({
-      success: true,
-      status: 'operational',
-      latencyMs,
-      reply: testResponse.text?.trim() || '',
-      modelCandidates: getGeminiModelCandidates(),
-      availableCandidates: getAvailableGeminiModelCandidates(),
-    });
-  } catch (err) {
-    const latencyMs = Date.now() - startTime;
-    const summary = summarizeGeminiError(err);
-    res.status(500).json({
-      success: false,
-      status: 'error',
-      latencyMs,
-      error: summary,
-      lastGeminiError: lastGeminiErrorDetails,
-      modelCandidates: getGeminiModelCandidates(),
-      availableCandidates: getAvailableGeminiModelCandidates(),
-    });
-  }
-});
-
-// Estado de conexión a Supabase
-app.get('/api/integrations/supabase-status', async (_req, res) => {
-  const health = await checkSupabaseHealth(true);
-  res.json({
-    success: true,
-    supabase: health,
-    inMemoryStats: {
-      leadsCount: (await getCrmLeadsList()).length,
-      conversationsCount: (await getCrmConversationsList()).length,
-    },
-  });
 });
 
 // Audit API prepared for database persistence once production storage is connected.
@@ -1962,13 +1643,9 @@ INSTRUCCIONES DE RESPUESTA:
   } catch (error: unknown) {
     console.error('Error in /api/ai/chat-agent:', error);
     const notConfigured = error instanceof Error && error.message === 'AI_NOT_CONFIGURED';
-    const errorSummary = summarizeGeminiError(error);
     res.status(notConfigured ? 503 : 500).json({
       success: false,
       error: notConfigured ? 'AI_NOT_CONFIGURED' : 'AI_REQUEST_FAILED',
-      message: errorSummary.message,
-      details: errorSummary,
-      lastGeminiError: lastGeminiErrorDetails,
       requiresHumanReview: true,
     });
   }

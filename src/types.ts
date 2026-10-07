@@ -702,6 +702,9 @@ export type IntegrationStatus =
   | 'Modo demo';
 
 export type IntegrationCategory =
+  | 'Base de datos'
+  | 'Hosting'
+  | 'IA'
   | 'Mensajería'
   | 'Social Ads'
   | 'Buscadores'

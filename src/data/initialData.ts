@@ -2034,6 +2034,57 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = RAW_MULTI_AGENTS_SPEC.map((agent
 
 export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
   {
+    id: 'int_supabase_database',
+    name: 'Supabase Database, Auth y Storage',
+    category: 'Base de datos',
+    status: 'Requiere credenciales',
+    outboundCapability:
+      'Dar memoria persistente a agentes, leads, auditoría, archivos, usuarios, permisos y datos reales multiempresa.',
+    requiredEnvVars: [
+      'SUPABASE_URL',
+      'SUPABASE_ANON_KEY',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_JWT_SECRET',
+      'SUPABASE_STORAGE_BUCKET',
+    ],
+    ownerAgentId: 'agent_director',
+    setupNotes: [
+      'Crear proyecto en Supabase y guardar URL, anon key y service role key solo en Render Environment.',
+      'Activar tablas para leads, conversaciones, auditoría, usuarios, empresas, facturas, campañas y archivos.',
+      'Usar Row Level Security por empresa antes de abrir acceso a clientes externos.',
+    ],
+  },
+  {
+    id: 'int_render_deployment',
+    name: 'Render Deploy, Environment y Webhooks',
+    category: 'Hosting',
+    status: 'Webhook preparado',
+    outboundCapability:
+      'Mantener el CRM publicado, variables de producción, dominios, logs y endpoints públicos para recibir eventos externos.',
+    requiredEnvVars: ['APP_URL', 'RENDER_SERVICE_ID', 'RENDER_API_KEY', 'TRUST_PROXY'],
+    ownerAgentId: 'agent_director',
+    setupNotes: [
+      'Guardar todas las credenciales en Render Environment, nunca dentro del código.',
+      'Verificar dominio personalizado y SSL antes de conectar Meta, Google o pasarelas.',
+      'Revisar logs después de cada conexión para confirmar webhooks recibidos y respuestas enviadas.',
+    ],
+  },
+  {
+    id: 'int_gemini_ai',
+    name: 'Gemini AI y modelos de respaldo',
+    category: 'IA',
+    status: 'Conectado',
+    outboundCapability:
+      'Permitir que los agentes generen respuestas, estrategias, campañas, facturas, reportes, briefs y análisis con fallback automático.',
+    requiredEnvVars: ['GEMINI_API_KEY', 'GEMINI_MODEL', 'GEMINI_FALLBACK_MODELS'],
+    ownerAgentId: 'agent_director',
+    setupNotes: [
+      'Configurar modelo principal y lista de fallback en Render.',
+      'Mantener límites de seguridad: no inventar datos, no prometer resultados garantizados y escalar dudas sensibles.',
+      'Si un modelo falla por demanda alta, el CRM prueba el siguiente modelo disponible.',
+    ],
+  },
+  {
     id: 'int_whatsapp_cloud',
     name: 'WhatsApp Cloud API',
     category: 'Mensajería',
