@@ -18,6 +18,7 @@ Estados permitidos:
 |---|---|---|---|---|---|---|---|
 | Agente IA WhatsApp | Recibir y responder leads | WhatsApp, Gemini, Supabase | Render/Supabase por empresa | Webhook challenge, mensaje entrante, envío texto | Audit event + ID mensaje | Preparado | Token permanente, WABA, suscripción `messages` |
 | Agente IA Omnicanal | Enrutar leads multicanal | Web, Meta, Google Ads, WhatsApp | Variables globales + cuenta empresa | Recibir formulario/webhook | Audit event + lead creado | Preparado | Permisos Meta/Google reales |
+| Agente IA Conversión y Matrícula | Registrar leads, convertir a estudiantes y enviar bienvenida | WhatsApp, formularios, pagos, campus, Supabase | Render/Supabase por empresa | `POST /api/agents/conversion/process-lead` con y sin pago confirmado | Lead + matrícula + audit event | Preparado | API real del campus para sincronización automática |
 | Agente IA Ventas | Seguimiento y cierre | Gemini, Supabase, WhatsApp, pagos | Por empresa | Crear tarea, actualizar oportunidad | Job + ejecución | Preparado | Pasarela y WhatsApp reales |
 | Agente IA Marketing | Copys, campañas y embudo | Gemini, Meta, Google, YouTube | Por empresa | Generar brief/copy | Asset/brief guardado | Preparado | Publicación requiere aprobación |
 | Agente IA Publicidad | Pauta y presupuesto | Meta Ads, Google Ads, tarjeta pauta | Por empresa | Leer cuenta/campañas | Métrica leída | Pendiente | OAuth, billing y límites de gasto |

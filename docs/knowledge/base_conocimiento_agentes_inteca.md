@@ -21,6 +21,14 @@ Escalar a Luis o a un asesor humano cuando haya dudas sensibles, pagos, reclamos
 Registrar todo en el CRM para que ventas, auditoria y direccion puedan dar seguimiento.
 ## Datos minimos que deben capturar
 
+## Agente de conversion y matricula
+El agente de conversion debe registrar o actualizar cada prospecto desde el primer contacto, aunque venga de WhatsApp, formulario web, Meta Ads, Google Ads, YouTube, API o carga manual.
+Debe capturar nombre, WhatsApp, telefono, correo, curso de interes, fuente, campana, mensaje inicial, horario preferido, estado comercial y proximo seguimiento.
+No puede marcar a una persona como estudiante activo sin pago de inscripcion confirmado por pasarela, comprobante validado o autorizacion humana.
+Cuando el pago de inscripcion se confirma, debe convertir el lead en estudiante, generar codigo de estudiante, usuario del campus, clave temporal, codigo del curso, mensaje de bienvenida y seguimiento academico en 24 horas.
+Si la API del campus virtual no esta conectada, las credenciales quedan como provisionales y el CRM debe registrar que falta sincronizacion externa con el campus.
+El mensaje de bienvenida debe incluir confirmacion de inscripcion, curso, enlace del campus, usuario, clave temporal, codigo del curso y proximos pasos academicos sin inventar fechas, grupos, docentes ni cupos.
+
 ## Guion base para WhatsApp
 Hola, gracias por escribir a INTECA. Si te interesa el curso de Tecnico u Oficial de Autorizaciones Medicas, te cuento lo esencial: modalidad virtual, duracion 5 meses, inscripcion RD$2,500 y mensualidad RD$2,000. Aprenderas procesos de autorizaciones, validacion de coberturas, PBS, precertificaciones, atencion al afiliado, Ley 87-01, SISALRIL, CNSS y casos practicos del sector salud. Para orientarte mejor, dime tu nombre completo, si tienes experiencia en salud o empiezas desde cero, y que horario prefieres: tarde, noche, sabado o domingo.
 ## Agente de ventas

@@ -8,8 +8,9 @@ INTECA SRL queda configurada como empresa principal con licencia gratis permanen
 
 - Dashboard ejecutivo comercial.
 - Leads CRM 360 con embudo completo.
-- Agentes IA autonomos de ventas, marketing, publicidad, embudos, prospeccion, WhatsApp, creativos, video, facturacion, lanzamientos y operaciones.
+- Agentes IA autonomos de ventas, conversion, matricula, marketing, publicidad, embudos, prospeccion, WhatsApp, creativos, video, facturacion, lanzamientos y operaciones.
 - Chat Sales Studio con respuesta IA usando Gemini cuando `GEMINI_API_KEY` esta configurada.
+- Agente IA Conversion y Matricula: registra leads reales, los califica, los mueve por el embudo, valida inscripcion pagada, convierte a estudiante y prepara bienvenida con credenciales del campus virtual INTECA.
 - Catalogo de productos, servicios y cursos.
 - Embudos y workflows.
 - IA Marketing & Ads para Meta, Google, YouTube, WhatsApp, email y campanas omnicanal.
@@ -26,6 +27,7 @@ INTECA SRL queda configurada como empresa principal con licencia gratis permanen
 - Webhooks listos para WhatsApp Cloud API, Meta Lead Ads, Google Ads, YouTube, formularios web, pagos y DGII/e-CF.
 - Centro de configuracion real de produccion para validar variables, conectores y agentes sin exponer secretos.
 - Endpoint `/api/agents/runtime/manifest` para ver estado operativo de cada agente, plataformas requeridas y bloqueos concretos.
+- Endpoint `/api/agents/conversion/process-lead` para registrar leads desde WhatsApp, landing, Meta, Google o pago confirmado y activar matricula cuando corresponde.
 - Esquema Supabase inicial para cola persistente, ejecuciones, evidencias, integraciones por empresa y auditoria.
 
 ## Modos incluidos
@@ -105,7 +107,7 @@ PORT=10000
 APP_URL=https://sales.ia.crm.inteca.com.do
 APP_SECRET=usa_un_valor_largo_y_privado
 GEMINI_API_KEY=tu_clave_gemini
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash
 META_WEBHOOK_VERIFY_TOKEN=sales_ai_crm_whatsapp_verify_2026
 ADMIN_EMAIL=admin@inteca.com.do
 ADMIN_PASSWORD=usa_una_contrasena_privada_y_larga
@@ -126,6 +128,8 @@ Usa tu dominio real delante de cada ruta:
 /api/webhooks/payments
 /api/webhooks/dgii/ecf-status
 /api/audit/events
+/api/agents/conversion/process-lead
+/api/agents/conversion/leads
 /api/auth/login
 /api/auth/logout
 /api/ai/generate-growth-system
@@ -160,6 +164,25 @@ Documentos operativos incluidos:
 - `docs/RENDER_VARIABLES_MATRIX.md`: variables reales de Render, funcion, origen, servicio y prueba.
 - `docs/AGENT_CONNECTOR_ACCEPTANCE_MATRIX.md`: matriz agente/plataforma/evidencia/pendiente.
 - `docs/supabase/001_agent_runtime_schema.sql`: esquema base para persistencia real de agentes.
+
+## Flujo del Agente IA Conversion y Matricula
+
+1. Recibe o registra el lead desde WhatsApp, formulario web, Meta Ads, Google Ads o carga manual.
+2. Normaliza nombre, telefono, WhatsApp, correo, curso, fuente, campana y mensaje.
+3. Califica si faltan datos y programa seguimiento inmediato.
+4. Cuando el pago de inscripcion se confirma, cambia el estado a estudiante activo.
+5. Genera paquete de bienvenida: codigo de estudiante, usuario, clave temporal, codigo de curso y mensaje de acceso.
+6. Si el campus real no tiene API conectada, deja la sincronizacion marcada como pendiente para revision humana.
+
+Variables del campus:
+
+```env
+INTECA_CAMPUS_BASE_URL=https://campus.inteca.com.do
+INTECA_CAMPUS_API_KEY=tu_clave_api_del_campus
+INTECA_CAMPUS_DEFAULT_ROLE=student
+INTECA_CAMPUS_WELCOME_TEMPLATE_ID=inteca_welcome_default
+VITE_INTECA_CAMPUS_URL=https://campus.inteca.com.do
+```
 
 ## Comandos utiles
 

@@ -56,7 +56,7 @@ PORT=10000
 APP_URL=https://sales.ia.crm.inteca.com.do
 APP_SECRET=usa_un_valor_largo_y_privado
 GEMINI_API_KEY=tu_clave_gemini
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash
 META_WEBHOOK_VERIFY_TOKEN=sales_ai_crm_whatsapp_verify_2026
 ADMIN_EMAIL=admin@inteca.com.do
 ADMIN_PASSWORD=usa_una_contrasena_privada_y_larga
@@ -170,7 +170,54 @@ DGII_ECF_ISSUER_RNC=
 DGII_ECF_PROVIDER_API_KEY=
 ```
 
-## 9. Verificacion
+## 9. Campus virtual INTECA y agente de conversion
+
+El agente de conversion registra leads y, cuando el pago de inscripcion queda confirmado, genera bienvenida y credenciales del campus. Agrega estas variables en Render:
+
+```env
+INTECA_CAMPUS_BASE_URL=https://campus.inteca.com.do
+INTECA_CAMPUS_API_KEY=
+INTECA_CAMPUS_DEFAULT_ROLE=student
+INTECA_CAMPUS_WELCOME_TEMPLATE_ID=inteca_welcome_default
+VITE_INTECA_CAMPUS_URL=https://campus.inteca.com.do
+```
+
+Endpoint para registrar un lead:
+
+```text
+https://sales.ia.crm.inteca.com.do/api/agents/conversion/process-lead
+```
+
+Ejemplo minimo:
+
+```json
+{
+  "fullName": "Nombre del prospecto",
+  "whatsapp": "8090000000",
+  "email": "correo@ejemplo.com",
+  "courseTitle": "Técnico en Autorizaciones Médicas",
+  "source": "WhatsApp"
+}
+```
+
+Ejemplo cuando ya pago la inscripcion:
+
+```json
+{
+  "fullName": "Nombre del estudiante",
+  "whatsapp": "8090000000",
+  "email": "correo@ejemplo.com",
+  "courseTitle": "Técnico en Autorizaciones Médicas",
+  "source": "Pasarela de pago",
+  "paymentConfirmed": true,
+  "paymentAmount": 2500,
+  "paymentTransactionId": "referencia_real_del_pago"
+}
+```
+
+Si `INTECA_CAMPUS_API_KEY` esta vacia, el CRM prepara credenciales provisionales y deja la sincronizacion del campus como pendiente de revision humana.
+
+## 10. Verificacion
 
 Abre:
 
@@ -187,6 +234,7 @@ https://sales.ia.crm.inteca.com.do/api/auth/logout
 https://sales.ia.crm.inteca.com.do/api/ai/generate-growth-system
 https://sales.ia.crm.inteca.com.do/api/ai/generate-ecf-invoice
 https://sales.ia.crm.inteca.com.do/api/ai/generate-accounting-report
+https://sales.ia.crm.inteca.com.do/api/agents/conversion/leads
 ```
 
 Luego entra al CRM:

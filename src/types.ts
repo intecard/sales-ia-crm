@@ -110,6 +110,7 @@ export interface Lead {
   // Conversation & Docs
   conversationHistory: ConversationMessage[];
   documents: LeadDocument[];
+  studentEnrollment?: StudentEnrollment;
 
   createdAt: string;
   updatedAt: string;
@@ -157,6 +158,26 @@ export interface LeadDocument {
   uploadedAt: string;
 }
 
+export interface StudentEnrollment {
+  status:
+    | 'Lead registrado'
+    | 'Pago pendiente'
+    | 'Inscripción pagada'
+    | 'Credenciales generadas'
+    | 'Bienvenida enviada'
+    | 'Activo en campus';
+  studentCode: string;
+  enrollmentPaymentTransactionId?: string;
+  enrollmentPaidAt?: string;
+  campusUrl: string;
+  campusEmail: string;
+  campusTemporaryPassword: string;
+  courseAccessCode: string;
+  welcomeMessage: string;
+  credentialsSentAt?: string;
+  nextAcademicFollowUpAt?: string;
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -195,6 +216,7 @@ export interface AIAgentSpec {
     | 'Estrategia'
     | 'Cierre'
     | 'Marketing'
+    | 'Conversión'
     | 'Publicidad'
     | 'Embudos'
     | 'Prospección'
@@ -714,7 +736,8 @@ export type IntegrationCategory =
   | 'Facturación'
   | 'Creativos'
   | 'Notificaciones'
-  | 'Web';
+  | 'Web'
+  | 'Campus';
 
 export interface ExternalIntegration {
   id: string;

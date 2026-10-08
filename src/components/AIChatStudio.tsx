@@ -34,6 +34,7 @@ interface AIChatStudioProps {
     isHumanOverride: boolean,
   ) => Promise<void>;
   onGeneratePaymentLink: (lead: Lead, courseId: string, discount: number) => void;
+  onConfirmEnrollmentPayment: (lead: Lead, courseId: string) => void;
 }
 
 export const AIChatStudio: React.FC<AIChatStudioProps> = ({
@@ -44,6 +45,7 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
   onSelectLead,
   onSendMessageToLead,
   onGeneratePaymentLink,
+  onConfirmEnrollmentPayment,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isHumanOverride, setIsHumanOverride] = useState(false);
@@ -364,6 +366,30 @@ export const AIChatStudio: React.FC<AIChatStudioProps> = ({
               <CreditCard className="w-4 h-4" />
               <span>Generar Link de Pago Instantáneo</span>
             </button>
+            <button
+              type="button"
+              onClick={() => onConfirmEnrollmentPayment(selectedLead, selectedCourse.id)}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Validar inscripción y enviar bienvenida</span>
+            </button>
+
+            {selectedLead.studentEnrollment && (
+              <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-3 text-[11px] text-emerald-100">
+                <p className="font-black text-emerald-300">Estudiante activado</p>
+                <p className="mt-1">
+                  Usuario: <strong>{selectedLead.studentEnrollment.campusEmail}</strong>
+                </p>
+                <p>
+                  Clave temporal:{' '}
+                  <strong>{selectedLead.studentEnrollment.campusTemporaryPassword}</strong>
+                </p>
+                <p>
+                  Campus: <strong>{selectedLead.studentEnrollment.campusUrl}</strong>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

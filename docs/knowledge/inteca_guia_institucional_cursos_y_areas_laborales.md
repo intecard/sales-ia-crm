@@ -192,6 +192,7 @@ Quien prefiere procesos y datos puede explorar autorizaciones, precertificacione
 ## Inscripción contactos y referencias
 ### Pasos para solicitar información o inscribirse
 1. Elegir el programa y solicitar su ficha actualizada con duración, fechas, horario, modalidad y requisitos de admisión. 2. Confirmar inscripción, mensualidades, número de cuotas, costo total y conceptos incluidos. 3. Revisar condiciones de evaluación, certificado, prácticas y pasantías, si corresponden. 4. Completar el formulario institucional y entregar únicamente la documentación requerida por un canal verificado. 5. Solicitar comprobante de pago, calendario y orientación de acceso antes del inicio.
+Cuando el pago de inscripcion quede confirmado, el CRM debe convertir el lead en estudiante activo, registrar el comprobante o referencia, enviar bienvenida, entregar enlace del campus virtual, usuario, clave temporal, codigo del curso y programar seguimiento academico inicial. Si la API del campus no esta conectada, las credenciales son provisionales y deben sincronizarse despues por un usuario autorizado.
 ### Canales publicados por INTECA
 Sitio web: https://www.inteca.com.do/ Formulario de inscripción: https://www.inteca.com.do/inscripcion Teléfono publicado: (809) 643-5502 Correo publicado: intecaedu@gmail.com Ubicación publicada: kilómetro 18 de la Autopista Duarte, Santo Domingo Oeste, República Dominicana. Confirmar dirección de atención y disponibilidad antes de acudir. [2]
 ### Preguntas frecuentes

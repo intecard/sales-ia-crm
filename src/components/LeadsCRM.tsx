@@ -117,17 +117,17 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
       scoreAI: 0,
       currentEmotion: 'Neutral',
       lastInteraction: new Date().toISOString(),
-      assignedAgentId: 'agent_closer',
+      assignedAgentId: 'agent_conversion',
       organizationId: 'org_inteca_main',
-      tags: ['Registro real', 'Pendiente calificación IA'],
+      tags: ['Registro real', 'Agente Conversión', 'Pendiente calificación IA'],
       conversationHistory: [
         {
           id: `msg_init_${Date.now()}`,
           sender: 'ai_agent',
-          agentName: 'Agente IA de Ventas y Cierre',
+          agentName: 'Agente IA Conversión y Matrícula',
           channel: 'WhatsApp',
           messageType: 'text',
-          content: `¡Hola ${newFirstName}! Bienvenido a INTECA. Recibimos tu registro para el ${courseObj?.title}. Te envío el brochure con el temario completo.`,
+          content: `¡Hola ${newFirstName}! Bienvenido a INTECA. Ya registré tu solicitud para ${courseObj?.title}. Te voy a orientar paso a paso: primero confirmamos tus datos, luego resolvemos tus dudas, te envío el proceso de inscripción y, cuando tu pago sea validado, te doy bienvenida y credenciales del campus virtual.`,
           timestamp: new Date().toISOString(),
         },
       ],
@@ -562,6 +562,44 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
                 </div>
               </div>
             </div>
+
+            {selectedLeadModal.studentEnrollment && (
+              <div className="mt-6 bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-4">
+                <h3 className="font-bold text-xs text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" />
+                  Matrícula y campus virtual
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-xs text-slate-200">
+                  <div>
+                    <strong className="text-slate-400">Estado:</strong>{' '}
+                    {selectedLeadModal.studentEnrollment.status}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Código estudiante:</strong>{' '}
+                    {selectedLeadModal.studentEnrollment.studentCode}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Campus:</strong>{' '}
+                    {selectedLeadModal.studentEnrollment.campusUrl}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Usuario:</strong>{' '}
+                    {selectedLeadModal.studentEnrollment.campusEmail}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Contraseña temporal:</strong>{' '}
+                    {selectedLeadModal.studentEnrollment.campusTemporaryPassword}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Código curso:</strong>{' '}
+                    {selectedLeadModal.studentEnrollment.courseAccessCode}
+                  </div>
+                </div>
+                <p className="text-[11px] text-emerald-100 mt-3">
+                  {selectedLeadModal.studentEnrollment.welcomeMessage}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

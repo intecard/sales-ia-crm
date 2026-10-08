@@ -105,6 +105,22 @@ Todo prospecto debe registrarse con:
 - Proximo seguimiento.
 - Comentarios importantes.
 
+## Reglas para conversion, matricula y campus
+
+- El agente de conversion debe crear o actualizar el lead desde el primer contacto,
+  aunque venga de WhatsApp, Meta Ads, Google Ads, formulario web o API.
+- Ningun lead debe marcarse como estudiante activo hasta que exista pago de
+  inscripcion confirmado por pasarela, comprobante validado o autorizacion humana.
+- Cuando el pago se confirma, el agente debe cambiar el lead a matriculado, generar
+  codigo de estudiante, usuario de campus, clave temporal, codigo del curso, mensaje
+  de bienvenida y seguimiento academico de 24 horas.
+- Si la API del campus virtual no esta conectada, las credenciales son provisionales
+  y debe quedar pendiente la sincronizacion externa.
+- El mensaje de bienvenida debe ser claro: confirmar pago, curso, enlace del campus,
+  usuario, clave temporal, codigo del curso y proximos pasos academicos.
+- No inventar grupos, fechas de inicio, docentes, certificaciones ni disponibilidad
+  de cupos si esos datos no estan confirmados.
+
 ## Reglas de ventas
 
 - Crear necesidad de forma etica mostrando oportunidad, utilidad practica y costo de

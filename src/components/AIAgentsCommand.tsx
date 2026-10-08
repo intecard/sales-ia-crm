@@ -60,6 +60,13 @@ const UNIVERSAL_AGENT_CONNECTOR_IDS = [
 
 const CONNECTORS_BY_SPECIALTY: Partial<Record<AIAgentSpec['specialty'], string[]>> = {
   WhatsApp: ['int_whatsapp_cloud'],
+  Conversión: [
+    'int_whatsapp_cloud',
+    'int_web_forms',
+    'int_payments',
+    'int_inteca_campus',
+    'int_owner_notifications',
+  ],
   Omnicanal: ['int_whatsapp_cloud', 'int_meta_social', 'int_google_ads', 'int_web_forms'],
   Marketing: ['int_meta_social', 'int_google_ads', 'int_web_forms', 'int_owner_notifications'],
   Copywriting: ['int_meta_social', 'int_google_ads', 'int_web_forms'],
@@ -95,6 +102,7 @@ const PLATFORM_QUICK_LINKS = [
   { name: 'Google Ads', category: 'Buscadores', url: 'https://ads.google.com/' },
   { name: 'YouTube Studio', category: 'Video', url: 'https://studio.youtube.com/' },
   { name: 'Google Cloud', category: 'IA', url: 'https://console.cloud.google.com/' },
+  { name: 'Campus INTECA', category: 'Campus', url: 'https://campus.inteca.com.do/' },
 ] satisfies Array<{ name: string; category: IntegrationCategory; url: string }>;
 
 const getIntegrationIcon = (category: IntegrationCategory) => {

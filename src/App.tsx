@@ -69,6 +69,7 @@ import {
   CompanyKpiMetric,
   UserRole,
   AdPlatform,
+  StudentEnrollment,
 } from './types';
 
 const AUTH_SESSION_STORAGE_KEY = 'sales-ai-crm-auth-session-real-only-v128';
@@ -135,6 +136,11 @@ const REAL_AGENT_IDENTITIES: Record<string, { name: string; roleTitle: string; i
       name: 'Agente IA de Ventas y Cierre',
       roleTitle: 'Ventas 24/7, objeciones, seguimiento y pagos',
       initials: 'VC',
+    },
+    agent_conversion: {
+      name: 'Agente IA Conversión y Matrícula',
+      roleTitle: 'Registro autónomo de leads, inscripción, campus y bienvenida',
+      initials: 'CM',
     },
     agent_whatsapp: {
       name: 'Agente IA WhatsApp',
@@ -256,6 +262,61 @@ const getAgentsForSession = () => {
 
 const getCoursesForSession = () => {
   return CONFIRMED_INTECA_COURSES;
+};
+
+const getIntecaCampusUrl = () => {
+  const viteCampusUrl = import.meta.env.VITE_INTECA_CAMPUS_URL;
+  if (typeof viteCampusUrl === 'string' && viteCampusUrl.trim()) {
+    return viteCampusUrl.trim();
+  }
+
+  return 'https://campus.inteca.com.do';
+};
+
+const normalizeCredentialToken = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 18);
+
+const getCourseShortCode = (course: Course) =>
+  course.code?.trim() || normalizeCredentialToken(course.title).slice(0, 10).toUpperCase();
+
+const buildStudentEnrollment = (
+  lead: Lead,
+  course: Course,
+  paymentTransactionId: string,
+  paidAt: string,
+): StudentEnrollment => {
+  const cleanName = normalizeCredentialToken(`${lead.firstName}.${lead.lastName || 'estudiante'}`);
+  const phoneToken = normalizeCredentialToken(lead.whatsapp || lead.phone || lead.id).slice(-4);
+  const courseCode = getCourseShortCode(course);
+  const studentCode = `INTECA-${new Date(paidAt).getFullYear()}-${lead.id.slice(-5).toUpperCase()}`;
+  const campusUrl = getIntecaCampusUrl();
+  const campusEmail =
+    lead.email && lead.email.includes('@')
+      ? lead.email.trim().toLowerCase()
+      : `${cleanName || 'estudiante'}${phoneToken}@alumnos.inteca.com.do`;
+  const campusTemporaryPassword = `Inteca-${courseCode.slice(0, 4)}-${phoneToken || '2026'}!`;
+  const courseAccessCode = `${courseCode}-${studentCode.slice(-5)}`;
+  const nextAcademicFollowUpAt = new Date(Date.now() + 24 * 60 * 60 * 1_000).toISOString();
+  const welcomeMessage = `Hola ${lead.firstName}, bienvenido/a oficialmente a INTECA. Tu inscripción al programa ${course.title} fue validada correctamente. Acceso al campus: ${campusUrl}. Usuario: ${campusEmail}. Contraseña temporal: ${campusTemporaryPassword}. Código de acceso del curso: ${courseAccessCode}. En las próximas 24 horas el equipo académico confirmará tu grupo, horario y próximos pasos.`;
+
+  return {
+    status: 'Bienvenida enviada',
+    studentCode,
+    enrollmentPaymentTransactionId: paymentTransactionId,
+    enrollmentPaidAt: paidAt,
+    campusUrl,
+    campusEmail,
+    campusTemporaryPassword,
+    courseAccessCode,
+    welcomeMessage,
+    credentialsSentAt: paidAt,
+    nextAcademicFollowUpAt,
+  };
 };
 
 const getTenantLicensesForSession = (
@@ -847,6 +908,83 @@ export function App() {
     });
   };
 
+  const buildEnrolledStudentLead = (lead: Lead, transaction: PaymentTransaction): Lead => {
+    const courseObj =
+      courses.find((course) => course.title === transaction.courseTitle) ||
+      courses.find((course) => course.id === lead.courseOfInterestId) ||
+      courses[0];
+    const paidAt = transaction.createdAt || new Date().toISOString();
+    const enrollment = buildStudentEnrollment(lead, courseObj, transaction.id, paidAt);
+    const existingMessageIds = new Set(lead.conversationHistory.map((message) => message.id));
+    const welcomeMessage = {
+      id: `msg_welcome_${transaction.id}`,
+      sender: 'ai_agent' as const,
+      agentName: 'Agente IA Conversión y Matrícula',
+      channel: 'WhatsApp' as const,
+      messageType: 'text' as const,
+      content: enrollment.welcomeMessage,
+      timestamp: paidAt,
+    };
+
+    return {
+      ...lead,
+      stageId: 'cliente',
+      status: 'Ganado',
+      buyProbability: 100,
+      scoreAI: Math.max(lead.scoreAI, 96),
+      assignedAgentId: 'agent_conversion',
+      studentEnrollment: enrollment,
+      nextFollowUp: enrollment.nextAcademicFollowUpAt,
+      tags: Array.from(
+        new Set([
+          ...lead.tags,
+          'Inscripción Pagada',
+          'Estudiante Activo',
+          'Campus Virtual',
+          'Bienvenida Enviada',
+        ]),
+      ),
+      conversationHistory: existingMessageIds.has(welcomeMessage.id)
+        ? lead.conversationHistory
+        : [...lead.conversationHistory, welcomeMessage],
+      updatedAt: paidAt,
+    };
+  };
+
+  const activateEnrollmentForTransaction = (transaction: PaymentTransaction) => {
+    let enrolledLead: Lead | null = null;
+
+    setLeads((prev) =>
+      prev.map((lead) => {
+        if (lead.id !== transaction.leadId) return lead;
+        enrolledLead = buildEnrolledStudentLead(lead, transaction);
+        return enrolledLead;
+      }),
+    );
+
+    setSelectedLeadForChat((prev) =>
+      prev?.id === transaction.leadId ? buildEnrolledStudentLead(prev, transaction) : prev,
+    );
+
+    const targetLead = leads.find((lead) => lead.id === transaction.leadId);
+    const auditLead = enrolledLead || targetLead;
+    if (auditLead) {
+      recordAudit({
+        actorType: 'Agente IA',
+        actorName: 'Agente IA Conversión y Matrícula',
+        module: 'Leads',
+        action: 'Actualizó',
+        entityType: 'StudentEnrollment',
+        entityId: transaction.leadId,
+        summary: `Lead convertido en estudiante: ${auditLead.firstName} ${auditLead.lastName}`,
+        details: `Pago de inscripción validado. Se generaron credenciales de campus, mensaje de bienvenida y seguimiento académico. Transacción: ${transaction.transactionRef}.`,
+        sourceChannel: 'Sistema',
+        severity: 'Éxito',
+        status: 'Registrado',
+      });
+    }
+  };
+
   const handleOpenChatWithLead = (lead: Lead) => {
     setSelectedLeadForChat(lead);
     setActiveTab('chat');
@@ -983,6 +1121,10 @@ export function App() {
       severity: newTx.status === 'Completado' ? 'Éxito' : 'Advertencia',
       status: newTx.status === 'Pendiente' ? 'Pendiente revisión' : 'Registrado',
     });
+
+    if (newTx.status === 'Completado') {
+      activateEnrollmentForTransaction(newTx);
+    }
   };
 
   // Real-time Chat AI Messaging Handler via Express Backend
@@ -1155,6 +1297,33 @@ export function App() {
     setActiveTab('chat');
   };
 
+  const handleConfirmEnrollmentPayment = (lead: Lead, courseId: string) => {
+    const courseObj = courses.find((c) => c.id === courseId) || courses[0];
+    const enrollmentAmount = courseObj.discountPrice || Math.min(courseObj.price || 2500, 2500);
+    const completedAt = new Date().toISOString();
+    const paymentRef = `enrollment_${crypto.randomUUID()}`;
+
+    const completedTransaction: PaymentTransaction = {
+      id: `tx_paid_${Date.now()}`,
+      leadId: lead.id,
+      leadName: `${lead.firstName} ${lead.lastName}`,
+      courseTitle: courseObj.title,
+      organizationId: lead.organizationId,
+      amount: enrollmentAmount,
+      currency: 'DOP',
+      status: 'Completado',
+      gateway: 'Transferencia',
+      transactionRef: paymentRef,
+      invoiceNumber: `REC-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+      invoiceUrl: '',
+      courseActivationCode: `${getCourseShortCode(courseObj)}-${lead.id.slice(-5).toUpperCase()}`,
+      createdAt: completedAt,
+    };
+
+    handleAddTransaction(completedTransaction);
+    setActiveTab('chat');
+  };
+
   return (
     <PlatformFrame platform={simulatedOS}>
       <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
@@ -1228,6 +1397,7 @@ export function App() {
                   onSelectLead={setSelectedLeadForChat}
                   onSendMessageToLead={handleSendMessageToLead}
                   onGeneratePaymentLink={handleGeneratePaymentLink}
+                  onConfirmEnrollmentPayment={handleConfirmEnrollmentPayment}
                 />
               ) : (
                 <div className="p-6 max-w-3xl mx-auto">

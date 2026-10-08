@@ -156,10 +156,78 @@ const auditEventSchema = z.object({
   status: z.enum(['Registrado', 'Pendiente revisión', 'Resuelto']),
 });
 
+const conversionLeadRequestSchema = z.object({
+  firstName: z.string().max(120).optional(),
+  lastName: z.string().max(120).optional(),
+  fullName: z.string().max(240).optional(),
+  name: z.string().max(240).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().max(60).optional(),
+  whatsapp: z.string().max(60).optional(),
+  courseId: z.string().max(120).optional(),
+  courseTitle: z.string().max(250).optional(),
+  source: z.string().max(120).optional(),
+  message: z.string().max(4_000).optional(),
+  campaign: z.string().max(250).optional(),
+  organizationId: z.string().max(120).optional(),
+  paymentConfirmed: z.boolean().optional(),
+  paymentAmount: z.number().min(0).optional(),
+  paymentTransactionId: z.string().max(180).optional(),
+});
+
+type ConversionLeadInput = z.infer<typeof conversionLeadRequestSchema>;
+
+interface ServerConversionLead {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  courseId?: string;
+  courseTitle: string;
+  source: string;
+  campaign?: string;
+  message?: string;
+  organizationId: string;
+  stageId: string;
+  status: string;
+  scoreAI: number;
+  assignedAgentId: string;
+  missingFields: string[];
+  createdAt: string;
+  updatedAt: string;
+  lastInteractionAt: string;
+  nextFollowUpAt: string;
+}
+
+interface ServerStudentEnrollment {
+  id: string;
+  leadId: string;
+  studentCode: string;
+  courseId?: string;
+  courseTitle: string;
+  paymentTransactionId: string;
+  paymentAmount?: number;
+  paidAt: string;
+  status: string;
+  campusUrl: string;
+  campusEmail: string;
+  campusTemporaryPassword: string;
+  courseAccessCode: string;
+  welcomeMessage: string;
+  credentialsSentAt: string;
+  nextAcademicFollowUpAt: string;
+  campusSyncStatus: 'synced_or_ready' | 'pending_external_campus_api';
+}
+
 const serverAuditEvents: Array<
   z.infer<typeof auditEventSchema> & { id: string; timestamp: string }
 > = [];
 
+const serverConversionLeads: ServerConversionLead[] = [];
+const serverStudentEnrollments: ServerStudentEnrollment[] = [];
 const processedWhatsAppMessageIds = new Set<string>();
 
 function getConfiguredAdminCredentials() {
@@ -465,6 +533,18 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
 
     const userMessage = getWhatsAppMessageText(message);
     const customerName = findWhatsAppContactName(event, from);
+    const conversionResult = processConversionLead(
+      {
+        fullName: customerName,
+        whatsapp: from,
+        phone: from,
+        source: 'WhatsApp',
+        message: userMessage,
+        courseTitle: inferCourseTitle({ message: userMessage }),
+        organizationId: 'org_inteca_main',
+      },
+      'WhatsApp',
+    );
     const reply = await generateWhatsAppAutoReply(userMessage, customerName);
 
     await sendWhatsAppTextMessage(from, reply);
@@ -482,6 +562,22 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       severity: 'Éxito',
       status: 'Registrado',
     });
+
+    if (conversionResult.lead.missingFields.length === 0) {
+      recordServerAudit({
+        actorType: 'Agente IA',
+        actorName: 'Agente IA Conversión y Matrícula',
+        module: 'Leads',
+        action: 'Calificó',
+        entityType: 'ConversionLead',
+        entityId: conversionResult.lead.id,
+        summary: 'Lead de WhatsApp quedó listo para solicitar inscripción.',
+        details: `Curso: ${conversionResult.lead.courseTitle}. Próximo seguimiento: ${conversionResult.lead.nextFollowUpAt}.`,
+        sourceChannel: 'WhatsApp',
+        severity: 'Info',
+        status: 'Registrado',
+      });
+    }
   }
 }
 
@@ -500,6 +596,239 @@ function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
     entityType: entry.entityType,
   });
   return entry;
+}
+
+function normalizeConversionToken(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 24);
+}
+
+function normalizeContactValue(value?: string) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function splitLeadName(payload: ConversionLeadInput) {
+  const explicitFirstName = normalizeContactValue(payload.firstName);
+  const explicitLastName = normalizeContactValue(payload.lastName);
+  if (explicitFirstName) {
+    return {
+      firstName: explicitFirstName,
+      lastName: explicitLastName,
+      fullName: [explicitFirstName, explicitLastName].filter(Boolean).join(' '),
+    };
+  }
+
+  const rawFullName = normalizeContactValue(payload.fullName || payload.name);
+  const parts = rawFullName.split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || 'Prospecto',
+    lastName: parts.slice(1).join(' ') || 'INTECA',
+    fullName: rawFullName || 'Prospecto INTECA',
+  };
+}
+
+function inferCourseTitle(payload: ConversionLeadInput) {
+  const directCourse = normalizeContactValue(payload.courseTitle);
+  if (directCourse) return directCourse;
+
+  const message = normalizeContactValue(payload.message).toLowerCase();
+  if (message.includes('autoriz')) return 'Técnico en Autorizaciones Médicas';
+  if (message.includes('factur')) return 'Facturación Médica';
+  if (message.includes('enfermer')) return 'Enfermería';
+  if (message.includes('farmac')) return 'Farmacología Aplicada';
+  if (message.includes('precert')) return 'Precertificaciones Médicas';
+
+  return 'Curso INTECA por confirmar';
+}
+
+function findExistingConversionLead(payload: ConversionLeadInput) {
+  const email = normalizeContactValue(payload.email).toLowerCase();
+  const whatsapp = normalizeContactValue(payload.whatsapp || payload.phone).replace(/\D/g, '');
+  return serverConversionLeads.find((lead) => {
+    const leadWhatsapp = (lead.whatsapp || lead.phone).replace(/\D/g, '');
+    return Boolean(
+      (email && lead.email.toLowerCase() === email) || (whatsapp && leadWhatsapp === whatsapp),
+    );
+  });
+}
+
+function buildConversionLeadFromPayload(payload: ConversionLeadInput) {
+  const now = new Date().toISOString();
+  const existingLead = findExistingConversionLead(payload);
+  const { firstName, lastName, fullName } = splitLeadName(payload);
+  const email = normalizeContactValue(payload.email);
+  const phone = normalizeContactValue(payload.phone || payload.whatsapp);
+  const whatsapp = normalizeContactValue(payload.whatsapp || payload.phone);
+  const courseTitle = inferCourseTitle(payload);
+  const source = normalizeContactValue(payload.source) || 'API';
+  const missingFields = [
+    !firstName || firstName === 'Prospecto' ? 'nombre real' : '',
+    !email ? 'correo' : '',
+    !whatsapp && !phone ? 'WhatsApp o teléfono' : '',
+    courseTitle === 'Curso INTECA por confirmar' ? 'curso de interés' : '',
+  ].filter(Boolean);
+  const stageId = payload.paymentConfirmed
+    ? 'venta_realizada'
+    : missingFields.length === 0
+      ? 'calificado'
+      : 'contactado';
+
+  const lead: ServerConversionLead = {
+    id: existingLead?.id || `lead_conv_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+    firstName,
+    lastName,
+    fullName,
+    email,
+    phone,
+    whatsapp,
+    courseId: normalizeContactValue(payload.courseId) || existingLead?.courseId,
+    courseTitle,
+    source,
+    campaign: normalizeContactValue(payload.campaign) || existingLead?.campaign,
+    message: normalizeContactValue(payload.message) || existingLead?.message,
+    organizationId: normalizeContactValue(payload.organizationId) || 'org_inteca_main',
+    stageId,
+    status: payload.paymentConfirmed ? 'Pago validado' : 'Seguimiento activo',
+    scoreAI: missingFields.length === 0 ? 88 : 72,
+    assignedAgentId: 'agent_conversion',
+    missingFields,
+    createdAt: existingLead?.createdAt || now,
+    updatedAt: now,
+    lastInteractionAt: now,
+    nextFollowUpAt: new Date(Date.now() + 60 * 60 * 1_000).toISOString(),
+  };
+
+  return lead;
+}
+
+function upsertConversionLead(lead: ServerConversionLead) {
+  const existingIndex = serverConversionLeads.findIndex((item) => item.id === lead.id);
+  if (existingIndex >= 0) {
+    serverConversionLeads[existingIndex] = lead;
+  } else {
+    serverConversionLeads.unshift(lead);
+  }
+
+  serverConversionLeads.splice(300);
+  return lead;
+}
+
+function buildCampusCredentialPackage(
+  lead: ServerConversionLead,
+  payload: ConversionLeadInput,
+): ServerStudentEnrollment {
+  const paidAt = new Date().toISOString();
+  const campusUrl = process.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do';
+  const campusConnected = Boolean(process.env.INTECA_CAMPUS_BASE_URL && process.env.INTECA_CAMPUS_API_KEY);
+  const nameToken = normalizeConversionToken(`${lead.firstName}.${lead.lastName}`);
+  const contactToken = normalizeConversionToken(lead.whatsapp || lead.phone || lead.id).slice(-4);
+  const courseToken = normalizeConversionToken(lead.courseTitle).slice(0, 8).toUpperCase() || 'CURSO';
+  const studentCode = `INTECA-${new Date(paidAt).getFullYear()}-${lead.id.slice(-6).toUpperCase()}`;
+  const campusEmail =
+    lead.email && lead.email.includes('@')
+      ? lead.email.toLowerCase()
+      : `${nameToken || 'estudiante'}${contactToken}@alumnos.inteca.com.do`;
+  const campusTemporaryPassword = `Inteca-${courseToken.slice(0, 4)}-${contactToken || '2026'}!`;
+  const courseAccessCode = `${courseToken}-${studentCode.slice(-6)}`;
+  const nextAcademicFollowUpAt = new Date(Date.now() + 24 * 60 * 60 * 1_000).toISOString();
+  const welcomeMessage = `Hola ${lead.firstName}, bienvenido/a oficialmente a INTECA. Tu inscripción al programa ${lead.courseTitle} fue validada correctamente. Acceso al campus: ${campusUrl}. Usuario: ${campusEmail}. Contraseña temporal: ${campusTemporaryPassword}. Código del curso: ${courseAccessCode}. En las próximas 24 horas confirmaremos tu grupo, horario y próximos pasos académicos.`;
+
+  return {
+    id: `enr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+    leadId: lead.id,
+    studentCode,
+    courseId: lead.courseId,
+    courseTitle: lead.courseTitle,
+    paymentTransactionId:
+      normalizeContactValue(payload.paymentTransactionId) ||
+      `payment_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+    paymentAmount: payload.paymentAmount,
+    paidAt,
+    status: campusConnected ? 'Activo en campus' : 'Bienvenida enviada',
+    campusUrl,
+    campusEmail,
+    campusTemporaryPassword,
+    courseAccessCode,
+    welcomeMessage,
+    credentialsSentAt: paidAt,
+    nextAcademicFollowUpAt,
+    campusSyncStatus: campusConnected ? 'synced_or_ready' : 'pending_external_campus_api',
+  };
+}
+
+function registerStudentEnrollment(enrollment: ServerStudentEnrollment) {
+  const existingIndex = serverStudentEnrollments.findIndex(
+    (item) => item.leadId === enrollment.leadId && item.paymentTransactionId === enrollment.paymentTransactionId,
+  );
+  if (existingIndex >= 0) {
+    serverStudentEnrollments[existingIndex] = enrollment;
+  } else {
+    serverStudentEnrollments.unshift(enrollment);
+  }
+
+  serverStudentEnrollments.splice(300);
+  return enrollment;
+}
+
+function processConversionLead(payload: ConversionLeadInput, sourceChannel = 'API') {
+  const lead = upsertConversionLead(buildConversionLeadFromPayload(payload));
+
+  recordServerAudit({
+    actorType: 'Agente IA',
+    actorName: 'Agente IA Conversión y Matrícula',
+    module: 'Leads',
+    action: payload.paymentConfirmed ? 'Actualizó' : 'Registró',
+    entityType: 'ConversionLead',
+    entityId: lead.id,
+    summary: payload.paymentConfirmed
+      ? `Lead actualizado por pago validado: ${lead.fullName}`
+      : `Lead registrado por agente de conversión: ${lead.fullName}`,
+    details: `Fuente: ${lead.source}. Curso: ${lead.courseTitle}. Campos pendientes: ${lead.missingFields.join(', ') || 'ninguno'}.`,
+    sourceChannel,
+    severity: 'Éxito',
+    status: 'Registrado',
+  });
+
+  const enrollment = payload.paymentConfirmed
+    ? registerStudentEnrollment(buildCampusCredentialPackage(lead, payload))
+    : null;
+
+  if (enrollment) {
+    recordServerAudit({
+      actorType: 'Agente IA',
+      actorName: 'Agente IA Conversión y Matrícula',
+      module: 'Campus',
+      action: 'Activó',
+      entityType: 'StudentEnrollment',
+      entityId: enrollment.id,
+      summary: `Estudiante activado y bienvenida preparada: ${lead.fullName}`,
+      details: `Pago: ${enrollment.paymentTransactionId}. Usuario campus: ${enrollment.campusEmail}. Estado campus: ${enrollment.campusSyncStatus}.`,
+      sourceChannel,
+      severity: enrollment.campusSyncStatus === 'synced_or_ready' ? 'Éxito' : 'Advertencia',
+      status:
+        enrollment.campusSyncStatus === 'synced_or_ready' ? 'Registrado' : 'Pendiente revisión',
+    });
+  }
+
+  return {
+    lead,
+    enrollment,
+    nextActions: enrollment
+      ? [
+          'Enviar mensaje de bienvenida al estudiante por WhatsApp/email.',
+          'Confirmar grupo, horario de inicio y acceso al campus.',
+          'Programar seguimiento académico en 24 horas.',
+        ]
+      : [
+          'Completar datos faltantes si existen.',
+          'Explicar valor del curso y confirmar horario preferido.',
+          'Solicitar pago de inscripción y mantener seguimiento hasta validarlo.',
+        ],
+  };
 }
 
 // Lazy initialization of Gemini Client
@@ -694,6 +1023,17 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     webhookPath: '/api/webhooks/payments',
   },
   {
+    id: 'int_inteca_campus',
+    name: 'Campus Virtual INTECA',
+    category: 'Campus',
+    requiredEnvVars: [
+      'INTECA_CAMPUS_BASE_URL',
+      'INTECA_CAMPUS_API_KEY',
+      'INTECA_CAMPUS_DEFAULT_ROLE',
+      'INTECA_CAMPUS_WELCOME_TEMPLATE_ID',
+    ],
+  },
+  {
     id: 'int_dgii_ecf',
     name: 'Facturación electrónica DGII e-CF',
     category: 'Facturación',
@@ -740,6 +1080,30 @@ const AGENT_RUNTIME_REGISTRY = [
     optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_whatsapp_cloud'],
     executableTools: ['webforms.receive', 'meta.lead_event', 'googleads.lead_event', 'crm.route_lead'],
     humanIntervention: 'Lead duplicado incierto, fuente sin consentimiento o credencial revocada.',
+  },
+  {
+    id: 'agent_conversion',
+    name: 'Agente IA Conversión y Matrícula',
+    function:
+      'Registra leads, califica intención, mueve el embudo, valida inscripción, activa estudiante y prepara bienvenida/campus.',
+    requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
+    optionalIntegrationIds: [
+      'int_whatsapp_cloud',
+      'int_web_forms',
+      'int_payments',
+      'int_inteca_campus',
+      'int_owner_notifications',
+    ],
+    executableTools: [
+      'crm.create_lead',
+      'crm.update_stage',
+      'payments.verify_enrollment',
+      'campus.create_student',
+      'campus.send_credentials',
+      'audit.record',
+    ],
+    humanIntervention:
+      'Pago dudoso, credenciales no sincronizadas, campus sin API, datos incompletos o reclamo sensible.',
   },
   {
     id: 'agent_closer',
@@ -837,6 +1201,7 @@ const CONFIGURATION_EXTRA_ENV_VARS = [
   'GEMINI_MODEL_RETRY_DELAY_MS',
   'NODE_ENV',
   'VITE_DEPLOYMENT_MODE',
+  'VITE_INTECA_CAMPUS_URL',
 ];
 
 const CONFIGURABLE_ENV_VARS = new Set([
@@ -1037,8 +1402,14 @@ app.get('/api/health', (req, res) => {
       dgiiConfigured: Boolean(
         process.env.DGII_ECF_PROVIDER_API_KEY || process.env.DGII_ECF_CERTIFICATE_PATH,
       ),
+      campusConfigured: isIntegrationConfigured('int_inteca_campus'),
       creativeAiConfigured: isIntegrationConfigured('int_creative_ai'),
       youtubeConfigured: isIntegrationConfigured('int_youtube'),
+    },
+    conversionAgent: {
+      registeredLeadsInMemory: serverConversionLeads.length,
+      studentEnrollmentsInMemory: serverStudentEnrollments.length,
+      processLeadPath: '/api/agents/conversion/process-lead',
     },
   });
 });
@@ -1235,6 +1606,9 @@ app.get('/api/runtime/config', (_req, res) => {
     accountingReportAiPath: '/api/ai/generate-accounting-report',
     agentKnowledgeStatusPath: '/api/knowledge/inteca/status',
     agentRuntimeManifestPath: '/api/agents/runtime/manifest',
+    conversionAgentPath: '/api/agents/conversion/process-lead',
+    conversionAgentLeadsPath: '/api/agents/conversion/leads',
+    campusBaseUrl: process.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do',
   });
 });
 
@@ -1440,6 +1814,46 @@ app.post('/api/audit/events', (req, res) => {
   return res.status(201).json({ success: true, event: entry });
 });
 
+app.get('/api/agents/conversion/leads', (_req, res) => {
+  res.json({
+    success: true,
+    agentName: 'Agente IA Conversión y Matrícula',
+    persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
+    leads: serverConversionLeads,
+    enrollments: serverStudentEnrollments,
+    campus: {
+      baseUrl: process.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do',
+      configured: Boolean(process.env.INTECA_CAMPUS_BASE_URL && process.env.INTECA_CAMPUS_API_KEY),
+    },
+  });
+});
+
+app.post('/api/agents/conversion/process-lead', (req, res) => {
+  const parsed = conversionLeadRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'INVALID_CONVERSION_LEAD_REQUEST',
+      details: parsed.error.flatten(),
+    });
+  }
+
+  const result = processConversionLead(parsed.data, parsed.data.source || 'API');
+  return res.status(result.enrollment ? 201 : 202).json({
+    success: true,
+    agentName: 'Agente IA Conversión y Matrícula',
+    action: result.enrollment ? 'student_enrolled' : 'lead_registered',
+    lead: result.lead,
+    enrollment: result.enrollment,
+    nextActions: result.nextActions,
+    requiresHumanReview: Boolean(
+      result.lead.missingFields.length ||
+        result.enrollment?.campusSyncStatus === 'pending_external_campus_api',
+    ),
+    persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
+  });
+});
+
 // Meta Lead Ads / Facebook / Instagram webhook verification.
 app.get('/api/webhooks/meta/leadgen', (req, res) => {
   const mode = req.query['hub.mode'];
@@ -1456,6 +1870,16 @@ app.get('/api/webhooks/meta/leadgen', (req, res) => {
 
 app.post('/api/webhooks/meta/leadgen', (req, res) => {
   const entries = Array.isArray(req.body?.entry) ? req.body.entry.length : 0;
+  const parsedLead = conversionLeadRequestSchema.safeParse({
+    ...req.body,
+    source: req.body?.source || 'Meta Ads',
+    campaign: req.body?.campaign || req.body?.campaign_name || req.body?.ad_name,
+    message: req.body?.message || req.body?.leadgen_id || JSON.stringify(req.body || {}),
+  });
+  const conversionResult = parsedLead.success
+    ? processConversionLead(parsedLead.data, 'Meta Ads')
+    : null;
+
   recordServerAudit({
     actorType: 'Webhook',
     actorName: 'Meta Lead Ads',
@@ -1469,10 +1893,25 @@ app.post('/api/webhooks/meta/leadgen', (req, res) => {
     severity: 'Info',
     status: 'Registrado',
   });
-  return res.status(200).json({ success: true, receivedEntries: entries });
+  return res.status(200).json({
+    success: true,
+    receivedEntries: entries,
+    conversionLead: conversionResult?.lead,
+    nextActions: conversionResult?.nextActions,
+  });
 });
 
 app.post('/api/webhooks/google-ads/leads', (req, res) => {
+  const parsedLead = conversionLeadRequestSchema.safeParse({
+    ...req.body,
+    source: req.body?.source || 'Google Ads',
+    campaign: req.body?.campaign || req.body?.campaign_name || req.body?.keyword,
+    message: req.body?.message || JSON.stringify(req.body || {}),
+  });
+  const conversionResult = parsedLead.success
+    ? processConversionLead(parsedLead.data, 'Google Ads')
+    : null;
+
   recordServerAudit({
     actorType: 'Webhook',
     actorName: 'Google Ads',
@@ -1486,7 +1925,12 @@ app.post('/api/webhooks/google-ads/leads', (req, res) => {
     severity: 'Info',
     status: 'Registrado',
   });
-  return res.status(200).json({ success: true, payloadAccepted: Boolean(req.body) });
+  return res.status(200).json({
+    success: true,
+    payloadAccepted: Boolean(req.body),
+    conversionLead: conversionResult?.lead,
+    nextActions: conversionResult?.nextActions,
+  });
 });
 
 app.post('/api/webhooks/youtube/events', (req, res) => {
@@ -1507,6 +1951,14 @@ app.post('/api/webhooks/youtube/events', (req, res) => {
 });
 
 app.post('/api/webhooks/web/forms', (req, res) => {
+  const parsedLead = conversionLeadRequestSchema.safeParse({
+    ...req.body,
+    source: req.body?.source || 'Web Form',
+  });
+  const conversionResult = parsedLead.success
+    ? processConversionLead(parsedLead.data, 'Web Form')
+    : null;
+
   recordServerAudit({
     actorType: 'Webhook',
     actorName: 'Landing Page / Web Form',
@@ -1520,10 +1972,62 @@ app.post('/api/webhooks/web/forms', (req, res) => {
     severity: 'Info',
     status: 'Registrado',
   });
-  return res.status(200).json({ success: true, payloadAccepted: Boolean(req.body) });
+  if (!parsedLead.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'INVALID_WEB_FORM_LEAD',
+      details: parsedLead.error.flatten(),
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    payloadAccepted: Boolean(req.body),
+    conversionLead: conversionResult?.lead,
+    nextActions: conversionResult?.nextActions,
+  });
 });
 
 app.post('/api/webhooks/payments', (req, res) => {
+  const rawStatus = String(
+    req.body?.status ||
+      req.body?.payment_status ||
+      req.body?.event ||
+      req.body?.type ||
+      req.body?.data?.status ||
+      '',
+  ).toLowerCase();
+  const paymentConfirmed =
+    req.body?.paymentConfirmed === true ||
+    ['completed', 'completado', 'paid', 'pagado', 'succeeded', 'approved', 'aprobado'].some(
+      (status) => rawStatus.includes(status),
+    );
+  const rawAmount = req.body?.paymentAmount || req.body?.amount || req.body?.data?.amount;
+  const paymentAmount = Number(rawAmount);
+  const parsedLead = conversionLeadRequestSchema.safeParse({
+    fullName:
+      req.body?.leadName || req.body?.customerName || req.body?.customer?.name || req.body?.name,
+    email: req.body?.email || req.body?.customer?.email,
+    phone: req.body?.phone || req.body?.customer?.phone,
+    whatsapp: req.body?.whatsapp || req.body?.customer?.whatsapp || req.body?.customer?.phone,
+    courseId: req.body?.courseId || req.body?.metadata?.courseId,
+    courseTitle: req.body?.courseTitle || req.body?.metadata?.courseTitle,
+    source: req.body?.source || 'Payment Provider',
+    campaign: req.body?.campaign || req.body?.metadata?.campaign,
+    organizationId: req.body?.organizationId || req.body?.metadata?.organizationId,
+    paymentConfirmed,
+    paymentAmount: Number.isFinite(paymentAmount) ? paymentAmount : undefined,
+    paymentTransactionId:
+      req.body?.paymentTransactionId ||
+      req.body?.transactionId ||
+      req.body?.id ||
+      req.body?.data?.id,
+    message: JSON.stringify(req.body || {}),
+  });
+  const conversionResult = parsedLead.success
+    ? processConversionLead(parsedLead.data, 'Payment Provider')
+    : null;
+
   recordServerAudit({
     actorType: 'Webhook',
     actorName: 'Payment Provider',
@@ -1537,7 +2041,14 @@ app.post('/api/webhooks/payments', (req, res) => {
     severity: 'Advertencia',
     status: 'Pendiente revisión',
   });
-  return res.status(200).json({ success: true, payloadAccepted: Boolean(req.body) });
+  return res.status(200).json({
+    success: true,
+    payloadAccepted: Boolean(req.body),
+    paymentConfirmed,
+    conversionLead: conversionResult?.lead,
+    enrollment: conversionResult?.enrollment,
+    nextActions: conversionResult?.nextActions,
+  });
 });
 
 app.post('/api/webhooks/dgii/ecf-status', (req, res) => {

@@ -1351,6 +1351,47 @@ const RAW_MULTI_AGENTS_SPEC = [
     },
   },
   {
+    id: 'agent_conversion',
+    name: 'Catalina Conversión',
+    roleTitle: 'Agente de Conversión, Matrícula y Campus Virtual',
+    specialty: 'Conversión',
+    avatar:
+      'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=150&auto=format&fit=crop&q=80',
+    description:
+      'Registra leads de forma autónoma, los califica, los mueve por el embudo, solicita inscripción, valida el pago y activa bienvenida con credenciales del campus virtual.',
+    systemPrompt: `Eres Catalina Conversión, agente de conversión y matrícula de INTECA. Tu misión es tomar cada primer contacto desde WhatsApp, web, Meta Ads, Google Ads, YouTube, formularios o chat, registrar el lead con datos mínimos completos, calificar necesidad y urgencia, moverlo por el embudo, entregar la propuesta del curso, resolver dudas, pedir la inscripción y dar seguimiento hasta que el pago esté validado. Cuando el pago de inscripción se confirma, debes convertir el lead en estudiante activo, generar mensaje de bienvenida, entregar credenciales temporales del campus virtual de INTECA, explicar próximos pasos académicos y programar seguimiento. Nunca marques estudiante activo sin pago validado y nunca inventes credenciales si el campus real no está conectado; si falta conexión, genera credenciales provisionales y deja estado pendiente de sincronización.`,
+    autonomyLevel: '24/7 Autónomo',
+    operatingMandate:
+      'Transformar cualquier contacto entrante en lead registrado, oportunidad, inscripción pagada, estudiante activo y bienvenida entregada con trazabilidad completa.',
+    tacticalArsenal: [
+      'Registro autónomo de leads desde WhatsApp, web, Meta, Google y formularios',
+      'Normalización de nombre, teléfono, correo, curso, fuente, campaña y consentimiento',
+      'Calificación de intención, horario, experiencia previa y urgencia',
+      'Movimiento automático por etapas del embudo hasta pago validado',
+      'Generación de solicitud de inscripción y seguimiento de pago pendiente',
+      'Bienvenida, credenciales del campus virtual, código de curso y seguimiento académico inicial',
+    ],
+    kpiTargets: {
+      dailySalesTarget: 5,
+      responseSlaMinutes: 3,
+      targetRoiPercent: 80,
+      minimumQualifiedLeadsDaily: 80,
+    },
+    approvalPolicy: {
+      canLaunchCommercialCampaigns: false,
+      requiresApprovalForTestimonials: true,
+      requiresApprovalForInstitutionalNews: true,
+      maxDiscountPercent: 0,
+    },
+    status: 'Activo',
+    stats: {
+      conversationsHandled: 0,
+      dealsClosed: 0,
+      avgSatisfaction: 0,
+      conversionRatePercent: 0,
+    },
+  },
+  {
     id: 'agent_whatsapp',
     name: 'Mateo WhatsApp Pro',
     roleTitle: 'Especialista WhatsApp Instantáneo',
@@ -2226,6 +2267,26 @@ export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
       'Elegir proveedor local o internacional de pagos.',
       'Validar webhook de pago completado antes de marcar venta como ganada.',
       'Notificar al dueño solo pagos confirmados o bloqueos.',
+    ],
+  },
+  {
+    id: 'int_inteca_campus',
+    name: 'Campus Virtual INTECA',
+    category: 'Campus',
+    status: 'Requiere credenciales',
+    outboundCapability:
+      'Crear o activar estudiante, generar usuario temporal, asignar curso, enviar bienvenida y sincronizar matrícula.',
+    requiredEnvVars: [
+      'INTECA_CAMPUS_BASE_URL',
+      'INTECA_CAMPUS_API_KEY',
+      'INTECA_CAMPUS_DEFAULT_ROLE',
+      'INTECA_CAMPUS_WELCOME_TEMPLATE_ID',
+    ],
+    ownerAgentId: 'agent_conversion',
+    setupNotes: [
+      'Conectar la API del campus o LMS oficial de INTECA.',
+      'Usar el correo real del estudiante como usuario principal cuando exista.',
+      'Sin API conectada, el CRM genera credenciales provisionales y deja pendiente la sincronización real.',
     ],
   },
   {

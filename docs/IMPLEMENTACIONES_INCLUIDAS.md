@@ -4,6 +4,7 @@
 
 - Director comercial y estrategia.
 - Closer de ventas 24/7.
+- Agente de conversion y matricula para registrar leads, validar inscripcion, convertir a estudiante y enviar bienvenida/campus.
 - Agente WhatsApp instantaneo.
 - Agente de adquisicion y pauta.
 - Agente de embudos y conversion.
@@ -51,6 +52,19 @@
 - Multiempresa y roles.
 - Licencia INTECA gratis permanente.
 
+## Conversion, matricula y campus
+
+- Registro autonomo de leads desde WhatsApp, formulario web, Meta Ads, Google Ads, API o carga manual.
+- Normalizacion de datos: nombre, telefono, WhatsApp, correo, curso, fuente, campana y mensaje inicial.
+- Calificacion del lead, deteccion de campos faltantes y seguimiento inmediato.
+- Boton en Chat Sales Studio para validar inscripcion y enviar bienvenida.
+- Al confirmar pago de inscripcion, el lead pasa a estudiante activo con estado `Ganado`.
+- Generacion de codigo de estudiante, usuario de campus, clave temporal, codigo del curso y mensaje de bienvenida.
+- Panel de campus dentro del modal del lead para revisar credenciales, estado y seguimiento academico.
+- Endpoint operativo: `/api/agents/conversion/process-lead`.
+- Endpoint de consulta: `/api/agents/conversion/leads`.
+- Si falta API real del campus, el CRM deja credenciales provisionales y estado pendiente de sincronizacion externa.
+
 ## Integraciones listas para conectar
 
 - WhatsApp Cloud API.
@@ -59,6 +73,7 @@
 - YouTube.
 - Formularios web.
 - Pasarelas de pago.
+- Campus Virtual INTECA / LMS.
 - DGII / proveedor de facturacion electronica.
 - Notificaciones al dueno por WhatsApp/email cuando existan credenciales.
 

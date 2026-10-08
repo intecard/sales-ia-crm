@@ -90,7 +90,7 @@ export const ManualsDocumentationModal: React.FC<ManualsDocumentationModalProps>
                 , <strong>Domain-Driven Design (DDD)</strong> y <strong>SOLID</strong>. Se compone
                 de un frontend desacoplado desarrollado en React 19, Tailwind CSS v4, Motion y un
                 backend de alto rendimiento en Express / Node.js integrado con la SDK oficial de{' '}
-                <code>@google/genai</code> para el modelo <code>gemini-3.6-flash</code>.
+                <code>@google/genai</code> para el modelo <code>gemini-3.5-flash</code>.
               </p>
 
               <h3 className="text-sm font-bold text-cyan-300 uppercase">

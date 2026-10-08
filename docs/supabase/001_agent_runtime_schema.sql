@@ -131,6 +131,28 @@ create table if not exists public.crm_audit_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.crm_student_enrollments (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.crm_organizations(id) on delete cascade,
+  lead_id text not null,
+  course_id text,
+  course_title text not null,
+  student_code text not null,
+  status text not null default 'Bienvenida enviada',
+  campus_url text,
+  campus_email text,
+  course_access_code text,
+  payment_transaction_id text,
+  welcome_message text,
+  credentials_sent_at timestamptz,
+  next_academic_follow_up_at timestamptz,
+  campus_sync_status text not null default 'pending_external_campus_api',
+  metadata jsonb not null default '{}',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (organization_id, lead_id, payment_transaction_id)
+);
+
 create index if not exists idx_crm_agent_jobs_status_run_after
   on public.crm_agent_jobs (status, run_after, priority);
 
@@ -139,6 +161,9 @@ create index if not exists idx_crm_agent_executions_org_agent
 
 create index if not exists idx_crm_audit_events_org_created
   on public.crm_audit_events (organization_id, created_at desc);
+
+create index if not exists idx_crm_student_enrollments_org_lead
+  on public.crm_student_enrollments (organization_id, lead_id, created_at desc);
 
 alter table public.crm_organizations enable row level security;
 alter table public.crm_agent_registry enable row level security;
@@ -149,6 +174,7 @@ alter table public.crm_agent_jobs enable row level security;
 alter table public.crm_agent_executions enable row level security;
 alter table public.crm_agent_evidence enable row level security;
 alter table public.crm_audit_events enable row level security;
+alter table public.crm_student_enrollments enable row level security;
 
 -- Service role bypasses RLS. Application users should receive policies tied to
 -- their organization_id before exposing Supabase directly to a browser client.

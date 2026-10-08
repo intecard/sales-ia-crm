@@ -53,6 +53,11 @@ Regla de precedencia:
 | `PAYMENT_PUBLIC_KEY` | Clave pública pagos | Checkout | Proveedor pagos | Web Service | Pública | Crear intento pago sandbox |
 | `PAYMENT_SECRET_KEY` | Clave secreta pagos | Confirmación pagos | Proveedor pagos | Web Service | Secreta | Validar pago sandbox |
 | `PAYMENT_WEBHOOK_SECRET` | Firma webhook pagos | Pagos | Proveedor pagos | Web Service | Secreta | Firma webhook válida |
+| `INTECA_CAMPUS_BASE_URL` | URL del campus virtual | Matrícula/campus | LMS o campus INTECA | Web Service | Pública | Abrir URL base del campus |
+| `INTECA_CAMPUS_API_KEY` | API del campus | Crear/activar estudiante | Administrador LMS | Web Service | Secreta | Crear estudiante de prueba privado |
+| `INTECA_CAMPUS_DEFAULT_ROLE` | Rol por defecto | Alta estudiante | LMS | Web Service | Pública | Rol `student` aceptado |
+| `INTECA_CAMPUS_WELCOME_TEMPLATE_ID` | Plantilla bienvenida | Mensaje campus | LMS/CRM | Web Service | Pública | Plantilla existe |
+| `VITE_INTECA_CAMPUS_URL` | URL visible del campus | UI credenciales | Campus INTECA | Web Service | Pública | Tarjeta del lead muestra URL correcta |
 | `AD_PAYMENT_PROVIDER` | Tarjeta pauta | Pago campañas | Proveedor/tokenizador | Web Service | Pública | Token de tarjeta existe |
 | `AD_PAYMENT_SECRET_KEY` | Token secreto pauta | Gasto Ads | Proveedor/tokenizador | Web Service | Secreta | Validar token sin cargo real |
 | `AD_PAYMENT_WEBHOOK_SECRET` | Webhook pauta | Gasto Ads | Proveedor/tokenizador | Web Service | Secreta | Firma webhook válida |
