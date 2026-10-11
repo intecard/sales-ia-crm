@@ -15,7 +15,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
@@ -2184,7 +2184,7 @@ Infiere y genera en formato JSON estricto los siguientes campos:
 1. aiScore (número de 0 a 100)
 2. buyProbability (número de 0 a 100)
 3. recommendedCourseId (ID del curso más afín)
-4. currentEmotion ("Muy Entusiasta", "Interesado", "Neutral", "Indeciso", "Escéptico", "Urgente", "Molesto")
+4. currentEmotion ("Muy Entusiasta", "Interesado", "Neutral", "Indeciso", "Escéptico", "Urgente", "Molesto")
 5. discType ("Dominante", "Influyente", "Estable", "Concienzudo")
 6. decisionSpeed ("Rápida", "Analítica", "Basada en Precio", "Lenta")
 7. dominantPainPoint (resumen corto de su dolor o necesidad principal)
@@ -2267,7 +2267,8 @@ TONO DE VOZ: ${tone || 'Persuasivo, Profesional y Urgente'}
 MODO TÁCTICO: ${tacticalMode || 'completo'}
 
 Instrucciones:
-1. Diseña el mensaje para adquisición, conversión y aceleración, según aplique.
+Diseña el mensaje para adquisición, conversión y aceleración, según aplique.
+1. 
 2. Identifica una ventaja injusta del negocio a partir del contexto y úsala sin exagerar ni inventar.
 3. Explica la función práctica del técnico, producto o servicio; qué aprenderá/recibirá el cliente; cómo mejora su vida, empleo, ingresos u operación.
 4. Crea urgencia ética: oportunidad clara, beneficio fuerte y costo de no actuar.
