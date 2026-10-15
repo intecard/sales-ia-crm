@@ -15,6 +15,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
+// CORRECCIÓN 1: Ajustado el modelo predeterminado de Gemini al modelo real (1.5)
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
   'gemini-2.5-flash',
@@ -471,9 +472,12 @@ INSTRUCCIONES:
 async function sendWhatsAppTextMessage(to: string, body: string) {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const graphApiVersion = process.env.META_GRAPH_API_VERSION || 'v22.0';
+  // CORRECCIÓN 2: Ajustado a la versión de API v26.0
+  const graphApiVersion = process.env.META_GRAPH_API_VERSION || 'v26.0';
 
   if (!accessToken || !phoneNumberId) {
+    // CORRECCIÓN 3: Agregado log de error crítico para alertar si faltan variables en Render
+    console.error(`🚨 ERROR CRÍTICO: Faltan credenciales de WhatsApp. Access Token presente: ${!!accessToken}, Phone ID presente: ${!!phoneNumberId}`);
     throw new Error('WHATSAPP_SEND_NOT_CONFIGURED');
   }
 
@@ -501,7 +505,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   const responseBody = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    console.error('WhatsApp Cloud API send failed', {
+    console.error('🚨 WhatsApp Cloud API send failed', {
       status: response.status,
       responseBody,
     });
@@ -511,15 +515,28 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
+// CORRECCIÓN 4: Agregados logs [DEBUG] para entender exactamente dónde se detiene
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
+  console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
+
   if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
+    console.log('[DEBUG] Bot APAGADO porque WHATSAPP_AUTO_REPLY_ENABLED es false. Mensaje descartado.');
     return;
   }
 
   for (const message of messages) {
     const messageId = message?.id;
     const from = message?.from;
-    if (!from || !messageId || processedWhatsAppMessageIds.has(messageId)) {
+    
+    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente: ${from}`);
+
+    if (!from || !messageId) {
+      console.log('[DEBUG] Mensaje ignorado: Falta "from" o "id".');
+      continue;
+    }
+
+    if (processedWhatsAppMessageIds.has(messageId)) {
+      console.log('[DEBUG] Mensaje ignorado: ID ya procesado anteriormente.');
       continue;
     }
 
@@ -533,6 +550,9 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
 
     const userMessage = getWhatsAppMessageText(message);
     const customerName = findWhatsAppContactName(event, from);
+    
+    console.log(`[DEBUG] Contenido recibido: "${userMessage}"`);
+
     const conversionResult = processConversionLead(
       {
         fullName: customerName,
@@ -545,9 +565,14 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       },
       'WhatsApp',
     );
+    
+    console.log('[DEBUG] Generando respuesta con IA (Gemini)...');
     const reply = await generateWhatsAppAutoReply(userMessage, customerName);
+    console.log(`[DEBUG] Respuesta de la IA lista para enviar: "${reply}"`);
 
+    console.log('[DEBUG] Enviando respuesta a WhatsApp...');
     await sendWhatsAppTextMessage(from, reply);
+    console.log('[DEBUG] ✅ Respuesta enviada con ÉXITO.');
 
     recordServerAudit({
       actorType: 'Agente IA',
@@ -2300,7 +2325,9 @@ Proporciona el resultado estructurado en JSON con los campos:
               type: Type.OBJECT,
               properties: {
                 headline: { type: Type.STRING },
+                subheadline: { type: Type.STRING },
                 visual: { type: Type.STRING },
+                layout: { type: Type.STRING },
                 requiredElements: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
