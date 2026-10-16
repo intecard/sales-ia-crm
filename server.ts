@@ -512,24 +512,35 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
+// CORRECCIÓN A PRUEBA DE BALAS: Extracción forzada del remitente
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
-  console.log(`[DEBUG] Estado de auto-respuesta: ${process.env.WHATSAPP_AUTO_REPLY_ENABLED}`);
-  
+  console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
+
   if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
     console.log('🛑 Bot apagado porque WHATSAPP_AUTO_REPLY_ENABLED es "false".');
     return;
   }
 
-  // PLAN B: Extraemos información de contactos por si Meta omite el 'from' en el objeto del mensaje
   const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
   const fallbackFrom = contacts[0]?.wa_id;
 
   for (const message of messages) {
-    // Imprimimos el objeto completo para ver qué estructura exacta mandó Meta
-    console.log(`[DEBUG] PAYLOAD CRUDO DEL MENSAJE META:`, JSON.stringify(message));
+    const rawMessage = JSON.stringify(message);
+    console.log(`[DEBUG] PAYLOAD CRUDO DEL MENSAJE META:`, rawMessage);
 
     const messageId = message?.id;
-    const from = message?.from || fallbackFrom;
+    
+    // EXTRACCIÓN A PRUEBA DE BALAS: Si el objeto falla, usamos Regex en el texto crudo.
+    let from = message?.from;
+    if (!from) {
+        const match = rawMessage.match(/"from"\s*:\s*"([^"]+)"/);
+        if (match && match[1]) {
+            from = match[1];
+        }
+    }
+    if (!from) {
+        from = fallbackFrom;
+    }
     
     console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente resuelto: ${from}`);
 
@@ -572,7 +583,7 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     console.log('🧠 Generando respuesta con Gemini...');
     const reply = await generateWhatsAppAutoReply(userMessage, customerName);
 
-    console.log('📤 Enviando respuesta a WhatsApp Meta API...');
+    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino: ${from}`);
     await sendWhatsAppTextMessage(from, reply);
     console.log('✅ Respuesta enviada exitosamente.');
 
