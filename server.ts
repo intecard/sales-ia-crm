@@ -15,9 +15,10 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash'; 
+  
+// CORRECCIÓN 1: Modelos de Gemini 100% estables y sin el sufijo "-latest" que causa el error 404
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
-  'gemini-1.5-pro',
   'gemini-1.0-pro'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
@@ -509,40 +510,43 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN: Extracción segura basada en Meta v26.0 real
+// CORRECCIÓN 2: Extracción a prueba de balas e ignorar mensajes salientes de Meta
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
   if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
-    console.log('🛑 Bot apagado porque WHATSAPP_AUTO_REPLY_ENABLED es "false".');
     return;
   }
 
-  // Meta v26.0: El número validado y real del cliente siempre viene en este array
   const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
-  const clientWaId = contacts[0]?.wa_id;
+  const realPhoneNumber = contacts[0]?.wa_id;
 
   for (const message of messages) {
     const messageId = message?.id;
     
-    // Si viene 'from_user_id', significa que es un mensaje que enviaste TÚ desde la app de WhatsApp. Se ignora.
+    // Filtro estricto: Si el mensaje tiene "from_user_id", fue enviado por TI (el negocio). Ignóralo siempre.
     if (message?.from_user_id || message?.type === 'system' || message?.type === 'unknown') {
-        console.log(`⚠️ Mensaje IGNORADO: Es un mensaje de sistema o enviado por el propio negocio.`);
+        console.log(`⚠️ Mensaje IGNORADO: Es un mensaje enviado por el negocio o de sistema. Tipo: ${message?.type}`);
         continue; 
     }
 
-    // Buscamos el número del cliente
-    let senderPhone = clientWaId || message?.from;
+    // Usar siempre el número validado por Meta (wa_id). Si no, fallback.
+    let senderPhone = realPhoneNumber || message?.from;
     
-    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente extraído: ${senderPhone}`);
+    // Limpieza estricta: dejar solo números para que Meta no tire error 131009
+    if (typeof senderPhone === 'string') {
+        senderPhone = senderPhone.replace(/\D/g, ''); 
+    }
+
+    // EL ESPIA: Nos dirá exactamente a quién intentará responder
+    console.log(`[DEBUG-ESPIA] ID Mensaje: ${messageId} | Numero Destino (Limpio): ${senderPhone}`);
 
     if (!senderPhone || senderPhone.length < 8) {
-      console.log('⚠️ Mensaje ignorado: no tiene remitente limpio o ID válido.');
+      console.log('⚠️ Ignorado: No se encontró un número de teléfono válido.');
       continue;
     }
 
     if (processedWhatsAppMessageIds.has(messageId)) {
-      console.log(`⚠️ Mensaje ignorado por estar duplicado en memoria.`);
       continue;
     }
 
@@ -935,8 +939,7 @@ async function generateGeminiContentWithFallback(contents: string, config?: Reco
     } catch (error) {
       lastError = error;
       temporarilyUnavailableGeminiModels.set(model, Date.now() + GEMINI_MODEL_RETRY_DELAY_MS);
-      console.error('Gemini generateContent failed', {
-        model,
+      console.error(`[DEBUG] Gemini generateContent failed para el modelo ${model}`, {
         retryAfterMs: GEMINI_MODEL_RETRY_DELAY_MS,
         ...summarizeGeminiError(error),
       });
