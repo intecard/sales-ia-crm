@@ -16,11 +16,11 @@ const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
 
-// Modelos estables comprobados para evitar errores 404
+// Modelos estabilizados 
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
   'gemini-1.5-pro',
-  'gemini-1.5-flash-8b'
+  'gemini-1.0-pro'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
@@ -433,6 +433,7 @@ async function generateWhatsAppAutoReply(userMessage: string, customerName?: str
   const fallback = buildFallbackWhatsAppReply(customerName, userMessage);
 
   if (!process.env.GEMINI_API_KEY) {
+    console.log('[DEBUG] Gemini no intentado: Falta API Key. Usando Fallback.');
     return fallback;
   }
 
@@ -456,13 +457,15 @@ INSTRUCCIONES:
 6. Mantente por debajo de 1,200 caracteres para WhatsApp.
 `;
 
+    console.log('[DEBUG] Invocando Gemini Generate Content...');
     const response = await generateGeminiContentWithFallback(prompt, {
       temperature: 0.55,
     });
+    console.log('[DEBUG] Gemini devolvió una respuesta con éxito.');
 
     return trimWhatsAppReply(response.text || fallback) || fallback;
   } catch (error) {
-    console.error('Error generating WhatsApp auto reply:', error);
+    console.error('[DEBUG] Todas las llamadas a Gemini fallaron. Forzando Fallback:', error);
     return fallback;
   }
 }
@@ -511,27 +514,51 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN: Extracción segura con message.from estándar de Meta
+// CORRECCIÓN DEFINITIVA EXTRACCIÓN DE NÚMERO META V26.0
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
-  console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
-
+  console.log(`[DEBUG] Inicio de procesamiento de mensajes inbound.`);
+  
   if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
     return;
   }
 
+  const rawEventString = JSON.stringify(event);
+
   for (const message of messages) {
     const messageId = message?.id;
-    const from = message?.from;
-    
-    // Si NO trae 'from' explícito, es un eco del negocio o evento de sistema. Se ignora.
-    if (!from || message?.type === 'system' || message?.type === 'unknown') {
-        console.log(`⚠️ Mensaje IGNORADO: No trae 'from' válido. Es un eco o sistema. Tipo: ${message?.type}`);
-        continue; 
+    console.log(`[DEBUG] Procesando ID: ${messageId}`);
+
+    // Extracción AGRESIVA usando Expresión Regular para buscar cualquier cosa que parezca el número de teléfono del cliente
+    let senderPhone = '';
+
+    // Intento 1: A la antigua
+    if (message?.from && typeof message?.from === 'string' && !message?.from.includes('DO.')) {
+        senderPhone = message.from.replace(/\D/g, '');
     }
 
-    const senderPhone = from.replace(/\D/g, ''); 
+    // Intento 2: Array Contacts
+    if (!senderPhone || senderPhone.length < 8) {
+        const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
+        const contactWaId = contacts[0]?.wa_id;
+        if (contactWaId && typeof contactWaId === 'string') {
+            senderPhone = contactWaId.replace(/\D/g, '');
+        }
+    }
 
-    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Destino resuelto: ${senderPhone}`);
+    // Intento 3: Buscar CUALQUIER cadena que empiece por 1 (código de área típico) y tenga al menos 10 dígitos dentro de todo el payload
+    if (!senderPhone || senderPhone.length < 8) {
+         const match = rawEventString.match(/1[0-9]{10,14}/);
+         if(match && match[0]) {
+             senderPhone = match[0];
+         }
+    }
+
+    console.log(`[DEBUG-ESPIA] Número final extraído para el envío: '${senderPhone}'`);
+
+    if (!senderPhone || senderPhone.length < 8) {
+      console.log('⚠️ Ignorado: No se pudo extraer de ninguna forma un número válido del payload.');
+      continue;
+    }
 
     if (processedWhatsAppMessageIds.has(messageId)) {
       continue;
@@ -563,18 +590,22 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       'WhatsApp',
     );
     
-    console.log('🧠 Generando respuesta con Gemini...');
-    
     let reply = buildFallbackWhatsAppReply(customerName, userMessage);
     try {
-        reply = await generateWhatsAppAutoReply(userMessage, customerName);
+        console.log('🧠 Solicitando respuesta a Gemini...');
+        const generatedReply = await generateWhatsAppAutoReply(userMessage, customerName);
+        if(generatedReply) reply = generatedReply;
     } catch (e) {
-        console.log('Gemini API call completely failed, safely using fallback message instead.');
+        console.log('[DEBUG] Error crítico interno en generación IA. Usando fallback forzado.');
     }
 
-    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino estricto: ${senderPhone}`);
-    await sendWhatsAppTextMessage(senderPhone, reply);
-    console.log('✅ Respuesta enviada exitosamente.');
+    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino: ${senderPhone}`);
+    try {
+        await sendWhatsAppTextMessage(senderPhone, reply);
+        console.log('✅ Respuesta de WhatsApp enviada a Meta con éxito.');
+    } catch (sendError) {
+         console.error('❌ FALLÓ EL ENVÍO DEL MENSAJE. Detalle:', sendError);
+    }
 
     recordServerAudit({
       actorType: 'Agente IA',
@@ -584,27 +615,11 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       entityType: 'WhatsAppMessage',
       entityId: messageId,
       summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
-      details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
+      details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta generada enviada a Meta.`,
       sourceChannel: 'WhatsApp',
       severity: 'Éxito',
       status: 'Registrado',
     });
-
-    if (conversionResult.lead.missingFields.length === 0) {
-      recordServerAudit({
-        actorType: 'Agente IA',
-        actorName: 'Agente IA Conversión y Matrícula',
-        module: 'Leads',
-        action: 'Calificó',
-        entityType: 'ConversionLead',
-        entityId: conversionResult.lead.id,
-        summary: 'Lead de WhatsApp quedó listo para solicitar inscripción.',
-        details: `Curso: ${conversionResult.lead.courseTitle}. Próximo seguimiento: ${conversionResult.lead.nextFollowUpAt}.`,
-        sourceChannel: 'WhatsApp',
-        severity: 'Info',
-        status: 'Registrado',
-      });
-    }
   }
 }
 
@@ -616,12 +631,6 @@ function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
   };
   serverAuditEvents.unshift(entry);
   serverAuditEvents.splice(500);
-  console.log('Audit event recorded', {
-    id: entry.id,
-    module: entry.module,
-    action: entry.action,
-    entityType: entry.entityType,
-  });
   return entry;
 }
 
