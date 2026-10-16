@@ -15,9 +15,12 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
+
+// Modelos estables comprobados para evitar errores 404
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
-  'gemini-1.0-pro'
+  'gemini-1.5-pro',
+  'gemini-1.5-flash-8b'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
@@ -508,7 +511,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN FINAL: Eliminar regla estricta que bloqueaba el from_user_id legítimo
+// CORRECCIÓN: Extracción segura con message.from estándar de Meta
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
@@ -516,36 +519,19 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     return;
   }
 
-  const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
-  const realPhoneNumber = contacts[0]?.wa_id;
-
   for (const message of messages) {
-    const rawMessage = JSON.stringify(message);
-    console.log(`[DEBUG] PAYLOAD CRUDO DEL MENSAJE META:`, rawMessage);
-
     const messageId = message?.id;
+    const from = message?.from;
     
-    // Solo ignoramos explícitamente mensajes de sistema "system" o "unknown". 
-    // NO ignoramos from_user_id porque Meta v26 lo usa para mensajes de clientes.
-    if (message?.type === 'system' || message?.type === 'unknown') {
-        console.log(`⚠️ Mensaje de sistema ignorado. Tipo: ${message?.type}`);
+    // Si NO trae 'from' explícito, es un eco del negocio o evento de sistema. Se ignora.
+    if (!from || message?.type === 'system' || message?.type === 'unknown') {
+        console.log(`⚠️ Mensaje IGNORADO: No trae 'from' válido. Es un eco o sistema. Tipo: ${message?.type}`);
         continue; 
     }
 
-    // Buscamos el número en cualquier lugar donde Meta lo haya puesto
-    let senderPhone = realPhoneNumber || message?.from || message?.from_user_id;
-    
-    // Limpieza agresiva: borrar el "DO." o cualquier cosa que no sea un número puro
-    if (typeof senderPhone === 'string') {
-        senderPhone = senderPhone.replace(/\D/g, ''); 
-    }
+    const senderPhone = from.replace(/\D/g, ''); 
 
-    console.log(`[DEBUG-ESPIA] ID Mensaje: ${messageId} | Numero Destino (Limpio): ${senderPhone}`);
-
-    if (!senderPhone || senderPhone.length < 8) {
-      console.log('⚠️ Ignorado: No se encontró un número de teléfono válido.');
-      continue;
-    }
+    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Destino resuelto: ${senderPhone}`);
 
     if (processedWhatsAppMessageIds.has(messageId)) {
       continue;
@@ -578,7 +564,13 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     );
     
     console.log('🧠 Generando respuesta con Gemini...');
-    const reply = await generateWhatsAppAutoReply(userMessage, customerName);
+    
+    let reply = buildFallbackWhatsAppReply(customerName, userMessage);
+    try {
+        reply = await generateWhatsAppAutoReply(userMessage, customerName);
+    } catch (e) {
+        console.log('Gemini API call completely failed, safely using fallback message instead.');
+    }
 
     console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino estricto: ${senderPhone}`);
     await sendWhatsAppTextMessage(senderPhone, reply);
