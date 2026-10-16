@@ -512,7 +512,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN DEFINITIVA: Adaptado para capturar la anomalía de "from_user_id" de Meta v26.0
+// CORRECCIÓN FINAL: Limpiador estricto de números de teléfono para evitar error 131009 de Meta v26.0
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
@@ -521,6 +521,7 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     return;
   }
 
+  // Respaldo de contactos
   const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
   const fallbackFrom = contacts[0]?.wa_id;
 
@@ -530,28 +531,34 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
 
     const messageId = message?.id;
     
-    // EXTRACCIÓN A PRUEBA DE BALAS: Meta v26.0 a veces manda "from_user_id" en vez de "from".
-    let from = message?.from || message?.from_user_id;
+    // Extracción robusta del número
+    let rawFrom = message?.from || message?.from_user_id;
     
-    if (!from) {
+    if (!rawFrom) {
         const matchFrom = rawMessage.match(/"from"\s*:\s*"([^"]+)"/);
         const matchUserId = rawMessage.match(/"from_user_id"\s*:\s*"([^"]+)"/);
         
         if (matchFrom && matchFrom[1]) {
-            from = matchFrom[1];
+            rawFrom = matchFrom[1];
         } else if (matchUserId && matchUserId[1]) {
-            from = matchUserId[1];
+            rawFrom = matchUserId[1];
         }
     }
     
-    if (!from) {
-        from = fallbackFrom;
+    if (!rawFrom) {
+        rawFrom = fallbackFrom;
     }
     
-    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente resuelto: ${from}`);
+    // LIMPIEZA ESTRICTA DEL NÚMERO (Elimina "DO." y cualquier carácter que no sea un número)
+    let cleanFrom = undefined;
+    if (typeof rawFrom === 'string') {
+        cleanFrom = rawFrom.replace(/\D/g, ''); // Deja solo los dígitos
+    }
+    
+    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente original: ${rawFrom} | Remitente LIMPIO: ${cleanFrom}`);
 
-    if (!from || !messageId) {
-      console.log('⚠️ Mensaje ignorado: no tiene remitente o ID válido. Probablemente evento de sistema de Meta.');
+    if (!cleanFrom || !messageId) {
+      console.log('⚠️ Mensaje ignorado: no tiene remitente limpio o ID válido. Probablemente evento de sistema de Meta.');
       continue;
     }
 
@@ -569,15 +576,15 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     }
 
     const userMessage = getWhatsAppMessageText(message);
-    const customerName = findWhatsAppContactName(event, from);
+    const customerName = findWhatsAppContactName(event, cleanFrom);
     
-    console.log(`🟢 Procesando lead: ${customerName || from} - Mensaje: "${userMessage}"`);
+    console.log(`🟢 Procesando lead: ${customerName || cleanFrom} - Mensaje: "${userMessage}"`);
 
     const conversionResult = processConversionLead(
       {
         fullName: customerName,
-        whatsapp: from,
-        phone: from,
+        whatsapp: cleanFrom,
+        phone: cleanFrom,
         source: 'WhatsApp',
         message: userMessage,
         courseTitle: inferCourseTitle({ message: userMessage }),
@@ -589,8 +596,8 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     console.log('🧠 Generando respuesta con Gemini...');
     const reply = await generateWhatsAppAutoReply(userMessage, customerName);
 
-    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino: ${from}`);
-    await sendWhatsAppTextMessage(from, reply);
+    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino estricto: ${cleanFrom}`);
+    await sendWhatsAppTextMessage(cleanFrom, reply);
     console.log('✅ Respuesta enviada exitosamente.');
 
     recordServerAudit({
@@ -601,7 +608,7 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       entityType: 'WhatsAppMessage',
       entityId: messageId,
       summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
-      details: `Prospecto: ${customerName || from}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
+      details: `Prospecto: ${customerName || cleanFrom}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
       sourceChannel: 'WhatsApp',
       severity: 'Éxito',
       status: 'Registrado',
@@ -1477,7 +1484,7 @@ app.get('/api/agents/runtime/manifest', (_req, res) => {
     configurationPrecedence: [
       '1. Credenciales por empresa guardadas en backend seguro o Supabase con cifrado.',
       '2. Variables de entorno del servidor en Render para integraciones globales.',
-      '3. Valores de ejemplo solo para UI; nunca se usan como acceso real.',
+      '3. Valores de ejemplo solo para UI; nunca se usan como real.',
     ],
     persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
     queue: process.env.SUPABASE_URL
