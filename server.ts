@@ -15,10 +15,10 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest'; // Asegurando la versión correcta del modelo
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash'; 
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
-  'gemini-1.5-pro-latest',
-  'gemini-1.5-flash'
+  'gemini-1.5-pro',
+  'gemini-1.0-pro'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
@@ -509,7 +509,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN FINAL: Ignorar explícitamente mensajes enviados por la propia cuenta
+// CORRECCIÓN: Extracción segura basada en Meta v26.0 real
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
@@ -518,36 +518,26 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     return;
   }
 
+  // Meta v26.0: El número validado y real del cliente siempre viene en este array
   const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
-  const fallbackFrom = contacts[0]?.wa_id;
+  const clientWaId = contacts[0]?.wa_id;
 
   for (const message of messages) {
-    const rawMessage = JSON.stringify(message);
-    console.log(`[DEBUG] PAYLOAD CRUDO DEL MENSAJE META:`, rawMessage);
-
     const messageId = message?.id;
     
-    // Ignorar si es un mensaje enviado por la propia app o sistema
+    // Si viene 'from_user_id', significa que es un mensaje que enviaste TÚ desde la app de WhatsApp. Se ignora.
     if (message?.from_user_id || message?.type === 'system' || message?.type === 'unknown') {
-        console.log(`⚠️ Mensaje IGNORADO: Es un mensaje enviado por el negocio o de sistema. Type: ${message?.type}`);
+        console.log(`⚠️ Mensaje IGNORADO: Es un mensaje de sistema o enviado por el propio negocio.`);
         continue; 
     }
 
-    let rawFrom = message?.from;
+    // Buscamos el número del cliente
+    let senderPhone = clientWaId || message?.from;
     
-    if (!rawFrom) {
-        rawFrom = fallbackFrom;
-    }
-    
-    let cleanFrom = undefined;
-    if (typeof rawFrom === 'string') {
-        cleanFrom = rawFrom.replace(/\D/g, ''); 
-    }
-    
-    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente original: ${rawFrom} | Remitente LIMPIO: ${cleanFrom}`);
+    console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente extraído: ${senderPhone}`);
 
-    if (!cleanFrom || !messageId) {
-      console.log('⚠️ Mensaje ignorado: no tiene remitente limpio o ID válido. Probablemente evento de sistema de Meta.');
+    if (!senderPhone || senderPhone.length < 8) {
+      console.log('⚠️ Mensaje ignorado: no tiene remitente limpio o ID válido.');
       continue;
     }
 
@@ -565,15 +555,15 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     }
 
     const userMessage = getWhatsAppMessageText(message);
-    const customerName = findWhatsAppContactName(event, cleanFrom);
+    const customerName = findWhatsAppContactName(event, senderPhone);
     
-    console.log(`🟢 Procesando lead: ${customerName || cleanFrom} - Mensaje: "${userMessage}"`);
+    console.log(`🟢 Procesando lead: ${customerName || senderPhone} - Mensaje: "${userMessage}"`);
 
     const conversionResult = processConversionLead(
       {
         fullName: customerName,
-        whatsapp: cleanFrom,
-        phone: cleanFrom,
+        whatsapp: senderPhone,
+        phone: senderPhone,
         source: 'WhatsApp',
         message: userMessage,
         courseTitle: inferCourseTitle({ message: userMessage }),
@@ -585,8 +575,8 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     console.log('🧠 Generando respuesta con Gemini...');
     const reply = await generateWhatsAppAutoReply(userMessage, customerName);
 
-    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino estricto: ${cleanFrom}`);
-    await sendWhatsAppTextMessage(cleanFrom, reply);
+    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino estricto: ${senderPhone}`);
+    await sendWhatsAppTextMessage(senderPhone, reply);
     console.log('✅ Respuesta enviada exitosamente.');
 
     recordServerAudit({
@@ -597,7 +587,7 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       entityType: 'WhatsAppMessage',
       entityId: messageId,
       summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
-      details: `Prospecto: ${customerName || cleanFrom}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
+      details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
       sourceChannel: 'WhatsApp',
       severity: 'Éxito',
       status: 'Registrado',
