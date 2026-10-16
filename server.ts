@@ -512,7 +512,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN A PRUEBA DE BALAS: Extracción forzada del remitente
+// CORRECCIÓN DEFINITIVA: Adaptado para capturar la anomalía de "from_user_id" de Meta v26.0
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
@@ -530,14 +530,20 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
 
     const messageId = message?.id;
     
-    // EXTRACCIÓN A PRUEBA DE BALAS: Si el objeto falla, usamos Regex en el texto crudo.
-    let from = message?.from;
+    // EXTRACCIÓN A PRUEBA DE BALAS: Meta v26.0 a veces manda "from_user_id" en vez de "from".
+    let from = message?.from || message?.from_user_id;
+    
     if (!from) {
-        const match = rawMessage.match(/"from"\s*:\s*"([^"]+)"/);
-        if (match && match[1]) {
-            from = match[1];
+        const matchFrom = rawMessage.match(/"from"\s*:\s*"([^"]+)"/);
+        const matchUserId = rawMessage.match(/"from_user_id"\s*:\s*"([^"]+)"/);
+        
+        if (matchFrom && matchFrom[1]) {
+            from = matchFrom[1];
+        } else if (matchUserId && matchUserId[1]) {
+            from = matchUserId[1];
         }
     }
+    
     if (!from) {
         from = fallbackFrom;
     }
