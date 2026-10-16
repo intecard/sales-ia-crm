@@ -15,8 +15,6 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-  
-// CORRECCIÓN 1: Modelos de Gemini 100% estables y sin el sufijo "-latest" que causa el error 404
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
   'gemini-1.0-pro'
@@ -510,7 +508,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN 2: Extracción a prueba de balas e ignorar mensajes salientes de Meta
+// CORRECCIÓN FINAL: Eliminar regla estricta que bloqueaba el from_user_id legítimo
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
@@ -522,23 +520,26 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
   const realPhoneNumber = contacts[0]?.wa_id;
 
   for (const message of messages) {
+    const rawMessage = JSON.stringify(message);
+    console.log(`[DEBUG] PAYLOAD CRUDO DEL MENSAJE META:`, rawMessage);
+
     const messageId = message?.id;
     
-    // Filtro estricto: Si el mensaje tiene "from_user_id", fue enviado por TI (el negocio). Ignóralo siempre.
-    if (message?.from_user_id || message?.type === 'system' || message?.type === 'unknown') {
-        console.log(`⚠️ Mensaje IGNORADO: Es un mensaje enviado por el negocio o de sistema. Tipo: ${message?.type}`);
+    // Solo ignoramos explícitamente mensajes de sistema "system" o "unknown". 
+    // NO ignoramos from_user_id porque Meta v26 lo usa para mensajes de clientes.
+    if (message?.type === 'system' || message?.type === 'unknown') {
+        console.log(`⚠️ Mensaje de sistema ignorado. Tipo: ${message?.type}`);
         continue; 
     }
 
-    // Usar siempre el número validado por Meta (wa_id). Si no, fallback.
-    let senderPhone = realPhoneNumber || message?.from;
+    // Buscamos el número en cualquier lugar donde Meta lo haya puesto
+    let senderPhone = realPhoneNumber || message?.from || message?.from_user_id;
     
-    // Limpieza estricta: dejar solo números para que Meta no tire error 131009
+    // Limpieza agresiva: borrar el "DO." o cualquier cosa que no sea un número puro
     if (typeof senderPhone === 'string') {
         senderPhone = senderPhone.replace(/\D/g, ''); 
     }
 
-    // EL ESPIA: Nos dirá exactamente a quién intentará responder
     console.log(`[DEBUG-ESPIA] ID Mensaje: ${messageId} | Numero Destino (Limpio): ${senderPhone}`);
 
     if (!senderPhone || senderPhone.length < 8) {
