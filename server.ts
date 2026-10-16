@@ -15,13 +15,10 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
-const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash-latest'; // Asegurando la versión correcta del modelo
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro-latest',
+  'gemini-1.5-flash'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
@@ -512,7 +509,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN FINAL: Limpiador estricto de números de teléfono para evitar error 131009 de Meta v26.0
+// CORRECCIÓN FINAL: Ignorar explícitamente mensajes enviados por la propia cuenta
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
@@ -521,7 +518,6 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     return;
   }
 
-  // Respaldo de contactos
   const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
   const fallbackFrom = contacts[0]?.wa_id;
 
@@ -531,28 +527,21 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
 
     const messageId = message?.id;
     
-    // Extracción robusta del número
-    let rawFrom = message?.from || message?.from_user_id;
-    
-    if (!rawFrom) {
-        const matchFrom = rawMessage.match(/"from"\s*:\s*"([^"]+)"/);
-        const matchUserId = rawMessage.match(/"from_user_id"\s*:\s*"([^"]+)"/);
-        
-        if (matchFrom && matchFrom[1]) {
-            rawFrom = matchFrom[1];
-        } else if (matchUserId && matchUserId[1]) {
-            rawFrom = matchUserId[1];
-        }
+    // Ignorar si es un mensaje enviado por la propia app o sistema
+    if (message?.from_user_id || message?.type === 'system' || message?.type === 'unknown') {
+        console.log(`⚠️ Mensaje IGNORADO: Es un mensaje enviado por el negocio o de sistema. Type: ${message?.type}`);
+        continue; 
     }
+
+    let rawFrom = message?.from;
     
     if (!rawFrom) {
         rawFrom = fallbackFrom;
     }
     
-    // LIMPIEZA ESTRICTA DEL NÚMERO (Elimina "DO." y cualquier carácter que no sea un número)
     let cleanFrom = undefined;
     if (typeof rawFrom === 'string') {
-        cleanFrom = rawFrom.replace(/\D/g, ''); // Deja solo los dígitos
+        cleanFrom = rawFrom.replace(/\D/g, ''); 
     }
     
     console.log(`[DEBUG] Procesando mensaje ID: ${messageId} | Remitente original: ${rawFrom} | Remitente LIMPIO: ${cleanFrom}`);
@@ -1484,7 +1473,7 @@ app.get('/api/agents/runtime/manifest', (_req, res) => {
     configurationPrecedence: [
       '1. Credenciales por empresa guardadas en backend seguro o Supabase con cifrado.',
       '2. Variables de entorno del servidor en Render para integraciones globales.',
-      '3. Valores de ejemplo solo para UI; nunca se usan como real.',
+      '3. Valores de ejemplo solo para UI; nunca se usan como acceso real.',
     ],
     persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
     queue: process.env.SUPABASE_URL
