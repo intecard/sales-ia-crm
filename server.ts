@@ -250,47 +250,62 @@ function validateAdminCredentials(email: string, password: string) {
   );
 }
 
+// CORRECCIÓN: Base de conocimiento actualizada con los detalles concretos de pago y saludo
 const INTECA_AGENT_KNOWLEDGE_BASE = `
-INTECA (Instituto Tecnico del Caribe) es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, farmacologia aplicada y enfermeria.
-
-Canales oficiales:
-- Sitio web: https://www.inteca.com.do
-- Instagram: @formacion.inteca
-- WhatsApp principal: 809-643-5502
-- Correo institucional actual: intecaedu@gmail.com
+INTECA SRL (Instituto Técnico del Caribe) es una institución de formación técnica en República Dominicana enfocada en el sector salud.
 
 Curso principal confirmado:
-- Nombre: Tecnico u Oficial de Autorizaciones Medicas.
-- Modalidad: virtual.
-- Duracion: 5 meses.
-- Precio confirmado: inscripcion RD$2,500 y mensualidad RD$2,000.
-- Contenido: PBS, flujo de autorizaciones, validacion de coberturas, precertificaciones, atencion al afiliado, procesos ARS, SISALRIL, CNSS, SDSS, Ley 87-01, reclamos y casos practicos.
-- Beneficio: prepara al participante para comprender y ejecutar procesos reales de autorizaciones medicas en ARS, clinicas, hospitales, farmacias y centros de salud.
+- Nombre: Técnico u Oficial de Autorizaciones Médicas.
+- Modalidad: Virtual.
+- Duración: 5 meses.
+- Inversión: Inscripción RD$2,500 y mensualidad RD$2,000.
+- Contenido: PBS, validación de coberturas, precertificaciones, Ley 87-01, ARS.
 
-Otros programas confirmados o previstos:
-- Precertificaciones medicas.
-- Atencion al usuario en salud.
-- Farmacologia aplicada.
-- Facturacion medica.
-- Enfermeria, con duracion confirmada de 1 ano.
+Otros programas: Facturación Médica, Enfermería (1 año), Farmacología Aplicada, Atención al Usuario.
 
-Horarios disponibles (El estudiante toma clase UN SOLO DIA a la semana, eligiendo una de las siguientes opciones):
-- Lunes a Sabado (en cualquiera de esos dias, solo un dia): de 8:00 a 10:00 am, 10:00 a 12:00 m, 1:00 a 3:00 pm, 3:00 a 5:00 pm y de 7:00 a 9:00 pm.
-- Domingos: de 8:00 a 10:00 am, 11:00 am a 1:00 pm, 2:00 a 4:00 pm, 4:00 a 6:00 pm.
+Horarios de clases (El estudiante elige UN SOLO DÍA a la semana):
+- De Lunes a Sábado (elige un solo día): 8:00 a 10:00 am, 11:00 am a 1:00 pm, 2:00 a 4:00 pm, 5:00 a 7:00 pm, o de 8:00 a 10:00 pm.
+- Domingos (elige un solo día): 8:00 a 10:00 am, 11:00 am a 1:00 pm, o de 2:00 a 4:00 pm.
 
-Metodos de Pago y Cuentas Bancarias (Titular: Luis Alcides Ramirez Escalante - Cedula: 224-0013869-3):
-- BANRESERVAS: Cuenta de Ahorros # 9606185447
-- BANCO POPULAR: Cuenta de Ahorros # 772542833 o # 824866537
-- QIK Banco Digital: Cuenta # 1004115453 (Alias: luisramirezescalante1985@gmail.com)
-- TOKE (Pagos Rapidos): Usuario/Numero 809-706-5502
-*Importante:* El cliente debe enviar el comprobante con su nombre y curso al correo intecaedu@gmail.com o a este mismo WhatsApp. Las inscripciones y mensualidades se pagan por transferencia o deposito a estas cuentas. Solo suministralas si el prospecto indica que ya quiere pagar o inscribirse.
+==============================================
+Documento de Pago – INTECA SRL
+Instituto Técnico del Caribe (INTECA) Tel: 809-643-5502
+Nombre del titular: Luis Alcides Ramirez Escalante
+Cedula: 224-0013869-3
+
+Datos para Realizar el Pago:
+
+1. BANRESERVAS
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta: 9606185447
+Tipo de cuenta: Ahorros
+
+2. Qik
+Nombre del titular: Luis Alcides Ramirez Escalante
+Alias Qik (luis): luisramirezescalante1985@gmail.com
+Número de cuenta: 1004115453
+
+3. TOKE- QIK BANRESERVAS (PAGOS RÁPIDOS)
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta o Usuario qik: 809-706-5502
+Tipo de cuenta: Ahorros
+
+4. BANCO POPULAR
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta: 772542833 O 824866537
+Tipo de cuenta: Ahorros
+
+Confirmar Monto a Pagar: RD$ [Monto]
+Concepto: [Nombre del curso]
+Enviar comprobante de pago a este mismo WhatsApp.
+==============================================
 
 Reglas comerciales para agentes:
-- Responder con tono dominicano profesional, claro, empatico y orientado a cierre.
-- Explicar que aprendera la persona, como puede mejorar sus oportunidades laborales y por que conviene iniciar.
-- Crear urgencia etica sin prometer empleo garantizado, ingresos garantizados, cupos falsos ni resultados irreales.
-- Si el prospecto muestra interes, pedir nombre, telefono, curso de interes, horario preferido y si desea iniciar con la inscripcion.
-- Si falta informacion, reconocerlo y solicitar que un asesor humano confirme antes de prometer.
+- Responder con tono dominicano profesional, claro, empático y orientado a cierre.
+- Explicar qué aprenderá la persona, cómo puede mejorar sus oportunidades laborales y por qué conviene iniciar.
+- Crear urgencia ética sin prometer empleo garantizado, ingresos garantizados, cupos falsos ni resultados irreales.
+- Si el prospecto muestra interés, pedir nombre, teléfono, curso de interés, horario preferido y si desea iniciar con la inscripción.
+- Si falta información, reconocerlo y solicitar que un asesor humano confirme antes de prometer.
 - Nunca inventar certificaciones, alianzas, descuentos, fechas de inicio, testimonios o beneficios no aprobados.
 `;
 
@@ -371,15 +386,16 @@ function trimWhatsAppReply(text: string) {
   return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1_500);
 }
 
+// CORRECCIÓN: Saludo exacto y directo de Mariela López
 function buildFallbackWhatsAppReply(customerName: string | undefined, userMessage: string) {
   const greetingName = customerName ? ` ${customerName}` : '';
   const lowerMessage = userMessage.toLowerCase();
 
   if (lowerMessage.includes('autoriz')) {
-    return trimWhatsAppReply(`¡Hola${greetingName}! Soy Mariela López, representante de información al estudiante en INTECA. 👋\n\nEl programa de Autorizaciones Médicas dura 5 meses y las clases son un solo día a la semana.\n\n¿Te gustaría que te comparta los precios o prefieres ver los horarios que tenemos disponibles?`);
+    return trimWhatsAppReply(`¡Hola${greetingName}! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. 👋\n\nEl programa de Técnico u Oficial de Autorizaciones Médicas dura 5 meses y las clases son un solo día a la semana.\n\n¿Te gustaría que te comparta los precios o prefieres ver los horarios que tenemos disponibles?`);
   }
 
-  return trimWhatsAppReply(`¡Hola${greetingName}! Soy Mariela López, representante de información al estudiante en INTECA. 👋\n\n¿Sobre cuál de nuestros programas de aprendizaje estás interesado?`);
+  return trimWhatsAppReply(`¡Hola${greetingName}! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. 👋\n\n¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?`);
 }
 
 function getWhatsAppMessageText(message: any) {
@@ -413,6 +429,7 @@ function findWhatsAppContactName(event: any, waId: string) {
   return contact?.profile?.name;
 }
 
+// CORRECCIÓN: Prompt de IA actualizado con la identidad exacta y directrices concretas.
 async function generateWhatsAppAutoReply(userMessage: string, customerName?: string) {
   const fallback = buildFallbackWhatsAppReply(customerName, userMessage);
 
@@ -422,27 +439,26 @@ async function generateWhatsAppAutoReply(userMessage: string, customerName?: str
 
   try {
     const prompt = `
-Eres Mariela López, representante de información al estudiante de INTECA por WhatsApp. Tu objetivo es guiar al usuario hacia la conversión paso a paso, respondiendo de forma breve, amable y directa.
+Eres Mariela López, representante de información al estudiante de INTECA. Tu objetivo es guiar al usuario hacia la inscripción de forma amable, directa y HUMANA por WhatsApp.
 
 BASE DE CONOCIMIENTO AUTORIZADA:
-${buildAgentKnowledgePrompt('WhatsApp, ventas paso a paso, información dosificada, cuentas bancarias')}
+${buildAgentKnowledgePrompt('WhatsApp, ventas paso a paso, respuestas concretas, cuentas bancarias')}
 
 NOMBRE DEL USUARIO: ${customerName || 'Amigo/a'}
 MENSAJE DEL USUARIO:
 "${userMessage}"
 
 INSTRUCCIONES ESTRICTAS DE COMPORTAMIENTO:
-1. IDENTIDAD Y SALUDO: Si es el primer contacto o solo dicen "Hola", saluda cordialmente, preséntate SIEMPRE como Mariela López (representante de información de INTECA) y pregúntale DIRECTAMENTE sobre qué programa de aprendizaje está interesado.
-2. RESPONDE SOLO LO PREGUNTADO: Si pregunta el precio, da solo el precio. Si pregunta horario, da los horarios. NO le lances "bloques de texto" con toda la información junta (precios, horarios, beneficios, etc.) a menos que te pida todo explícitamente.
-3. BREVEDAD EXTREMA: Tus mensajes deben ser cortos (1 o 2 párrafos cortos). La gente no lee testamentos en WhatsApp.
-4. PAGOS: Si pregunta cómo pagar o dice que quiere inscribirse, ofrécele las cuentas bancarias (Popular, Banreservas, Qik, Toke) a nombre de Luis Alcides Ramirez Escalante indicadas en tu base de conocimiento.
-5. HORARIOS (Recordatorio vital): Las clases son UN SOLO DÍA a la semana, a elegir entre lunes y sábado, o los domingos.
-6. PREGUNTA FINAL: Siempre termina tu mensaje con una pequeña pregunta para guiar la conversación al siguiente paso (ej: "¿Te paso los precios o los horarios?", "¿Deseas inscribirte?").
+1. IDENTIDAD Y SALUDO INICIAL: Si el usuario dice "Hola" o es el inicio de la conversación, responde EXACTAMENTE así: "¡Hola! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. ¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?"
+2. RESPONDE DE FORMA CONCRETA: Responde a las dudas del usuario de manera directa. Si piden horarios, da los horarios (1 solo día a la semana). Si piden precios, da los precios. 
+3. PAGOS E INSCRIPCIÓN: Si el cliente solicita información de pago o indica que desea inscribirse, bríndale la información completa y concreta del "Documento de Pago" que está en tu base de conocimiento (incluyendo todas las cuentas de Banreservas, Popular, Qik y Toke a nombre de Luis Alcides Ramirez Escalante).
+4. BREVEDAD: Fuera del documento de pago, mantén tus respuestas conversacionales y cortas. No envíes bloques gigantes de texto a menos que te pidan toda la información de golpe.
+5. PREGUNTA DE SEGUIMIENTO: Si el usuario aún no se ha inscrito, termina siempre tu mensaje con una pregunta corta para guiarlo al siguiente paso (ej: "¿Te paso los precios?", "¿Qué horario te conviene más?").
 `;
 
     const response = await generateGeminiContentWithFallback(prompt, {
-      temperature: 0.5,
-      maxOutputTokens: 250 // Asegura que la IA no se extienda demasiado
+      temperature: 0.45,
+      maxOutputTokens: 350 // Límite ligeramente mayor para permitir enviar las cuentas de banco completas si las piden
     });
 
     return trimWhatsAppReply(response.text || fallback) || fallback;
