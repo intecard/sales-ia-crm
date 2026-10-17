@@ -251,7 +251,7 @@ function validateAdminCredentials(email: string, password: string) {
 }
 
 const INTECA_AGENT_KNOWLEDGE_BASE = `
-INTECA SRL, tambien conocida como Instituto Tecnico del Caribe e Instituto Nacional de Tecnologia y Capacitacion Aplicada, es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, Ley 87-01, farmacologia aplicada, enfermeria y capacitacion profesional.
+INTECA (Instituto Tecnico del Caribe) es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, farmacologia aplicada y enfermeria.
 
 Canales oficiales:
 - Sitio web: https://www.inteca.com.do
@@ -271,23 +271,25 @@ Otros programas confirmados o previstos:
 - Precertificaciones medicas.
 - Atencion al usuario en salud.
 - Farmacologia aplicada.
-- Ley 87-01.
 - Facturacion medica.
 - Enfermeria, con duracion confirmada de 1 ano.
-- Cursos del sector salud.
-- Precios base usados por INTECA cuando no exista otra tarifa aprobada: inscripcion RD$2,500 y mensualidad RD$2,000.
 
-Horarios confirmados para ofertas virtuales cuando esten disponibles:
-- Lunes a viernes: 3:00 p. m. a 5:00 p. m. y 7:00 p. m. a 9:00 p. m.
-- Sabados: 10:00 a. m. a 12:00 m. y 2:00 p. m. a 4:00 p. m.
-- Domingos: 9:00 a. m. a 11:00 a. m.
+Horarios disponibles (El estudiante toma clase UN SOLO DIA a la semana, eligiendo una de las siguientes opciones):
+- Lunes a Sabado (en cualquiera de esos dias, solo un dia): de 8:00 a 10:00 am, 10:00 a 12:00 m, 1:00 a 3:00 pm, 3:00 a 5:00 pm y de 7:00 a 9:00 pm.
+- Domingos: de 8:00 a 10:00 am, 11:00 am a 1:00 pm, 2:00 a 4:00 pm, 4:00 a 6:00 pm.
+
+Metodos de Pago y Cuentas Bancarias (Titular: Luis Alcides Ramirez Escalante - Cedula: 224-0013869-3):
+- BANRESERVAS: Cuenta de Ahorros # 9606185447
+- BANCO POPULAR: Cuenta de Ahorros # 772542833 o # 824866537
+- QIK Banco Digital: Cuenta # 1004115453 (Alias: luisramirezescalante1985@gmail.com)
+- TOKE (Pagos Rapidos): Usuario/Numero 809-706-5502
+*Importante:* El cliente debe enviar el comprobante con su nombre y curso al correo intecaedu@gmail.com o a este mismo WhatsApp. Las inscripciones y mensualidades se pagan por transferencia o deposito a estas cuentas. Solo suministralas si el prospecto indica que ya quiere pagar o inscribirse.
 
 Reglas comerciales para agentes:
 - Responder con tono dominicano profesional, claro, empatico y orientado a cierre.
 - Explicar que aprendera la persona, como puede mejorar sus oportunidades laborales y por que conviene iniciar.
 - Crear urgencia etica sin prometer empleo garantizado, ingresos garantizados, cupos falsos ni resultados irreales.
 - Si el prospecto muestra interes, pedir nombre, telefono, curso de interes, horario preferido y si desea iniciar con la inscripcion.
-- Si pregunta por pagos, orientar a que un asesor confirme el metodo de pago disponible o compartir instrucciones solo si estan configuradas oficialmente.
 - Si falta informacion, reconocerlo y solicitar que un asesor humano confirme antes de prometer.
 - Nunca inventar certificaciones, alianzas, descuentos, fechas de inicio, testimonios o beneficios no aprobados.
 `;
@@ -355,7 +357,6 @@ REGLAS DE CONVERSACION, PARAFRASEO Y SEGURIDAD:
 - No inventes beneficios, cupos, empleos garantizados, pasantias, alianzas, descuentos, testimonios, resultados, pagos aprobados ni facturas emitidas.
 - Si la informacion no esta confirmada en la base o en el contexto de la solicitud, dilo con claridad y escala a Luis o a un asesor autorizado.
 - Cuando hables por INTECA, presenta los cursos como oportunidades de formacion practica y mejora profesional, sin prometer resultados garantizados.
-- Si el contexto pertenece a otra empresa, usa estas reglas como guia de calidad, pero no presentes datos de INTECA como si fueran de esa empresa.
 `;
 }
 
@@ -375,32 +376,10 @@ function buildFallbackWhatsAppReply(customerName: string | undefined, userMessag
   const lowerMessage = userMessage.toLowerCase();
 
   if (lowerMessage.includes('autoriz')) {
-    return trimWhatsAppReply(`Hola${greetingName}, gracias por escribir a INTECA.
-
-Si te interesa el curso de Tecnico u Oficial de Autorizaciones Medicas, te cuento lo esencial:
-
-- Modalidad virtual.
-- Duracion: 5 meses.
-- Inscripcion: RD$2,500.
-- Mensualidad: RD$2,000.
-- Aprenderas procesos de autorizaciones, validacion de coberturas, PBS, precertificaciones, atencion al afiliado, Ley 87-01, SISALRIL, CNSS y casos practicos del sector salud.
-
-Este curso te prepara para entender como trabajan las ARS, clinicas, hospitales y centros de salud en el area de autorizaciones medicas.
-
-Para orientarte mejor, dime por favor:
-1. Tu nombre completo.
-2. Si tienes experiencia en salud o empiezas desde cero.
-3. Que horario prefieres: tarde, noche, sabado o domingo.`);
+    return trimWhatsAppReply(`¡Hola${greetingName}! Soy Mariela López, representante de información al estudiante en INTECA. 👋\n\nEl programa de Autorizaciones Médicas dura 5 meses y las clases son un solo día a la semana.\n\n¿Te gustaría que te comparta los precios o prefieres ver los horarios que tenemos disponibles?`);
   }
 
-  return trimWhatsAppReply(`Hola${greetingName}, gracias por escribir a INTECA.
-
-Somos una institucion de formacion tecnica enfocada en cursos del sector salud. Tenemos programas como Autorizaciones Medicas, Precertificaciones Medicas, Atencion al Usuario, Facturacion Medica, Ley 87-01, Farmacologia Aplicada y Enfermeria.
-
-Para ayudarte bien, dime:
-1. Que curso te interesa.
-2. Si prefieres horario de tarde, noche o fin de semana.
-3. Si deseas informacion para inscribirte.`);
+  return trimWhatsAppReply(`¡Hola${greetingName}! Soy Mariela López, representante de información al estudiante en INTECA. 👋\n\n¿Sobre cuál de nuestros programas de aprendizaje estás interesado?`);
 }
 
 function getWhatsAppMessageText(message: any) {
@@ -443,26 +422,27 @@ async function generateWhatsAppAutoReply(userMessage: string, customerName?: str
 
   try {
     const prompt = `
-Eres el agente comercial de WhatsApp de INTECA. Responde al prospecto usando un estilo humano, profesional, claro y orientado a conversion.
+Eres Mariela López, representante de información al estudiante de INTECA por WhatsApp. Tu objetivo es guiar al usuario hacia la conversión paso a paso, respondiendo de forma breve, amable y directa.
 
 BASE DE CONOCIMIENTO AUTORIZADA:
-${buildAgentKnowledgePrompt('WhatsApp, ventas consultivas, captacion de leads y seguimiento comercial')}
+${buildAgentKnowledgePrompt('WhatsApp, ventas paso a paso, información dosificada, cuentas bancarias')}
 
-NOMBRE DEL PROSPECTO: ${customerName || 'No especificado'}
-MENSAJE DEL PROSPECTO:
+NOMBRE DEL USUARIO: ${customerName || 'Amigo/a'}
+MENSAJE DEL USUARIO:
 "${userMessage}"
 
-INSTRUCCIONES:
-1. Responde en espanol dominicano profesional.
-2. Puedes parafrasear con naturalidad, pero no inventes datos, fechas, descuentos, certificaciones ni garantias.
-3. Si pregunta por autorizaciones medicas, incluye duracion 5 meses, modalidad virtual, inscripcion RD$2,500 y mensualidad RD$2,000.
-4. Explica beneficio laboral y practico en pocas lineas.
-5. Cierra con una pregunta que capture datos o acerque al pago.
-6. Mantente por debajo de 1,200 caracteres para WhatsApp.
+INSTRUCCIONES ESTRICTAS DE COMPORTAMIENTO:
+1. IDENTIDAD Y SALUDO: Si es el primer contacto o solo dicen "Hola", saluda cordialmente, preséntate SIEMPRE como Mariela López (representante de información de INTECA) y pregúntale DIRECTAMENTE sobre qué programa de aprendizaje está interesado.
+2. RESPONDE SOLO LO PREGUNTADO: Si pregunta el precio, da solo el precio. Si pregunta horario, da los horarios. NO le lances "bloques de texto" con toda la información junta (precios, horarios, beneficios, etc.) a menos que te pida todo explícitamente.
+3. BREVEDAD EXTREMA: Tus mensajes deben ser cortos (1 o 2 párrafos cortos). La gente no lee testamentos en WhatsApp.
+4. PAGOS: Si pregunta cómo pagar o dice que quiere inscribirse, ofrécele las cuentas bancarias (Popular, Banreservas, Qik, Toke) a nombre de Luis Alcides Ramirez Escalante indicadas en tu base de conocimiento.
+5. HORARIOS (Recordatorio vital): Las clases son UN SOLO DÍA a la semana, a elegir entre lunes y sábado, o los domingos.
+6. PREGUNTA FINAL: Siempre termina tu mensaje con una pequeña pregunta para guiar la conversación al siguiente paso (ej: "¿Te paso los precios o los horarios?", "¿Deseas inscribirte?").
 `;
 
     const response = await generateGeminiContentWithFallback(prompt, {
-      temperature: 0.55,
+      temperature: 0.5,
+      maxOutputTokens: 250 // Asegura que la IA no se extienda demasiado
     });
 
     return trimWhatsAppReply(response.text || fallback) || fallback;
@@ -2545,7 +2525,7 @@ Reglas:
 1. No inventes avales, precios, fechas ni garantías no indicadas.
 2. La pieza debe crear deseo y necesidad de forma ética, con beneficio práctico y CTA fuerte.
 3. Si es flyer, incluye escena visual, texto principal, CTA, elementos obligatorios y prompt de imagen en inglés.
-4. Si es video, incluye guion por segundos, texto en pantalla, voz en off, escenas, portada y CTA.
+4. Si es video, incluye guion por segundos, texto en pantalla, voz en off, scenes, portada y CTA.
 5. Debe ser útil para Meta Ads, WhatsApp, YouTube Shorts/Reels y landing.
 6. Puedes parafrasear con estilo publicitario, pero manteniendo exactamente precios, duraciones, advertencias y condiciones confirmadas.
 
