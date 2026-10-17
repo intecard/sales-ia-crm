@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { buildWhatsAppTextPayload, extractWhatsAppMessages, resolveWhatsAppRecipient, type WhatsAppRecipient } from './whatsapp-routing';
 
 dotenv.config();
 
@@ -16,11 +17,10 @@ const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
 
-// Modelos estabilizados 
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
   'gemini-1.5-pro',
-  'gemini-1.0-pro'
+  'gemini-1.5-flash-8b'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
@@ -163,6 +163,7 @@ const conversionLeadRequestSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().max(60).optional(),
   whatsapp: z.string().max(60).optional(),
+  whatsappUserId: z.string().max(140).optional(),
   courseId: z.string().max(120).optional(),
   courseTitle: z.string().max(250).optional(),
   source: z.string().max(120).optional(),
@@ -184,6 +185,7 @@ interface ServerConversionLead {
   email: string;
   phone: string;
   whatsapp: string;
+  whatsappUserId?: string;
   courseId?: string;
   courseTitle: string;
   source: string;
@@ -228,6 +230,7 @@ const serverAuditEvents: Array<
 const serverConversionLeads: ServerConversionLead[] = [];
 const serverStudentEnrollments: ServerStudentEnrollment[] = [];
 const processedWhatsAppMessageIds = new Set<string>();
+const inFlightWhatsAppMessageIds = new Set<string>();
 
 function getConfiguredAdminCredentials() {
   return {
@@ -425,7 +428,9 @@ function findWhatsAppContactName(event: any, waId: string) {
     event.entry?.flatMap(
       (entry: any) => entry.changes?.flatMap((change: any) => change.value?.contacts || []) || [],
     ) || [];
-  const contact = contacts.find((item: any) => item?.wa_id === waId);
+  const contact = contacts.find((item: any) =>
+    item?.wa_id === waId || item?.user_id === waId || item?.parent_user_id === waId,
+  );
   return contact?.profile?.name;
 }
 
@@ -433,7 +438,6 @@ async function generateWhatsAppAutoReply(userMessage: string, customerName?: str
   const fallback = buildFallbackWhatsAppReply(customerName, userMessage);
 
   if (!process.env.GEMINI_API_KEY) {
-    console.log('[DEBUG] Gemini no intentado: Falta API Key. Usando Fallback.');
     return fallback;
   }
 
@@ -457,20 +461,18 @@ INSTRUCCIONES:
 6. Mantente por debajo de 1,200 caracteres para WhatsApp.
 `;
 
-    console.log('[DEBUG] Invocando Gemini Generate Content...');
     const response = await generateGeminiContentWithFallback(prompt, {
       temperature: 0.55,
     });
-    console.log('[DEBUG] Gemini devolvió una respuesta con éxito.');
 
     return trimWhatsAppReply(response.text || fallback) || fallback;
   } catch (error) {
-    console.error('[DEBUG] Todas las llamadas a Gemini fallaron. Forzando Fallback:', error);
+    console.error('Error generating WhatsApp auto reply:', error);
     return fallback;
   }
 }
 
-async function sendWhatsAppTextMessage(to: string, body: string) {
+async function sendWhatsAppTextMessage(recipient: WhatsAppRecipient, body: string) {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const graphApiVersion = process.env.META_GRAPH_API_VERSION || 'v26.0';
@@ -488,16 +490,7 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to,
-        type: 'text',
-        text: {
-          preview_url: false,
-          body,
-        },
-      }),
+      body: JSON.stringify(buildWhatsAppTextPayload(recipient, body)),
     },
   );
 
@@ -514,112 +507,117 @@ async function sendWhatsAppTextMessage(to: string, body: string) {
   return responseBody;
 }
 
-// CORRECCIÓN DEFINITIVA EXTRACCIÓN DE NÚMERO META V26.0
+// Support phone-number and BSUID identities without converting IDs into phone numbers.
 async function processWhatsAppInboundMessages(messages: any[], event: any) {
-  console.log(`[DEBUG] Inicio de procesamiento de mensajes inbound.`);
-  
+  console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
+
   if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
     return;
   }
 
-  const rawEventString = JSON.stringify(event);
-
   for (const message of messages) {
     const messageId = message?.id;
-    console.log(`[DEBUG] Procesando ID: ${messageId}`);
-
-    // Extracción AGRESIVA usando Expresión Regular para buscar cualquier cosa que parezca el número de teléfono del cliente
-    let senderPhone = '';
-
-    // Intento 1: A la antigua
-    if (message?.from && typeof message?.from === 'string' && !message?.from.includes('DO.')) {
-        senderPhone = message.from.replace(/\D/g, '');
-    }
-
-    // Intento 2: Array Contacts
-    if (!senderPhone || senderPhone.length < 8) {
-        const contacts = event.entry?.[0]?.changes?.[0]?.value?.contacts || [];
-        const contactWaId = contacts[0]?.wa_id;
-        if (contactWaId && typeof contactWaId === 'string') {
-            senderPhone = contactWaId.replace(/\D/g, '');
-        }
-    }
-
-    // Intento 3: Buscar CUALQUIER cadena que empiece por 1 (código de área típico) y tenga al menos 10 dígitos dentro de todo el payload
-    if (!senderPhone || senderPhone.length < 8) {
-         const match = rawEventString.match(/1[0-9]{10,14}/);
-         if(match && match[0]) {
-             senderPhone = match[0];
-         }
-    }
-
-    console.log(`[DEBUG-ESPIA] Número final extraído para el envío: '${senderPhone}'`);
-
-    if (!senderPhone || senderPhone.length < 8) {
-      console.log('⚠️ Ignorado: No se pudo extraer de ninguna forma un número válido del payload.');
+    const recipient = resolveWhatsAppRecipient(message);
+    if (!recipient || typeof messageId !== 'string' || !messageId) {
+      console.warn('WhatsApp message skipped: unsupported type or missing sender/message ID', {
+        type: message?.type,
+        hasPhone: typeof message?.from === 'string',
+        hasUserId: typeof message?.from_user_id === 'string',
+      });
       continue;
     }
 
-    if (processedWhatsAppMessageIds.has(messageId)) {
+    const senderPhone = recipient.kind === 'phone' ? recipient.id : '';
+    const whatsappUserId = recipient.kind === 'bsuid' ? recipient.id : undefined;
+
+    console.log('WhatsApp message accepted', { recipientKind: recipient.kind });
+
+    if (processedWhatsAppMessageIds.has(messageId) || inFlightWhatsAppMessageIds.has(messageId)) {
       continue;
     }
 
-    processedWhatsAppMessageIds.add(messageId);
-    if (processedWhatsAppMessageIds.size > 1_000) {
-      const firstMessageId = processedWhatsAppMessageIds.values().next().value;
-      if (typeof firstMessageId === 'string') {
-        processedWhatsAppMessageIds.delete(firstMessageId);
+    inFlightWhatsAppMessageIds.add(messageId);
+    try {
+
+      const userMessage = getWhatsAppMessageText(message);
+      const customerName = findWhatsAppContactName(event, recipient.id);
+    
+      console.log('Processing incoming WhatsApp lead');
+
+      const conversionResult = processConversionLead(
+        {
+          fullName: customerName,
+          whatsapp: senderPhone,
+          phone: senderPhone,
+          whatsappUserId,
+          source: 'WhatsApp',
+          message: userMessage,
+          courseTitle: inferCourseTitle({ message: userMessage }),
+          organizationId: 'org_inteca_main',
+        },
+        'WhatsApp',
+      );
+    
+      console.log('🧠 Generando respuesta con Gemini...');
+    
+      let reply = buildFallbackWhatsAppReply(customerName, userMessage);
+      try {
+          reply = await generateWhatsAppAutoReply(userMessage, customerName);
+      } catch (e) {
+          console.log('Gemini API call completely failed, safely using fallback message instead.');
       }
+
+      console.log('Sending WhatsApp reply', { recipientKind: recipient.kind });
+      await sendWhatsAppTextMessage(recipient, reply);
+      processedWhatsAppMessageIds.add(messageId);
+      if (processedWhatsAppMessageIds.size > 1_000) {
+        const firstMessageId = processedWhatsAppMessageIds.values().next().value;
+        if (firstMessageId) processedWhatsAppMessageIds.delete(firstMessageId);
+      }
+      console.log('✅ Respuesta enviada exitosamente.');
+
+      recordServerAudit({
+        actorType: 'Agente IA',
+        actorName: 'Agente WhatsApp INTECA',
+        module: 'WhatsApp',
+        action: 'Respondió',
+        entityType: 'WhatsAppMessage',
+        entityId: messageId,
+        summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
+        details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
+        sourceChannel: 'WhatsApp',
+        severity: 'Éxito',
+        status: 'Registrado',
+      });
+
+      if (conversionResult.lead.missingFields.length === 0) {
+        recordServerAudit({
+          actorType: 'Agente IA',
+          actorName: 'Agente IA Conversión y Matrícula',
+          module: 'Leads',
+          action: 'Calificó',
+          entityType: 'ConversionLead',
+          entityId: conversionResult.lead.id,
+          summary: 'Lead de WhatsApp quedó listo para solicitar inscripción.',
+          details: `Curso: ${conversionResult.lead.courseTitle}. Próximo seguimiento: ${conversionResult.lead.nextFollowUpAt}.`,
+          sourceChannel: 'WhatsApp',
+          severity: 'Info',
+          status: 'Registrado',
+        });
+      }
+    } catch (error) {
+      // One failed message must not discard the rest of this webhook batch.
+      console.error('WhatsApp auto reply failed', error);
+      recordServerAudit({
+        actorType: 'Agente IA', actorName: 'Agente WhatsApp INTECA', module: 'WhatsApp',
+        action: 'Falló', entityType: 'WhatsAppAutoReply', entityId: messageId,
+        summary: 'No se pudo enviar la respuesta automatizada por WhatsApp.',
+        details: error instanceof Error ? error.message : 'Error desconocido',
+        sourceChannel: 'WhatsApp', severity: 'Crítico', status: 'Pendiente revisión',
+      });
+    } finally {
+      inFlightWhatsAppMessageIds.delete(messageId);
     }
-
-    const userMessage = getWhatsAppMessageText(message);
-    const customerName = findWhatsAppContactName(event, senderPhone);
-    
-    console.log(`🟢 Procesando lead: ${customerName || senderPhone} - Mensaje: "${userMessage}"`);
-
-    const conversionResult = processConversionLead(
-      {
-        fullName: customerName,
-        whatsapp: senderPhone,
-        phone: senderPhone,
-        source: 'WhatsApp',
-        message: userMessage,
-        courseTitle: inferCourseTitle({ message: userMessage }),
-        organizationId: 'org_inteca_main',
-      },
-      'WhatsApp',
-    );
-    
-    let reply = buildFallbackWhatsAppReply(customerName, userMessage);
-    try {
-        console.log('🧠 Solicitando respuesta a Gemini...');
-        const generatedReply = await generateWhatsAppAutoReply(userMessage, customerName);
-        if(generatedReply) reply = generatedReply;
-    } catch (e) {
-        console.log('[DEBUG] Error crítico interno en generación IA. Usando fallback forzado.');
-    }
-
-    console.log(`📤 Enviando respuesta a WhatsApp Meta API... Destino: ${senderPhone}`);
-    try {
-        await sendWhatsAppTextMessage(senderPhone, reply);
-        console.log('✅ Respuesta de WhatsApp enviada a Meta con éxito.');
-    } catch (sendError) {
-         console.error('❌ FALLÓ EL ENVÍO DEL MENSAJE. Detalle:', sendError);
-    }
-
-    recordServerAudit({
-      actorType: 'Agente IA',
-      actorName: 'Agente WhatsApp INTECA',
-      module: 'WhatsApp',
-      action: 'Respondió',
-      entityType: 'WhatsAppMessage',
-      entityId: messageId,
-      summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
-      details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta generada enviada a Meta.`,
-      sourceChannel: 'WhatsApp',
-      severity: 'Éxito',
-      status: 'Registrado',
-    });
   }
 }
 
@@ -631,6 +629,12 @@ function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
   };
   serverAuditEvents.unshift(entry);
   serverAuditEvents.splice(500);
+  console.log('Audit event recorded', {
+    id: entry.id,
+    module: entry.module,
+    action: entry.action,
+    entityType: entry.entityType,
+  });
   return entry;
 }
 
@@ -685,8 +689,10 @@ function findExistingConversionLead(payload: ConversionLeadInput) {
   const email = normalizeContactValue(payload.email).toLowerCase();
   const whatsapp = normalizeContactValue(payload.whatsapp || payload.phone).replace(/\D/g, '');
   return serverConversionLeads.find((lead) => {
+    if (lead.organizationId !== (payload.organizationId || 'org_inteca_main')) return false;
     const leadWhatsapp = (lead.whatsapp || lead.phone).replace(/\D/g, '');
     return Boolean(
+      (payload.whatsappUserId && lead.whatsappUserId === payload.whatsappUserId) ||
       (email && lead.email.toLowerCase() === email) || (whatsapp && leadWhatsapp === whatsapp),
     );
   });
@@ -721,6 +727,7 @@ function buildConversionLeadFromPayload(payload: ConversionLeadInput) {
     email,
     phone,
     whatsapp,
+    whatsappUserId: payload.whatsappUserId || existingLead?.whatsappUserId,
     courseId: normalizeContactValue(payload.courseId) || existingLead?.courseId,
     courseTitle,
     source,
@@ -1770,10 +1777,7 @@ app.post('/api/webhooks/meta/whatsapp', (req, res) => {
       return res.sendStatus(404);
     }
 
-    const messages =
-      event.entry?.flatMap(
-        (entry: any) => entry.changes?.flatMap((change: any) => change.value?.messages || []) || [],
-      ) || [];
+    const messages = extractWhatsAppMessages(event, process.env.WHATSAPP_PHONE_NUMBER_ID);
 
     const statuses =
       event.entry?.flatMap(
