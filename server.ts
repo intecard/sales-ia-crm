@@ -251,7 +251,7 @@ function validateAdminCredentials(email: string, password: string) {
 }
 
 const INTECA_AGENT_KNOWLEDGE_BASE = `
-INTECA SRL, tambien conocida como Instituto Tecnico del Caribe e Instituto Nacional de Tecnologia y Capacitacion Aplicada, es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, Ley 87-01, farmacologia aplicada, enfermeria y capacitacion profesional.
+INTECA SRL, tambien conocida como Instituto Tecnico del Caribe, es una institucion de formacion tecnica en Republica Dominicana enfocada en cursos del sector salud, autorizaciones medicas, atencion al usuario, facturacion medica, Ley 87-01, farmacologia aplicada, enfermeria y capacitacion profesional.
 
 Canales oficiales:
 - Sitio web: https://www.inteca.com.do
