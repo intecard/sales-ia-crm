@@ -163,6 +163,7 @@ export class SalesStore {
           'UNKNOWN_CONTACT',
           'INVALID_ACTION',
           'QUOTE_REQUIRED',
+          'RECEIPT_REQUIRED',
         ];
         throw new Error(
           known.includes(result.message)

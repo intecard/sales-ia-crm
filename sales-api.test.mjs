@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import process from 'node:process';
+import { setTimeout } from 'node:timers';
+const { fetch } = globalThis;
 
 test('sales endpoints enforce administrator session and explicit bank review; pause affects the webhook', async () => {
   let output = '';
@@ -81,6 +84,11 @@ test('sales endpoints enforce administrator session and explicit bank review; pa
         ...(body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }),
       });
     assert.equal((await req('/api/sales')).status, 401);
+    assert.equal((await req('/api/sales/enrollments')).status, 401);
+    assert.equal(
+      (await req('/api/sales/receipts/00000000-0000-4000-8000-000000000001/content')).status,
+      401,
+    );
     const login = await req('/api/auth/login', {
       email: 'admin@example.test',
       password: 'local-test-secret',
@@ -141,8 +149,25 @@ test('sales endpoints enforce administrator session and explicit bank review; pa
       ).status,
       400,
     );
+    assert.equal(
+      (
+        await req(
+          '/api/sales/any/action',
+          {
+            action: 'verify_payment',
+            data: { bank: 'Qik', reference: 'abc', amount: 2500, confirmed: true },
+          },
+          cookie,
+        )
+      ).status,
+      400,
+    );
     assert.equal((await req('/api/sales', undefined, 'crm_sales_session=forged')).status, 401);
-    const publicForm = await req('/api/webhooks/web/forms', { fullName: 'Prueba local', courseTitle: 'Autorizaciones Médicas', paymentConfirmed: true });
+    const publicForm = await req('/api/webhooks/web/forms', {
+      fullName: 'Prueba local',
+      courseTitle: 'Autorizaciones Médicas',
+      paymentConfirmed: true,
+    });
     assert.equal((await publicForm.json()).conversionLead.status, 'Seguimiento activo');
     const logout = await req('/api/auth/logout', {}, cookie);
     assert.match(logout.headers.get('set-cookie'), /Expires=Thu, 01 Jan 1970/);

@@ -14,9 +14,15 @@ import { ConversationStore, conversationKey, rememberUser, rememberReply, fallba
 
 import { SalesStore, salesSignal, salesReply, SALES_RULES, issueSalesSession, verifySalesSession, type SalesOpportunity } from './sales-agent';
 
+import { EnrollmentAgent, ENROLLMENT_ERRORS, enrollmentError, welcomeText } from './enrollment-agent';
+
 dotenv.config();
 const salesStore = new SalesStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 void salesStore.verify();
+const enrollmentAgent = new EnrollmentAgent(salesStore);
+const enrollmentTimer = setInterval(() => void enrollmentAgent.tick(), 60000);
+enrollmentTimer.unref();
+setTimeout(() => void enrollmentAgent.tick(), 10000).unref();
 const whatsAppConversations = new ConversationStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 void whatsAppConversations.verify();
 
@@ -37,6 +43,7 @@ if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1' || pro
   app.set('trust proxy', 1);
 }
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use('/api/sales/:key/receipts', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(
   '/api',
@@ -560,7 +567,13 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     
         console.log('🧠 Generando respuesta con Gemini...');
     
-        const answer = (sale && salesReply(sale, signal, userMessage)) || await generateWhatsAppAutoReply(userMessage, conversation, customerName, Boolean(senderPhone), sale);
+        let enrollmentAnswer: { reply: string; awaiting: AwaitingField } | undefined;
+        if (sale?.stage === 'won') {
+          await enrollmentAgent.ensure(memoryKey);
+          const enrollment = await enrollmentAgent.get(memoryKey);
+          if (enrollment?.campus_status === 'active' && /matr[ií]cul|inscrip|acceso|campus|pago|curso/i.test(userMessage)) enrollmentAnswer = { reply: welcomeText(enrollment, process.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do'), awaiting: '' };
+        }
+        const answer = enrollmentAnswer || (sale && salesReply(sale, signal, userMessage)) || await generateWhatsAppAutoReply(userMessage, conversation, customerName, Boolean(senderPhone), sale);
         const reply = answer.reply;
 
         console.log('Sending WhatsApp reply', { recipientKind: recipient.kind });
@@ -763,63 +776,6 @@ function upsertConversionLead(lead: ServerConversionLead) {
   return lead;
 }
 
-function buildCampusCredentialPackage(
-  lead: ServerConversionLead,
-  payload: ConversionLeadInput,
-): ServerStudentEnrollment {
-  const paidAt = new Date().toISOString();
-  const campusUrl = process.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do';
-  const campusConnected = Boolean(process.env.INTECA_CAMPUS_BASE_URL && process.env.INTECA_CAMPUS_API_KEY);
-  const nameToken = normalizeConversionToken(`${lead.firstName}.${lead.lastName}`);
-  const contactToken = normalizeConversionToken(lead.whatsapp || lead.phone || lead.id).slice(-4);
-  const courseToken = normalizeConversionToken(lead.courseTitle).slice(0, 8).toUpperCase() || 'CURSO';
-  const studentCode = `INTECA-${new Date(paidAt).getFullYear()}-${lead.id.slice(-6).toUpperCase()}`;
-  const campusEmail =
-    lead.email && lead.email.includes('@')
-      ? lead.email.toLowerCase()
-      : `${nameToken || 'estudiante'}${contactToken}@alumnos.inteca.com.do`;
-  const campusTemporaryPassword = `Inteca-${courseToken.slice(0, 4)}-${contactToken || '2026'}!`;
-  const courseAccessCode = `${courseToken}-${studentCode.slice(-6)}`;
-  const nextAcademicFollowUpAt = new Date(Date.now() + 24 * 60 * 60 * 1_000).toISOString();
-  const welcomeMessage = `Hola ${lead.firstName}, bienvenido/a oficialmente a INTECA. Tu inscripción al programa ${lead.courseTitle} fue validada correctamente. Acceso al campus: ${campusUrl}. Usuario: ${campusEmail}. Contraseña temporal: ${campusTemporaryPassword}. Código del curso: ${courseAccessCode}. En las próximas 24 horas confirmaremos tu grupo, horario y próximos pasos académicos.`;
-
-  return {
-    id: `enr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
-    leadId: lead.id,
-    studentCode,
-    courseId: lead.courseId,
-    courseTitle: lead.courseTitle,
-    paymentTransactionId:
-      normalizeContactValue(payload.paymentTransactionId) ||
-      `payment_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
-    paymentAmount: payload.paymentAmount,
-    paidAt,
-    status: campusConnected ? 'Activo en campus' : 'Bienvenida enviada',
-    campusUrl,
-    campusEmail,
-    campusTemporaryPassword,
-    courseAccessCode,
-    welcomeMessage,
-    credentialsSentAt: paidAt,
-    nextAcademicFollowUpAt,
-    campusSyncStatus: campusConnected ? 'synced_or_ready' : 'pending_external_campus_api',
-  };
-}
-
-function registerStudentEnrollment(enrollment: ServerStudentEnrollment) {
-  const existingIndex = serverStudentEnrollments.findIndex(
-    (item) => item.leadId === enrollment.leadId && item.paymentTransactionId === enrollment.paymentTransactionId,
-  );
-  if (existingIndex >= 0) {
-    serverStudentEnrollments[existingIndex] = enrollment;
-  } else {
-    serverStudentEnrollments.unshift(enrollment);
-  }
-
-  serverStudentEnrollments.splice(300);
-  return enrollment;
-}
-
 function processConversionLead(payload: ConversionLeadInput, sourceChannel = 'API') {
   // Lead intake from public forms/ads is never evidence of a verified payment.
   // Only the authenticated sales transaction can register a bank-verified close.
@@ -842,41 +798,12 @@ function processConversionLead(payload: ConversionLeadInput, sourceChannel = 'AP
     status: 'Registrado',
   });
 
-  const enrollment = payload.paymentConfirmed
-    ? registerStudentEnrollment(buildCampusCredentialPackage(lead, payload))
-    : null;
-
-  if (enrollment) {
-    recordServerAudit({
-      actorType: 'Agente IA',
-      actorName: 'Agente IA Conversión y Matrícula',
-      module: 'Campus',
-      action: 'Activó',
-      entityType: 'StudentEnrollment',
-      entityId: enrollment.id,
-      summary: `Estudiante activado y bienvenida preparada: ${lead.fullName}`,
-      details: `Pago: ${enrollment.paymentTransactionId}. Usuario campus: ${enrollment.campusEmail}. Estado campus: ${enrollment.campusSyncStatus}.`,
-      sourceChannel,
-      severity: enrollment.campusSyncStatus === 'synced_or_ready' ? 'Éxito' : 'Advertencia',
-      status:
-        enrollment.campusSyncStatus === 'synced_or_ready' ? 'Registrado' : 'Pendiente revisión',
-    });
-  }
+  const enrollment: ServerStudentEnrollment | null = null;
 
   return {
     lead,
     enrollment,
-    nextActions: enrollment
-      ? [
-          'Enviar mensaje de bienvenida al estudiante por WhatsApp/email.',
-          'Confirmar grupo, horario de inicio y acceso al campus.',
-          'Programar seguimiento académico en 24 horas.',
-        ]
-      : [
-          'Completar datos faltantes si existen.',
-          'Explicar valor del curso y confirmar horario preferido.',
-          'Solicitar pago de inscripción y mantener seguimiento hasta validarlo.',
-        ],
+    nextActions: ['Continuar la conversación y completar los datos.', 'Revisar el recibo y validar el abono en Ventas y Cierre antes de matricular.'],
   };
 }
 
@@ -1076,9 +1003,7 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     category: 'Campus',
     requiredEnvVars: [
       'INTECA_CAMPUS_BASE_URL',
-      'INTECA_CAMPUS_API_KEY',
-      'INTECA_CAMPUS_DEFAULT_ROLE',
-      'INTECA_CAMPUS_WELCOME_TEMPLATE_ID',
+      'INTECA_FIREBASE_SERVICE_ACCOUNT_JSON',
     ],
   },
   {
@@ -1250,6 +1175,9 @@ const CONFIGURATION_EXTRA_ENV_VARS = [
   'NODE_ENV',
   'VITE_DEPLOYMENT_MODE',
   'VITE_INTECA_CAMPUS_URL',
+  'INTECA_FIREBASE_SERVICE_ACCOUNT_JSON', 'INTECA_FIREBASE_PROJECT_ID', 'INTECA_FIRESTORE_DATABASE_ID',
+  'RESEND_API_KEY', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_FROM', 'ENROLLMENT_AUTO_ENABLED',
+  'WHATSAPP_ENROLLMENT_TEMPLATE_NAME', 'WHATSAPP_ENROLLMENT_TEMPLATE_LANGUAGE',
 ];
 
 const CONFIGURABLE_ENV_VARS = new Set([
@@ -1420,7 +1348,7 @@ app.use('/api/sales', (req, res, next) => {
   next();
 });
 const salesActionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('verify_payment'), data: z.object({ bank: z.enum(['Banreservas', 'Qik', 'Banco Popular']), reference: z.string().trim().min(3).max(100), amount: z.number().positive().max(1000000), confirmed: z.literal(true) }) }),
+  z.object({ action: z.literal('verify_payment'), data: z.object({ bank: z.enum(['Banreservas', 'Qik', 'Banco Popular']), reference: z.string().trim().min(3).max(100), amount: z.number().positive().max(1000000), confirmed: z.literal(true), receiptId: z.string().uuid(), receiptReviewed: z.literal(true) }) }),
   z.object({ action: z.literal('quote'), data: z.object({ amount: z.number().positive().max(1000000) }) }),
   z.object({ action: z.literal('follow_up'), data: z.object({ note: z.string().trim().min(3).max(1000), at: z.string().datetime() }) }),
   z.object({ action: z.enum(['pause', 'resume', 'complete_task']), data: z.object({}).default({}) }),
@@ -1428,12 +1356,75 @@ const salesActionSchema = z.discriminatedUnion('action', [
 function salesError(res: express.Response, error: unknown) {
   const code = error instanceof Error ? error.message : '';
   const messages: Record<string, string> = {
+    ...ENROLLMENT_ERRORS,
     ALREADY_PAID: 'Este pago ya fue validado.', INVALID_PAYMENT: 'Verifica nombre, curso, importe exacto de inscripción y referencia bancaria.',
     QUOTE_REQUIRED: 'Define primero el importe de inscripción confirmado por INTECA.', UNKNOWN_CONTACT: 'Oportunidad no encontrada.',
     INVALID_ACTION: 'No puedes reactivar un contacto que pidió no recibir mensajes.', DUPLICATE_REFERENCE: 'Esa referencia bancaria ya está registrada.',
   };
   return res.status(messages[code] ? 409 : 503).json({ error: messages[code] || 'No se pudo guardar o consultar Supabase. Vuelve a intentarlo; el CRM no confirmó esta operación.' });
 }
+app.get('/api/sales/enrollments', async (_req, res) => {
+  try {
+    const [enrollments, mappings, paid] = await Promise.all([
+      salesStore.request('crm_student_enrollments?select=*&order=created_at.desc&limit=200'),
+      salesStore.request('crm_campus_course_mapping?select=*&order=course_title'),
+      salesStore.request('crm_sales_opportunities?stage=eq.won&select=contact_key,profile&limit=200'),
+    ]);
+    return res.json({ enrollments, mappings, paid, configuration: enrollmentAgent.status(), errors: ENROLLMENT_ERRORS });
+  } catch (error) { return salesError(res, error); }
+});
+app.get('/api/sales/campus-courses', async (_req, res) => {
+  try { return res.json(await enrollmentAgent.courses()); } catch (error) { return salesError(res, new Error(enrollmentError(error))); }
+});
+app.post('/api/sales/course-mapping', async (req, res) => {
+  const parsed = z.object({ courseTitle: z.string().trim().min(3).max(250), campusCourseId: z.string().min(1).max(150) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Selecciona los dos cursos.' });
+  try {
+    const course = (await enrollmentAgent.courses()).find(c => c.id === parsed.data.campusCourseId);
+    if (!course) return res.status(400).json({ error: 'El curso no existe en el campus.' });
+    const body = { course_title: parsed.data.courseTitle, campus_course_id: course.id, campus_course_title: course.title, verified_by: getConfiguredAdminCredentials().email, updated_at: new Date().toISOString() };
+    const existing = await salesStore.request(`crm_campus_course_mapping?course_title=eq.${encodeURIComponent(parsed.data.courseTitle)}&select=course_title`);
+    if (existing.length) await salesStore.request(`crm_campus_course_mapping?course_title=eq.${encodeURIComponent(parsed.data.courseTitle)}`, 'PATCH', body);
+    else await salesStore.request('crm_campus_course_mapping', 'POST', body);
+    return res.json({ success: true });
+  } catch (error) { return salesError(res, new Error(enrollmentError(error))); }
+});
+app.post('/api/sales/enrollments/:id/retry', async (req, res) => {
+  const parsed = z.object({ confirmedNotSent: z.boolean().default(false) }).safeParse(req.body);
+  if (!parsed.success || !z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Solicitud inválida.' });
+  try {
+    const row = (await salesStore.request(`crm_student_enrollments?id=eq.${req.params.id}&select=*`))[0];
+    if (!row) return res.status(404).json({ error: 'Matrícula no encontrada.' });
+    if (row.lease_until && new Date(row.lease_until).getTime() > Date.now()) return res.status(409).json({ error: 'El agente está procesando esta matrícula.' });
+    if (['sending', 'review'].includes(row.email_status) || ['sending', 'review'].includes(row.whatsapp_status)) {
+      if (!parsed.data.confirmedNotSent) return res.status(409).json({ error: 'Comprueba en los proveedores que los mensajes pendientes NO se enviaron antes de reintentar.' });
+    }
+    const patch = { email_status: row.email_status === 'accepted' ? 'accepted' : 'pending', whatsapp_status: row.whatsapp_status === 'accepted' ? 'accepted' : 'pending', attempts: 0, next_attempt_at: new Date().toISOString(), last_error: '' };
+    const changed = await salesStore.request(`crm_student_enrollments?id=eq.${row.id}&or=(lease_until.is.null,lease_until.lt.${encodeURIComponent(new Date().toISOString())})`, 'PATCH', patch);
+    if (!changed?.length) return res.status(409).json({ error: 'La matrícula se está procesando. Actualiza el panel.' });
+    await salesStore.request('crm_sales_events', 'POST', { contact_key: row.contact_key, kind: 'enrollment_retry', actor: getConfiguredAdminCredentials().email, details: parsed.data });
+    void enrollmentAgent.tick(); return res.json({ success: true });
+  } catch (error) { return salesError(res, error); }
+});
+app.get('/api/sales/:key/receipts', async (req, res) => {
+  try { return res.json(await salesStore.request(`crm_payment_receipts?contact_key=eq.${encodeURIComponent(req.params.key)}&select=id,mime_type,created_at&order=created_at.desc`)); }
+  catch (error) { return salesError(res, error); }
+});
+app.post('/api/sales/:key/receipts', async (req, res) => {
+  const parsed = z.union([z.object({ eventId: z.string().uuid() }), z.object({ base64: z.string().min(8).max(7000000) })]).safeParse(req.body);
+  if (!parsed.success || !/^[a-f0-9]{64}$/.test(req.params.key)) return res.status(400).json({ error: 'Adjunta un recibo válido.' });
+  try {
+    const actor = getConfiguredAdminCredentials().email!;
+    const receipt = 'eventId' in parsed.data ? await enrollmentAgent.importWhatsAppReceipt(req.params.key, parsed.data.eventId, actor) : await enrollmentAgent.uploadReceipt(req.params.key, Buffer.from(parsed.data.base64, 'base64'), actor);
+    return res.json({ id: receipt.id, mime_type: receipt.mime_type, created_at: receipt.created_at });
+  } catch (error) { return salesError(res, new Error(enrollmentError(error))); }
+});
+app.get('/api/sales/receipts/:id/content', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.sendStatus(404);
+  try { const receipt = await enrollmentAgent.receipt(req.params.id); res.set({ 'Content-Type': receipt.mime, 'Content-Disposition': 'attachment; filename="comprobante"', 'X-Content-Type-Options': 'nosniff' }); return res.send(receipt.bytes); }
+  catch (error) { return salesError(res, new Error(enrollmentError(error))); }
+});
+
 app.get('/api/sales', async (req, res) => {
   try {
     const offset = Math.max(0, Math.min(Number(req.query.offset) || 0, 1000000));
@@ -1460,6 +1451,7 @@ app.post('/api/sales/:key/action', async (req, res) => {
     const opportunity = await salesStore.request('rpc/crm_sales_admin_action', 'POST', {
       p_key: req.params.key, p_action: parsed.data.action, p_data: parsed.data.data, p_actor: getConfiguredAdminCredentials().email,
     });
+    if (parsed.data.action === 'verify_payment') void enrollmentAgent.tick();
     return res.json({ success: true, opportunity });
   } catch (error) { return salesError(res, error); }
 });
@@ -1477,6 +1469,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     whatsAppMemory: whatsAppConversations.status(),
     salesAgent: salesStore.status(),
+    enrollmentAgent: enrollmentAgent.status(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     geminiModels: {
       configured: getGeminiModelCandidates(),
@@ -1952,8 +1945,7 @@ app.post('/api/agents/conversion/process-lead', (req, res) => {
     enrollment: result.enrollment,
     nextActions: result.nextActions,
     requiresHumanReview: Boolean(
-      result.lead.missingFields.length ||
-        result.enrollment?.campusSyncStatus === 'pending_external_campus_api',
+      result.lead.missingFields.length,
     ),
     persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
   });

@@ -1,3 +1,4 @@
+import { PaymentReceiptSelector } from './PaymentReceiptSelector';
 import React, { useCallback, useEffect, useState } from 'react';
 import type { SalesOpportunity } from '../../sales-agent';
 
@@ -63,6 +64,8 @@ export function SalesClosingCenter() {
   const [reference, setReference] = useState('');
   const [amount, setAmount] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [receiptId, setReceiptId] = useState('');
+  const [receiptReviewed, setReceiptReviewed] = useState(false);
   const [note, setNote] = useState('');
   const [followAt, setFollowAt] = useState('');
   const refresh = useCallback(async () => {
@@ -98,6 +101,8 @@ export function SalesClosingCenter() {
     };
   }, [selected]);
   function selectContact(key: string) {
+    setReceiptId('');
+    setReceiptReviewed(false);
     setSelected(key);
     setEvents([]);
     setReference('');
@@ -339,14 +344,30 @@ export function SalesClosingCenter() {
               className="space-y-3 border-t border-slate-700 pt-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                void act('verify_payment', { bank, reference, amount: Number(amount), confirmed });
+                void act('verify_payment', {
+                  bank,
+                  reference,
+                  amount: Number(amount),
+                  confirmed,
+                  receiptId,
+                  receiptReviewed,
+                });
               }}
             >
               <h4 className="font-semibold">Validar transferencia de inscripción</h4>
+              <PaymentReceiptSelector
+                key={opportunity.contact_key}
+                contactKey={opportunity.contact_key}
+                onSelect={(id, reviewed) => {
+                  setReceiptId(id);
+                  setReceiptReviewed(reviewed);
+                }}
+              />
               <p className="text-xs text-slate-400">
                 Comprueba el abono en la cuenta bancaria y que corresponde a este cliente. El
-                importe debe coincidir con la inscripción acordada. Validar el pago no activa el
-                campus ni confirma un grupo.
+                importe debe coincidir con la inscripción acordada. Una vez validado, el agente de
+                matrícula procesará el acceso y las notificaciones cuando las conexiones estén
+                listas.
               </p>
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="text-xs">
@@ -408,6 +429,8 @@ export function SalesClosingCenter() {
                 disabled={
                   busy ||
                   !confirmed ||
+                  !receiptId ||
+                  !receiptReviewed ||
                   !opportunity.profile.fullName ||
                   !opportunity.profile.course ||
                   !opportunity.expected_amount
@@ -425,8 +448,8 @@ export function SalesClosingCenter() {
             </form>
           ) : (
             <p className="rounded-lg bg-emerald-950 p-3 text-sm">
-              Pago validado: {money(opportunity.paid_amount)}. Completa la asignación de grupo y el
-              acceso al campus por los canales habituales de INTECA.
+              Pago validado: {money(opportunity.paid_amount)}. Consulta el progreso de la matrícula,
+              del campus y de las notificaciones en el agente de Conversión y Matrícula.
             </p>
           )}
           <form

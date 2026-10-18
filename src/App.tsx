@@ -952,6 +952,7 @@ export function App() {
   };
 
   const activateEnrollmentForTransaction = (transaction: PaymentTransaction) => {
+    if (authSession?.mode === 'real') return;
     let enrolledLead: Lead | null = null;
 
     setLeads((prev) =>
@@ -1298,6 +1299,11 @@ export function App() {
   };
 
   const handleConfirmEnrollmentPayment = (lead: Lead, courseId: string) => {
+    if (authSession?.mode === 'real') {
+      window.alert('Valida el recibo y el abono en Agentes IA → Ventas y Cierre. La matrícula se procesa desde Conversión y Matrícula.');
+      setActiveTab('agents');
+      return;
+    }
     const courseObj = courses.find((c) => c.id === courseId) || courses[0];
     const enrollmentAmount = courseObj.discountPrice || Math.min(courseObj.price || 2500, 2500);
     const completedAt = new Date().toISOString();
