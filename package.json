@@ -14,10 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run build",
-    "test:whatsapp": "node --experimental-strip-types --test whatsapp-routing.test.ts whatsapp-conversation.test.ts && npm run build && node --test whatsapp-webhook.test.mjs"
+    "test:whatsapp": "node --experimental-strip-types --test whatsapp-routing.test.ts whatsapp-conversation.test.ts && npm run build && node --test whatsapp-webhook.test.mjs",
+    "test:sales": "node --experimental-strip-types --test sales-agent.test.ts && npm run build && node --test sales-api.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@supabase/supabase-js": "2.118.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",

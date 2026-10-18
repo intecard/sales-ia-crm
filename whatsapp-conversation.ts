@@ -26,7 +26,7 @@ export function rememberUser(conversation: Conversation, text: string, id: strin
   // A question about another course is not an instruction to replace the selected course.
   if (mentionedCourse && (!facts.course || conversation.awaiting === 'course' || /(?:quiero|prefiero|inscrib|cambi|interesa)/.test(lower))) facts.course = mentionedCourse[1];
   if (/inscri|matricul/.test(lower) && !/no (?:quiero|deseo)/.test(lower)) facts.wantsEnrollment = true;
-  if (isPaymentQuestion(text)) facts.paymentRequested = true;
+  if (isPaymentQuestion(text) || (conversation.awaiting === 'payment' && /^(sí|si|claro|por favor)[.!\s]*$/i.test(text))) facts.paymentRequested = true;
   const days = [...lower.matchAll(/\b(sabados?|domingos?|lunes|martes|miercoles|jueves|viernes)\b/g)].map(match => match[1].replace(/^(sabado|domingo)s$/, '$1'));
   const period = lower.match(/\b(tarde|noche|manana)\b/)?.[1];
   if ((days.length || period) && !/[?¿]/.test(text) && !/\b(no|ningun)\b/.test(lower)) {

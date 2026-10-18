@@ -1,3 +1,4 @@
+import { SalesClosingCenter } from './SalesClosingCenter';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bot,
@@ -288,7 +289,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-indigo-300 font-medium">{ag.roleTitle}</p>
-                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                    {ag.id === 'agent_closer' ? <p className="mt-2 text-xs text-emerald-400">Abrir oportunidades de WhatsApp</p> : <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                       <span>
                         Cierres:{' '}
                         <strong className="text-emerald-400">{ag.stats.dealsClosed}</strong>
@@ -297,7 +298,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
                         Conversión:{' '}
                         <strong className="text-cyan-300">{ag.stats.conversionRatePercent}%</strong>
                       </span>
-                    </div>
+                    </div>}
                   </div>
                 </div>
               </div>
@@ -307,6 +308,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
 
         {/* Right 2 Columns: Detailed Inspector & Prompt Editor */}
         <div className="lg:col-span-2 space-y-6">
+          {selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : <>
           {/* Active Agent Profile Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -760,6 +762,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
               )}
             </div>
           </div>
+          </>}
         </div>
       </div>
     </div>

@@ -12,7 +12,11 @@ import { buildWhatsAppTextPayload, extractWhatsAppMessages, resolveWhatsAppRecip
 
 import { ConversationStore, conversationKey, rememberUser, rememberReply, fallbackReply, paymentReply, isPaymentQuestion, CONVERSATION_RULES, type Conversation, type AwaitingField } from './whatsapp-conversation';
 
+import { SalesStore, salesSignal, salesReply, SALES_RULES, issueSalesSession, verifySalesSession, type SalesOpportunity } from './sales-agent';
+
 dotenv.config();
+const salesStore = new SalesStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+void salesStore.verify();
 const whatsAppConversations = new ConversationStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 void whatsAppConversations.verify();
 
@@ -245,12 +249,10 @@ function getConfiguredAdminCredentials() {
 
 function validateAdminCredentials(email: string, password: string) {
   const configuredCredentials = getConfiguredAdminCredentials();
-  const expectedEmail = configuredCredentials.email || 'admin@inteca.com.do';
-  const expectedPassword = configuredCredentials.password || 'Inteca2026!';
-
+  if (!configuredCredentials.email || !configuredCredentials.password) return false;
   return (
-    email.trim().toLowerCase() === expectedEmail.trim().toLowerCase() &&
-    password === expectedPassword
+    email.trim().toLowerCase() === configuredCredentials.email.trim().toLowerCase() &&
+    password === configuredCredentials.password
   );
 }
 
@@ -387,6 +389,8 @@ function getWhatsAppMessageText(message: any) {
     if (typeof listText === 'string') return listText.trim();
   }
 
+  if (typeof message?.[message?.type]?.caption === 'string') return message[message.type].caption.trim();
+
   return `Mensaje recibido de tipo ${message?.type || 'desconocido'}.`;
 }
 
@@ -401,16 +405,19 @@ function findWhatsAppContactName(event: any, waId: string) {
   return contact?.profile?.name;
 }
 
-async function generateWhatsAppAutoReply(userMessage: string, conversation: Conversation, customerName?: string, hasPhone = false) {
+async function generateWhatsAppAutoReply(userMessage: string, conversation: Conversation, customerName?: string, hasPhone = false, salesState?: SalesOpportunity) {
   const instructions = process.env.WHATSAPP_PAYMENT_INSTRUCTIONS || '';
+  if (salesState?.stage === 'won' && isPaymentQuestion(userMessage)) return { reply: 'Tu pago de inscripción ya está validado. El grupo y el acceso al campus están pendientes de confirmación. Si deseas pagar otro concepto, indícalo para que INTECA lo revise.', awaiting: '' as AwaitingField };
+  if (salesState?.stage === 'payment_review' && isPaymentQuestion(userMessage)) return { reply: 'Tu aviso de pago está pendiente de revisión. No hace falta repetir la transferencia mientras INTECA verifica el comprobante.', awaiting: '' as AwaitingField };
   // Payment details come only from administrator configuration, never generated bank numbers.
   if (isPaymentQuestion(userMessage) || (conversation.awaiting === 'payment' && /^(sí|si|claro|por favor)[.!\s]*$/i.test(userMessage))) {
     return paymentReply(conversation, instructions);
   }
-  const fallback = fallbackReply(conversation, userMessage, instructions);
+  const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. La asignación de grupo y el acceso al campus están pendientes de confirmación. Para otra consulta puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. Para una consulta adicional puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : fallbackReply(conversation, userMessage, instructions);
   if (!process.env.GEMINI_API_KEY) return fallback;
   try {
     const contents = JSON.stringify({
+      salesState: salesState ? { stage: salesState.stage, objection: salesState.objection, expectedAmountDOP: salesState.expected_amount, nextAction: salesState.next_action } : null,
       profileName: customerName || null,
       phoneAlreadyKnown: hasPhone,
       rememberedFacts: conversation.facts,
@@ -418,7 +425,7 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
       history: conversation.turns,
     });
     const response = await generateGeminiContentWithFallback(contents, {
-      systemInstruction: `${buildAgentKnowledgePrompt('Atención por WhatsApp')}\n\n${CONVERSATION_RULES}`,
+      systemInstruction: `${buildAgentKnowledgePrompt('Atención por WhatsApp')}\n\n${CONVERSATION_RULES}\n\n${SALES_RULES}`,
       temperature: 0.2,
       maxOutputTokens: 1800,
       responseMimeType: 'application/json',
@@ -518,9 +525,21 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
         const profileName = findWhatsAppContactName(event, recipient.id);
         const conversation = await whatsAppConversations.get(memoryKey);
         if (conversation.turns.some(turn => turn.role === 'assistant' && turn.id === messageId)) return;
+        const previousSale = salesStore.configured() ? await salesStore.get(memoryKey) : undefined;
+        if (previousSale) conversation.facts = { ...previousSale.profile, ...conversation.facts };
         rememberUser(conversation, userMessage, messageId);
         await whatsAppConversations.save(memoryKey, conversation);
         const customerName = conversation.facts.fullName || profileName;
+        let sale: SalesOpportunity | undefined;
+        const signal = salesSignal(userMessage, conversation, message.type);
+        if (salesStore.configured()) {
+          const settings = await salesStore.settings();
+          sale = await salesStore.inbound(memoryKey, messageId, userMessage, {
+            ...conversation.facts, profileName, ...(senderPhone ? { phone: senderPhone } : {}), ...(whatsappUserId ? { whatsappUserId } : {}),
+          }, signal, String(message.type || ''), String(message[message.type]?.id || ''));
+          // A paused or opted-out contact stays silent until a human intervenes.
+          if (!settings?.enabled || (previousSale && previousSale.control !== 'auto')) return;
+        }
     
         console.log('Processing incoming WhatsApp lead');
 
@@ -541,13 +560,17 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
     
         console.log('🧠 Generando respuesta con Gemini...');
     
-        const answer = await generateWhatsAppAutoReply(userMessage, conversation, customerName, Boolean(senderPhone));
+        const answer = (sale && salesReply(sale, signal, userMessage)) || await generateWhatsAppAutoReply(userMessage, conversation, customerName, Boolean(senderPhone), sale);
         const reply = answer.reply;
 
         console.log('Sending WhatsApp reply', { recipientKind: recipient.kind });
         await sendWhatsAppTextMessage(recipient, reply);
         rememberReply(conversation, reply, answer.awaiting, messageId);
         await whatsAppConversations.save(memoryKey, conversation);
+        if (sale) {
+          try { await salesStore.request('crm_sales_events', 'POST', { contact_key: memoryKey, external_id: `reply:${messageId}`, kind: 'reply', actor: 'Agente de Ventas INTECA', details: { text: reply } }); }
+          catch { console.warn('Sales reply audit unavailable; WhatsApp response already sent and remembered'); }
+        }
         processedWhatsAppMessageIds.add(messageId);
         if (processedWhatsAppMessageIds.size > 1_000) {
           const firstMessageId = processedWhatsAppMessageIds.values().next().value;
@@ -798,6 +821,9 @@ function registerStudentEnrollment(enrollment: ServerStudentEnrollment) {
 }
 
 function processConversionLead(payload: ConversionLeadInput, sourceChannel = 'API') {
+  // Lead intake from public forms/ads is never evidence of a verified payment.
+  // Only the authenticated sales transaction can register a bank-verified close.
+  payload = { ...payload, paymentConfirmed: false };
   const lead = upsertConversionLead(buildConversionLeadFromPayload(payload));
 
   recordServerAudit({
@@ -1385,6 +1411,59 @@ function buildAgentRuntimeManifest() {
   });
 }
 
+// Sales APIs require the real administrator's signed, HttpOnly session.
+app.use('/api/sales', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  const credentials = getConfiguredAdminCredentials();
+  if (!verifySalesSession(req.headers.cookie || '', credentials.password || '', credentials.email || '')) return res.status(401).json({ error: 'Inicia sesión nuevamente para abrir Ventas y Cierre.' });
+  if (req.method !== 'GET' && req.get('X-CRM-Action') !== 'sales') return res.status(403).json({ error: 'Solicitud no autorizada.' });
+  next();
+});
+const salesActionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('verify_payment'), data: z.object({ bank: z.enum(['Banreservas', 'Qik', 'Banco Popular']), reference: z.string().trim().min(3).max(100), amount: z.number().positive().max(1000000), confirmed: z.literal(true) }) }),
+  z.object({ action: z.literal('quote'), data: z.object({ amount: z.number().positive().max(1000000) }) }),
+  z.object({ action: z.literal('follow_up'), data: z.object({ note: z.string().trim().min(3).max(1000), at: z.string().datetime() }) }),
+  z.object({ action: z.enum(['pause', 'resume', 'complete_task']), data: z.object({}).default({}) }),
+]);
+function salesError(res: express.Response, error: unknown) {
+  const code = error instanceof Error ? error.message : '';
+  const messages: Record<string, string> = {
+    ALREADY_PAID: 'Este pago ya fue validado.', INVALID_PAYMENT: 'Verifica nombre, curso, importe exacto de inscripción y referencia bancaria.',
+    QUOTE_REQUIRED: 'Define primero el importe de inscripción confirmado por INTECA.', UNKNOWN_CONTACT: 'Oportunidad no encontrada.',
+    INVALID_ACTION: 'No puedes reactivar un contacto que pidió no recibir mensajes.', DUPLICATE_REFERENCE: 'Esa referencia bancaria ya está registrada.',
+  };
+  return res.status(messages[code] ? 409 : 503).json({ error: messages[code] || 'No se pudo guardar o consultar Supabase. Vuelve a intentarlo; el CRM no confirmó esta operación.' });
+}
+app.get('/api/sales', async (req, res) => {
+  try {
+    const offset = Math.max(0, Math.min(Number(req.query.offset) || 0, 1000000));
+    const [settings, opportunities] = await Promise.all([
+      salesStore.settings(), salesStore.request(`crm_sales_opportunities?select=*&order=updated_at.desc&limit=100&offset=${offset}`),
+    ]);
+    return res.json({ settings, opportunities, hasMore: opportunities.length === 100, status: salesStore.status() });
+  } catch (error) { return salesError(res, error); }
+});
+app.get('/api/sales/:key/events', async (req, res) => {
+  try { return res.json(await salesStore.request(`crm_sales_events?contact_key=eq.${encodeURIComponent(req.params.key)}&select=*&order=created_at.desc&limit=60`)); }
+  catch (error) { return salesError(res, error); }
+});
+app.post('/api/sales/settings', async (req, res) => {
+  const parsed = z.object({ enabled: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Estado inválido.' });
+  try { await salesStore.request('crm_sales_settings?id=eq.org_inteca_main', 'PATCH', { ...parsed.data, updated_at: new Date().toISOString() }); return res.json({ success: true }); }
+  catch (error) { return salesError(res, error); }
+});
+app.post('/api/sales/:key/action', async (req, res) => {
+  const parsed = salesActionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Completa los datos requeridos y confirma la verificación bancaria.' });
+  try {
+    const opportunity = await salesStore.request('rpc/crm_sales_admin_action', 'POST', {
+      p_key: req.params.key, p_action: parsed.data.action, p_data: parsed.data.data, p_actor: getConfiguredAdminCredentials().email,
+    });
+    return res.json({ success: true, opportunity });
+  } catch (error) { return salesError(res, error); }
+});
+
 // Health Check API
 app.get('/api/health', (req, res) => {
   const integrationStatus = buildIntegrationEnvironmentStatus();
@@ -1397,6 +1476,7 @@ app.get('/api/health', (req, res) => {
     deploymentMode: DEPLOYMENT_MODE,
     timestamp: new Date().toISOString(),
     whatsAppMemory: whatsAppConversations.status(),
+    salesAgent: salesStore.status(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     geminiModels: {
       configured: getGeminiModelCandidates(),
@@ -1715,10 +1795,14 @@ app.post('/api/auth/login', (req, res) => {
     status: 'Registrado',
   });
 
+  if (configuredPassword && configuredEmail) res.cookie('crm_sales_session', issueSalesSession(configuredPassword, configuredEmail), {
+    httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000, path: '/api',
+  });
   return res.json({ success: true, session });
 });
 
 app.post('/api/auth/logout', (_req, res) => {
+  res.clearCookie('crm_sales_session', { path: '/api' });
   recordServerAudit({
     actorType: 'Usuario',
     actorName: 'Usuario CRM',
@@ -1849,6 +1933,7 @@ app.get('/api/agents/conversion/leads', (_req, res) => {
 });
 
 app.post('/api/agents/conversion/process-lead', (req, res) => {
+  if (req.body?.paymentConfirmed) return res.status(403).json({ success: false, error: 'MANUAL_BANK_VALIDATION_REQUIRED' });
   const parsed = conversionLeadRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -2008,67 +2093,9 @@ app.post('/api/webhooks/web/forms', (req, res) => {
   });
 });
 
-app.post('/api/webhooks/payments', (req, res) => {
-  const rawStatus = String(
-    req.body?.status ||
-      req.body?.payment_status ||
-      req.body?.event ||
-      req.body?.type ||
-      req.body?.data?.status ||
-      '',
-  ).toLowerCase();
-  const paymentConfirmed =
-    req.body?.paymentConfirmed === true ||
-    ['completed', 'completado', 'paid', 'pagado', 'succeeded', 'approved', 'aprobado'].some(
-      (status) => rawStatus.includes(status),
-    );
-  const rawAmount = req.body?.paymentAmount || req.body?.amount || req.body?.data?.amount;
-  const paymentAmount = Number(rawAmount);
-  const parsedLead = conversionLeadRequestSchema.safeParse({
-    fullName:
-      req.body?.leadName || req.body?.customerName || req.body?.customer?.name || req.body?.name,
-    email: req.body?.email || req.body?.customer?.email,
-    phone: req.body?.phone || req.body?.customer?.phone,
-    whatsapp: req.body?.whatsapp || req.body?.customer?.whatsapp || req.body?.customer?.phone,
-    courseId: req.body?.courseId || req.body?.metadata?.courseId,
-    courseTitle: req.body?.courseTitle || req.body?.metadata?.courseTitle,
-    source: req.body?.source || 'Payment Provider',
-    campaign: req.body?.campaign || req.body?.metadata?.campaign,
-    organizationId: req.body?.organizationId || req.body?.metadata?.organizationId,
-    paymentConfirmed,
-    paymentAmount: Number.isFinite(paymentAmount) ? paymentAmount : undefined,
-    paymentTransactionId:
-      req.body?.paymentTransactionId ||
-      req.body?.transactionId ||
-      req.body?.id ||
-      req.body?.data?.id,
-    message: JSON.stringify(req.body || {}),
-  });
-  const conversionResult = parsedLead.success
-    ? processConversionLead(parsedLead.data, 'Payment Provider')
-    : null;
-
-  recordServerAudit({
-    actorType: 'Webhook',
-    actorName: 'Payment Provider',
-    module: 'Pagos',
-    action: 'Recibió',
-    entityType: 'PaymentWebhook',
-    summary: 'Evento de pago recibido.',
-    details:
-      'El CRM está preparado para validar firma, confirmar pago, actualizar oportunidad, disparar factura y notificar al dueño cuando se conecte la pasarela.',
-    sourceChannel: 'API',
-    severity: 'Advertencia',
-    status: 'Pendiente revisión',
-  });
-  return res.status(200).json({
-    success: true,
-    payloadAccepted: Boolean(req.body),
-    paymentConfirmed,
-    conversionLead: conversionResult?.lead,
-    enrollment: conversionResult?.enrollment,
-    nextActions: conversionResult?.nextActions,
-  });
+// No trusted payment-provider verifier is configured. Unauthenticated payloads cannot close a sale.
+app.post('/api/webhooks/payments', (_req, res) => {
+  return res.status(503).json({ success: false, paymentConfirmed: false, error: 'PAYMENT_PROVIDER_VERIFICATION_NOT_CONFIGURED', message: 'Valida las transferencias desde el panel autenticado de Ventas y Cierre.' });
 });
 
 app.post('/api/webhooks/dgii/ecf-status', (req, res) => {
