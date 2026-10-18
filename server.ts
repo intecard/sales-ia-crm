@@ -440,12 +440,14 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
         type: Type.OBJECT,
         properties: {
           reply: { type: Type.STRING },
-          awaiting: { type: Type.STRING, enum: ['', 'course', 'fullName', 'schedule', 'email', 'payment'] },
+          awaiting: { type: Type.STRING, enum: ['none', 'course', 'fullName', 'schedule', 'email', 'payment'], description: 'Usa none cuando la respuesta no solicite un dato.' },
         },
         required: ['reply', 'awaiting'],
       },
     });
     const parsed = JSON.parse(response.text || '{}');
+    // Gemini rejects empty enum values; keep the existing empty internal memory state.
+    if (parsed.awaiting === 'none') parsed.awaiting = '';
     const validFields = ['', 'course', 'fullName', 'schedule', 'email', 'payment'];
     if (typeof parsed.reply !== 'string' || !parsed.reply.trim() || !validFields.includes(parsed.awaiting)) return fallback;
     if (parsed.awaiting && conversation.facts[parsed.awaiting as keyof typeof conversation.facts]) return fallback;

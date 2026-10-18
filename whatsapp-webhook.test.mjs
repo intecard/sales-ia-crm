@@ -99,12 +99,14 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
         return new Response(JSON.stringify({messages:[{id:'wamid.test'}]}));
       }
       if (!target.includes('generativelanguage.googleapis.com')) throw new Error('Unexpected network request');
+      const fields = body.generationConfig.responseSchema.properties.awaiting.enum;
+      if (fields.includes('') || !fields.includes('none')) throw new Error('Invalid Gemini enum');
       const context = JSON.parse(body.contents[0].parts[0].text);
       console.log('TEST_CONTEXT ' + JSON.stringify(context));
       console.log('TEST_SYSTEM ' + JSON.stringify(body.systemInstruction));
       const last = context.history.at(-1).text;
       let reply = '¿Qué curso te interesa?', awaiting = 'course';
-      if (last.includes('Autorizaciones')) { reply = 'Es virtual. ¿Deseas inscribirte?'; awaiting = ''; }
+      if (last.includes('Autorizaciones')) { reply = 'Es virtual. ¿Deseas inscribirte?'; awaiting = 'none'; }
       if (last === 'Inscripción' || last === 'Tarde') { reply = '¿Cuál es tu nombre completo?'; awaiting = 'fullName'; }
       if (context.rememberedFacts.fullName) { reply = 'Tengo tu nombre y horario. ¿Cuál es tu correo?'; awaiting = 'email'; }
       await new Promise(resolve => setTimeout(resolve, 25));
@@ -148,6 +150,8 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     await waitFor(() => records('TEST_SEND ').length === 5);
     const contexts = records('TEST_CONTEXT ');
     assert.equal(contexts.length, 5);
+    assert.equal(contexts[2].previousQuestionRequested, '');
+    assert.equal(records('TEST_SEND ')[1].text.body, 'Es virtual. ¿Deseas inscribirte?');
     assert.equal(contexts[4].rememberedFacts.fullName, 'Luis alcides Ramirez Escalante');
     assert.equal(contexts[4].rememberedFacts.schedule, 'tarde');
     assert.equal(contexts[4].rememberedFacts.course, 'Técnico u Oficial de Autorizaciones Médicas');
