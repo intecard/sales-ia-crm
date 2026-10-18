@@ -13,7 +13,8 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run build",
+    "test:whatsapp": "node --experimental-strip-types --test whatsapp-routing.test.ts whatsapp-conversation.test.ts && npm run build && node --test whatsapp-webhook.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

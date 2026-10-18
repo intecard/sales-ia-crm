@@ -10,7 +10,10 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { buildWhatsAppTextPayload, extractWhatsAppMessages, resolveWhatsAppRecipient, type WhatsAppRecipient } from './whatsapp-routing';
 
+import { ConversationStore, conversationKey, rememberUser, rememberReply, fallbackReply, paymentReply, isPaymentQuestion, CONVERSATION_RULES, type Conversation, type AwaitingField } from './whatsapp-conversation';
+
 dotenv.config();
+const whatsAppConversations = new ConversationStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -366,43 +369,6 @@ function getIntecaKnowledgeSourcesStatus() {
   }));
 }
 
-function trimWhatsAppReply(text: string) {
-  return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1_500);
-}
-
-function buildFallbackWhatsAppReply(customerName: string | undefined, userMessage: string) {
-  const greetingName = customerName ? ` ${customerName}` : '';
-  const lowerMessage = userMessage.toLowerCase();
-
-  if (lowerMessage.includes('autoriz')) {
-    return trimWhatsAppReply(`Hola${greetingName}, gracias por escribir a INTECA.
-
-Si te interesa el curso de Tecnico u Oficial de Autorizaciones Medicas, te cuento lo esencial:
-
-- Modalidad virtual.
-- Duracion: 5 meses.
-- Inscripcion: RD$2,500.
-- Mensualidad: RD$2,000.
-- Aprenderas procesos de autorizaciones, validacion de coberturas, PBS, precertificaciones, atencion al afiliado, Ley 87-01, SISALRIL, CNSS y casos practicos del sector salud.
-
-Este curso te prepara para entender como trabajan las ARS, clinicas, hospitales y centros de salud en el area de autorizaciones medicas.
-
-Para orientarte mejor, dime por favor:
-1. Tu nombre completo.
-2. Si tienes experiencia en salud o empiezas desde cero.
-3. Que horario prefieres: tarde, noche, sabado o domingo.`);
-  }
-
-  return trimWhatsAppReply(`Hola${greetingName}, gracias por escribir a INTECA.
-
-Somos una institucion de formacion tecnica enfocada en cursos del sector salud. Tenemos programas como Autorizaciones Medicas, Precertificaciones Medicas, Atencion al Usuario, Facturacion Medica, Ley 87-01, Farmacologia Aplicada y Enfermeria.
-
-Para ayudarte bien, dime:
-1. Que curso te interesa.
-2. Si prefieres horario de tarde, noche o fin de semana.
-3. Si deseas informacion para inscribirte.`);
-}
-
 function getWhatsAppMessageText(message: any) {
   if (message?.type === 'text' && typeof message.text?.body === 'string') {
     return message.text.body.trim();
@@ -434,40 +400,46 @@ function findWhatsAppContactName(event: any, waId: string) {
   return contact?.profile?.name;
 }
 
-async function generateWhatsAppAutoReply(userMessage: string, customerName?: string) {
-  const fallback = buildFallbackWhatsAppReply(customerName, userMessage);
-
-  if (!process.env.GEMINI_API_KEY) {
-    return fallback;
+async function generateWhatsAppAutoReply(userMessage: string, conversation: Conversation, customerName?: string, hasPhone = false) {
+  const instructions = process.env.WHATSAPP_PAYMENT_INSTRUCTIONS || '';
+  // Payment details come only from administrator configuration, never generated bank numbers.
+  if (isPaymentQuestion(userMessage) || (conversation.awaiting === 'payment' && /^(sí|si|claro|por favor)[.!\s]*$/i.test(userMessage))) {
+    return paymentReply(conversation, instructions);
   }
-
+  const fallback = fallbackReply(conversation, userMessage, instructions);
+  if (!process.env.GEMINI_API_KEY) return fallback;
   try {
-    const prompt = `
-Eres el agente comercial de WhatsApp de INTECA. Responde al prospecto usando un estilo humano, profesional, claro y orientado a conversion.
-
-BASE DE CONOCIMIENTO AUTORIZADA:
-${buildAgentKnowledgePrompt('WhatsApp, ventas consultivas, captacion de leads y seguimiento comercial')}
-
-NOMBRE DEL PROSPECTO: ${customerName || 'No especificado'}
-MENSAJE DEL PROSPECTO:
-"${userMessage}"
-
-INSTRUCCIONES:
-1. Responde en espanol dominicano profesional.
-2. Puedes parafrasear con naturalidad, pero no inventes datos, fechas, descuentos, certificaciones ni garantias.
-3. Si pregunta por autorizaciones medicas, incluye duracion 5 meses, modalidad virtual, inscripcion RD$2,500 y mensualidad RD$2,000.
-4. Explica beneficio laboral y practico en pocas lineas.
-5. Cierra con una pregunta que capture datos o acerque al pago.
-6. Mantente por debajo de 1,200 caracteres para WhatsApp.
-`;
-
-    const response = await generateGeminiContentWithFallback(prompt, {
-      temperature: 0.55,
+    const contents = JSON.stringify({
+      profileName: customerName || null,
+      phoneAlreadyKnown: hasPhone,
+      rememberedFacts: conversation.facts,
+      previousQuestionRequested: conversation.awaiting,
+      history: conversation.turns,
     });
-
-    return trimWhatsAppReply(response.text || fallback) || fallback;
-  } catch (error) {
-    console.error('Error generating WhatsApp auto reply:', error);
+    const response = await generateGeminiContentWithFallback(contents, {
+      systemInstruction: `${buildAgentKnowledgePrompt('Atención por WhatsApp')}\n\n${CONVERSATION_RULES}`,
+      temperature: 0.2,
+      maxOutputTokens: 1800,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          reply: { type: Type.STRING },
+          awaiting: { type: Type.STRING, enum: ['', 'course', 'fullName', 'schedule', 'email', 'payment'] },
+        },
+        required: ['reply', 'awaiting'],
+      },
+    });
+    const parsed = JSON.parse(response.text || '{}');
+    const validFields = ['', 'course', 'fullName', 'schedule', 'email', 'payment'];
+    if (typeof parsed.reply !== 'string' || !parsed.reply.trim() || !validFields.includes(parsed.awaiting)) return fallback;
+    if (parsed.awaiting && conversation.facts[parsed.awaiting as keyof typeof conversation.facts]) return fallback;
+    const reply = parsed.reply.trim().replace(/\*\*([^*]+)\*\*/g, '*$1*');
+    // Never send a sentence cut off by a character slice or an unfinished model response.
+    if (reply.length > 3500 || response.candidates?.[0]?.finishReason === 'MAX_TOKENS') return fallback;
+    return { reply, awaiting: parsed.awaiting as AwaitingField };
+  } catch {
+    console.warn('WhatsApp AI unavailable; using context-aware response');
     return fallback;
   }
 }
@@ -527,97 +499,104 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       continue;
     }
 
-    const senderPhone = recipient.kind === 'phone' ? recipient.id : '';
-    const whatsappUserId = recipient.kind === 'bsuid' ? recipient.id : undefined;
+    const memoryKey = conversationKey(process.env.WHATSAPP_PHONE_NUMBER_ID || '', recipient.kind, recipient.id);
+    await whatsAppConversations.serial(memoryKey, async () => {
+      const senderPhone = recipient.kind === 'phone' ? recipient.id : '';
+      const whatsappUserId = recipient.kind === 'bsuid' ? recipient.id : undefined;
 
-    console.log('WhatsApp message accepted', { recipientKind: recipient.kind });
+      console.log('WhatsApp message accepted', { recipientKind: recipient.kind });
 
-    if (processedWhatsAppMessageIds.has(messageId) || inFlightWhatsAppMessageIds.has(messageId)) {
-      continue;
-    }
+      if (processedWhatsAppMessageIds.has(messageId) || inFlightWhatsAppMessageIds.has(messageId)) {
+        return;
+      }
 
-    inFlightWhatsAppMessageIds.add(messageId);
-    try {
-
-      const userMessage = getWhatsAppMessageText(message);
-      const customerName = findWhatsAppContactName(event, recipient.id);
-    
-      console.log('Processing incoming WhatsApp lead');
-
-      const conversionResult = processConversionLead(
-        {
-          fullName: customerName,
-          whatsapp: senderPhone,
-          phone: senderPhone,
-          whatsappUserId,
-          source: 'WhatsApp',
-          message: userMessage,
-          courseTitle: inferCourseTitle({ message: userMessage }),
-          organizationId: 'org_inteca_main',
-        },
-        'WhatsApp',
-      );
-    
-      console.log('🧠 Generando respuesta con Gemini...');
-    
-      let reply = buildFallbackWhatsAppReply(customerName, userMessage);
+      inFlightWhatsAppMessageIds.add(messageId);
       try {
-          reply = await generateWhatsAppAutoReply(userMessage, customerName);
-      } catch (e) {
-          console.log('Gemini API call completely failed, safely using fallback message instead.');
-      }
 
-      console.log('Sending WhatsApp reply', { recipientKind: recipient.kind });
-      await sendWhatsAppTextMessage(recipient, reply);
-      processedWhatsAppMessageIds.add(messageId);
-      if (processedWhatsAppMessageIds.size > 1_000) {
-        const firstMessageId = processedWhatsAppMessageIds.values().next().value;
-        if (firstMessageId) processedWhatsAppMessageIds.delete(firstMessageId);
-      }
-      console.log('✅ Respuesta enviada exitosamente.');
+        const userMessage = getWhatsAppMessageText(message);
+        const profileName = findWhatsAppContactName(event, recipient.id);
+        const conversation = await whatsAppConversations.get(memoryKey);
+        if (conversation.turns.some(turn => turn.role === 'assistant' && turn.id === messageId)) return;
+        rememberUser(conversation, userMessage, messageId);
+        await whatsAppConversations.save(memoryKey, conversation);
+        const customerName = conversation.facts.fullName || profileName;
+    
+        console.log('Processing incoming WhatsApp lead');
 
-      recordServerAudit({
-        actorType: 'Agente IA',
-        actorName: 'Agente WhatsApp INTECA',
-        module: 'WhatsApp',
-        action: 'Respondió',
-        entityType: 'WhatsAppMessage',
-        entityId: messageId,
-        summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
-        details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
-        sourceChannel: 'WhatsApp',
-        severity: 'Éxito',
-        status: 'Registrado',
-      });
+        const conversionResult = processConversionLead(
+          {
+            fullName: customerName,
+            whatsapp: senderPhone,
+            phone: senderPhone,
+            whatsappUserId,
+            source: 'WhatsApp',
+            message: userMessage,
+            courseTitle: conversation.facts.course || inferCourseTitle({ message: userMessage }),
+            email: conversation.facts.email,
+            organizationId: 'org_inteca_main',
+          },
+          'WhatsApp',
+        );
+    
+        console.log('🧠 Generando respuesta con Gemini...');
+    
+        const answer = await generateWhatsAppAutoReply(userMessage, conversation, customerName, Boolean(senderPhone));
+        const reply = answer.reply;
 
-      if (conversionResult.lead.missingFields.length === 0) {
+        console.log('Sending WhatsApp reply', { recipientKind: recipient.kind });
+        await sendWhatsAppTextMessage(recipient, reply);
+        rememberReply(conversation, reply, answer.awaiting, messageId);
+        await whatsAppConversations.save(memoryKey, conversation);
+        processedWhatsAppMessageIds.add(messageId);
+        if (processedWhatsAppMessageIds.size > 1_000) {
+          const firstMessageId = processedWhatsAppMessageIds.values().next().value;
+          if (firstMessageId) processedWhatsAppMessageIds.delete(firstMessageId);
+        }
+        console.log('✅ Respuesta enviada exitosamente.');
+
         recordServerAudit({
           actorType: 'Agente IA',
-          actorName: 'Agente IA Conversión y Matrícula',
-          module: 'Leads',
-          action: 'Calificó',
-          entityType: 'ConversionLead',
-          entityId: conversionResult.lead.id,
-          summary: 'Lead de WhatsApp quedó listo para solicitar inscripción.',
-          details: `Curso: ${conversionResult.lead.courseTitle}. Próximo seguimiento: ${conversionResult.lead.nextFollowUpAt}.`,
+          actorName: 'Agente WhatsApp INTECA',
+          module: 'WhatsApp',
+          action: 'Respondió',
+          entityType: 'WhatsAppMessage',
+          entityId: messageId,
+          summary: 'Respuesta automatizada enviada por WhatsApp Cloud API.',
+          details: `Prospecto: ${customerName || senderPhone}. Mensaje recibido: ${userMessage}. Respuesta: ${reply}`,
           sourceChannel: 'WhatsApp',
-          severity: 'Info',
+          severity: 'Éxito',
           status: 'Registrado',
         });
+
+        if (conversionResult.lead.missingFields.length === 0) {
+          recordServerAudit({
+            actorType: 'Agente IA',
+            actorName: 'Agente IA Conversión y Matrícula',
+            module: 'Leads',
+            action: 'Calificó',
+            entityType: 'ConversionLead',
+            entityId: conversionResult.lead.id,
+            summary: 'Lead de WhatsApp quedó listo para solicitar inscripción.',
+            details: `Curso: ${conversionResult.lead.courseTitle}. Próximo seguimiento: ${conversionResult.lead.nextFollowUpAt}.`,
+            sourceChannel: 'WhatsApp',
+            severity: 'Info',
+            status: 'Registrado',
+          });
+        }
+      } catch (error) {
+        // One failed message must not discard the rest of this webhook batch.
+        console.error('WhatsApp auto reply failed', error);
+        recordServerAudit({
+          actorType: 'Agente IA', actorName: 'Agente WhatsApp INTECA', module: 'WhatsApp',
+          action: 'Falló', entityType: 'WhatsAppAutoReply', entityId: messageId,
+          summary: 'No se pudo enviar la respuesta automatizada por WhatsApp.',
+          details: error instanceof Error ? error.message : 'Error desconocido',
+          sourceChannel: 'WhatsApp', severity: 'Crítico', status: 'Pendiente revisión',
+        });
+      } finally {
+        inFlightWhatsAppMessageIds.delete(messageId);
       }
-    } catch (error) {
-      // One failed message must not discard the rest of this webhook batch.
-      console.error('WhatsApp auto reply failed', error);
-      recordServerAudit({
-        actorType: 'Agente IA', actorName: 'Agente WhatsApp INTECA', module: 'WhatsApp',
-        action: 'Falló', entityType: 'WhatsAppAutoReply', entityId: messageId,
-        summary: 'No se pudo enviar la respuesta automatizada por WhatsApp.',
-        details: error instanceof Error ? error.message : 'Error desconocido',
-        sourceChannel: 'WhatsApp', severity: 'Crítico', status: 'Pendiente revisión',
-      });
-    } finally {
-      inFlightWhatsAppMessageIds.delete(messageId);
-    }
+    });
   }
 }
 
@@ -1416,6 +1395,7 @@ app.get('/api/health', (req, res) => {
     app: 'Sales AI CRM',
     deploymentMode: DEPLOYMENT_MODE,
     timestamp: new Date().toISOString(),
+    whatsAppMemory: whatsAppConversations.status(),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     geminiModels: {
       configured: getGeminiModelCandidates(),
