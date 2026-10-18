@@ -14,6 +14,7 @@ import { ConversationStore, conversationKey, rememberUser, rememberReply, fallba
 
 dotenv.config();
 const whatsAppConversations = new ConversationStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+void whatsAppConversations.verify();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);

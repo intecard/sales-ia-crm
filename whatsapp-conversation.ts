@@ -130,6 +130,18 @@ export class ConversationStore {
     this.databaseState = url && key ? 'unverified' : 'not_configured';
   }
   status() { return { storage: this.databaseState === 'ready' ? 'supabase' : 'process_memory', databaseState: this.databaseState, survivesRestart: this.databaseState === 'ready', retentionDays: 30 }; }
+  async verify() {
+    if (!this.url || !this.key) return;
+    try {
+      // Read zero records: validate the table/access without exposing customer data.
+      await this.request('?select=conversation_key&limit=0');
+      this.databaseState = 'ready';
+      console.log('WhatsApp persistent memory table accessible');
+    } catch {
+      this.databaseState = 'unavailable';
+      console.warn('WhatsApp persistent memory table inaccessible; using process memory');
+    }
+  }
   async serial<T>(key: string, task: () => Promise<T>): Promise<T> {
     const previous = this.queues.get(key) || Promise.resolve();
     const current = previous.catch(() => {}).then(task);
