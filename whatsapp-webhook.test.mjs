@@ -1,3 +1,8 @@
+import { URL } from 'node:url';
+import { readFileSync } from 'node:fs';
+import process from 'node:process';
+import { setTimeout } from 'node:timers';
+const catalogFixture = readFileSync(new URL('./test-fixtures/whatsapp-catalog.txt', import.meta.url), 'utf8');
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { spawn } from 'node:child_process';
@@ -16,6 +21,7 @@ test('compiled webhook replies to BSUID and phone, isolates failures and suppres
       return listen.apply(this, args);
     };
     global.fetch = async (url, options) => {
+      if (String(url).includes('/knowledge-base/Catalogo_Academico_INTECA_2026.txt')) return new Response(${JSON.stringify(catalogFixture)});
       if (!String(url).startsWith('https://graph.facebook.com/')) throw new Error('Unexpected network request');
       const body = JSON.parse(options.body);
       console.log('TEST_SEND ' + JSON.stringify(body));
@@ -49,7 +55,7 @@ test('compiled webhook replies to BSUID and phone, isolates failures and suppres
     const endpoint = 'http://127.0.0.1:' + port;
     const message = (id, sender) => ({ id, ...sender, type: 'text', text: { body: 'Hola' } });
     async function post(messages, field = 'messages') {
-      const result = await fetch(endpoint + '/api/webhooks/meta/whatsapp', {
+      const result = await globalThis.fetch(endpoint + '/api/webhooks/meta/whatsapp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ object: 'whatsapp_business_account', entry: [{ changes: [{ field,
           value: { metadata: { phone_number_id: 'business-test' }, messages },
@@ -92,6 +98,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
       return listen.apply(this, args);
     };
     global.fetch = async (url, options) => {
+      if (String(url).includes('/knowledge-base/Catalogo_Academico_INTECA_2026.txt')) return new Response(${JSON.stringify(catalogFixture)});
       const target = String(url);
       const body = JSON.parse(options.body);
       if (target.startsWith('https://graph.facebook.com/')) {
@@ -134,7 +141,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     const port = output.match(/TEST_LISTEN (\d+)/)[1];
     let id = 0;
     async function post(text, sender = 'DO.contactA') {
-      const result = await fetch('http://127.0.0.1:' + port + '/api/webhooks/meta/whatsapp', {
+      const result = await globalThis.fetch('http://127.0.0.1:' + port + '/api/webhooks/meta/whatsapp', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{
           metadata:{phone_number_id:'business-test'},messages:[{id:'msg-' + (++id),from_user_id:sender,type:'text',text:{body:text}}]
@@ -149,23 +156,37 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     await post('Luis alcides Ramirez Escalante');
     await waitFor(() => records('TEST_SEND ').length === 5);
     const contexts = records('TEST_CONTEXT ');
-    assert.equal(contexts.length, 5);
-    assert.equal(contexts[2].previousQuestionRequested, '');
-    assert.equal(records('TEST_SEND ')[1].text.body, 'Es virtual. ¿Deseas inscribirte?');
-    assert.equal(contexts[4].rememberedFacts.fullName, 'Luis alcides Ramirez Escalante');
-    assert.equal(contexts[4].rememberedFacts.schedule, 'tarde');
-    assert.equal(contexts[4].rememberedFacts.course, 'Técnico u Oficial de Autorizaciones Médicas');
-    assert.deepEqual(contexts[4].history.map(turn => turn.role), ['user','assistant','user','assistant','user','assistant','user','assistant','user']);
+    assert.equal(contexts.length, 4);
+    assert.equal(contexts[1].previousQuestionRequested, '');
+    assert.match(records('TEST_SEND ')[1].text.body, /5 meses/);
+    assert.match(records('TEST_SEND ')[1].text.body, /8:00–10:00/);
+    assert.equal(contexts[3].rememberedFacts.fullName, 'Luis alcides Ramirez Escalante');
+    assert.equal(contexts[3].rememberedFacts.schedule, 'tarde');
+    assert.equal(contexts[3].rememberedFacts.course, 'Técnico u Oficial de Autorizaciones Médicas');
+    assert.deepEqual(contexts[3].history.map(turn => turn.role), ['user','assistant','user','assistant','user','assistant','user','assistant','user']);
     assert.match(JSON.stringify(records('TEST_SYSTEM ')[0]), /Responde PRIMERO/);
+    assert.match(JSON.stringify(records('TEST_SYSTEM ')[0]), /FUENTE ÚNICA/);
+    assert.doesNotMatch(JSON.stringify(records('TEST_SYSTEM ')[0]), /FUENTE SECUNDARIA/);
     await post('Sábado y dame las instrucciones de pago');
     await waitFor(() => records('TEST_SEND ').length === 6);
-    assert.equal(records('TEST_CONTEXT ').length, 5, 'payment must not invent bank data with Gemini');
+    assert.equal(records('TEST_CONTEXT ').length, 4, 'payment must not invent bank data with Gemini');
     assert.match(records('TEST_SEND ')[5].text.body, /TEST-ONLY/);
     assert.doesNotMatch(records('TEST_SEND ')[5].text.body, /¿|oportunidades laborales/);
     await post('Hola', 'DO.contactB');
     await waitFor(() => records('TEST_SEND ').length === 7);
-    assert.deepEqual(records('TEST_CONTEXT ')[5].rememberedFacts, {});
-    assert.equal(records('TEST_CONTEXT ')[5].history.length, 1);
+    assert.deepEqual(records('TEST_CONTEXT ')[4].rememberedFacts, {});
+    assert.equal(records('TEST_CONTEXT ')[4].history.length, 1);
+    await post('Cuales tienen?', 'DO.contactB');
+    await waitFor(() => records('TEST_SEND ').length === 8);
+    assert.match(records('TEST_SEND ')[7].text.body, /Farmacología/);
+    await post('Farmacología', 'DO.contactB');
+    await waitFor(() => records('TEST_SEND ').length === 9);
+    assert.match(records('TEST_SEND ')[8].text.body, /4 meses/);
+    await post('Cuales son los horarios?', 'DO.contactB');
+    await waitFor(() => records('TEST_SEND ').length === 10);
+    assert.match(records('TEST_SEND ')[9].text.body, /11:00 a. m.–1:00/);
+    assert.doesNotMatch(records('TEST_SEND ')[9].text.body, /Hola|Autorizaciones/);
+    assert.equal(records('TEST_CONTEXT ').length, 5, 'catalog facts work without Gemini');
   } finally {
     const exited = once(child,'exit'); child.kill('SIGTERM'); await exited;
   }

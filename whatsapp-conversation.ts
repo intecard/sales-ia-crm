@@ -12,7 +12,7 @@ const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u0
 export const conversationKey = (businessId: string, kind: string, id: string) =>
   createHash('sha256').update(JSON.stringify(['org_inteca_main', businessId, kind, id])).digest('hex');
 
-export function rememberUser(conversation: Conversation, text: string, id: string) {
+export function rememberUser(conversation: Conversation, text: string, id: string, useLegacyCourseRecognition = true) {
   if (conversation.turns.some(turn => turn.role === 'user' && turn.id === id)) return;
   const lower = normalize(text);
   const facts = conversation.facts;
@@ -24,7 +24,7 @@ export function rememberUser(conversation: Conversation, text: string, id: strin
   ];
   const mentionedCourse = courses.find(([pattern]) => pattern.test(lower));
   // A question about another course is not an instruction to replace the selected course.
-  if (mentionedCourse && (!facts.course || conversation.awaiting === 'course' || /(?:quiero|prefiero|inscrib|cambi|interesa)/.test(lower))) facts.course = mentionedCourse[1];
+  if (useLegacyCourseRecognition && mentionedCourse && (!facts.course || conversation.awaiting === 'course' || /(?:quiero|prefiero|inscrib|cambi|interesa)/.test(lower))) facts.course = mentionedCourse[1];
   if (/inscri|matricul/.test(lower) && !/no (?:quiero|deseo)/.test(lower)) facts.wantsEnrollment = true;
   if (isPaymentQuestion(text) || (conversation.awaiting === 'payment' && /^(sí|si|claro|por favor)[.!\s]*$/i.test(text))) facts.paymentRequested = true;
   const days = [...lower.matchAll(/\b(sabados?|domingos?|lunes|martes|miercoles|jueves|viernes)\b/g)].map(match => match[1].replace(/^(sabado|domingo)s$/, '$1'));
@@ -34,9 +34,10 @@ export function rememberUser(conversation: Conversation, text: string, id: strin
     const oldDay = facts.schedule?.replace(/\s*(tarde|noche|manana)/g, '').trim();
     facts.schedule = [days.length ? days.join(', ') : oldDay, period || oldPeriod].filter(Boolean).join(' ');
   }
-  const explicitName = text.match(/(?:me llamo|mi nombre es|soy)\s+([\p{L}]+(?:[ '-]+[\p{L}]+){1,7})[.!]?$/iu)?.[1];
-  const plainName = conversation.awaiting === 'fullName' && /^[\p{L}]+(?:[ '-]+[\p{L}]+){1,7}$/u.test(text.trim())
-    && !/\b(quiero|curso|pago|sabado|tarde|noche|informacion|no se)\b/.test(lower) ? text.trim() : undefined;
+  const namePart = text.split(/[,;¿?\n]/)[0].trim();
+  const explicitName = namePart.match(/(?:me llamo|mi nombre es|soy)\s+([\p{L}]+(?:[ '-]+[\p{L}]+){1,7})[.!]?$/iu)?.[1];
+  const plainName = conversation.awaiting === 'fullName' && /^[\p{L}]+(?:[ '-]+[\p{L}]+){1,7}$/u.test(namePart)
+    && !/\b(quiero|curso|pago|sabado|domingo|lunes|martes|miercoles|jueves|viernes|tarde|noche|manana|informacion|no se|que|cual|cuales|como|cuando|donde|cuanto|tienen|horario|horarios|precio|precios|duracion|necesito|prefiero|puedo|hay)\b/.test(normalize(namePart)) ? namePart : undefined;
   if (explicitName || plainName) facts.fullName = explicitName || plainName;
   const email = text.match(/\b[^\s@]+@[^\s@]+\.[^\s@]+\b/)?.[0];
   if (email) facts.email = email;
@@ -54,8 +55,8 @@ export function rememberReply(conversation: Conversation, text: string, awaiting
 
 export function isPaymentQuestion(text: string) {
   const lower = normalize(text);
-  // A price question or reported payment must not receive transfer instructions.
-  if (/\b(cuanto|precio|costo|mensualidad|ya pague|pague|comprobante|hice el pago|realice el pago|estado del pago)\b/.test(lower)) return false;
+  // A reported payment goes to review. A mixed price + payment question can receive both.
+  if (/\b(ya pague|pague|comprobante|hice el pago|realice el pago|estado del pago)\b/.test(lower)) return false;
   return /\b(transferencia|deposito|cuenta bancaria|banco|instrucciones de pago|metodos? de pago|formas? de pago)\b/.test(lower)
     || /(?:como|donde|quiero|puedo|para)\s+(?:puedo\s+|hacer el\s+|el\s+)?pag(?:o|ar)\b/.test(lower)
     || /^(pago|pagar|pagos)[?¿!.\s]*$/.test(lower);
