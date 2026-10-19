@@ -295,6 +295,36 @@ Horarios confirmados para ofertas virtuales cuando esten disponibles:
 - Sabados: 10:00 a. m. a 12:00 m. y 2:00 p. m. a 4:00 p. m.
 - Domingos: 9:00 a. m. a 11:00 a. m.
 
+Documento de Pago – INTECA SRL
+Instituto Técnico del Caribe (INTECA) Tel: [809-643-5502]
+Nombre del titular: Luis Alcides Ramirez Escalante
+Cedula: 224-0013869-3
+
+Datos para Realizar el Pago:
+1. BANRESERVAS
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta: [9606185447]
+Tipo de cuenta: Ahorros
+
+2. Qik
+Nombre del titular: Luis Alcides Ramirez Escalante
+Alias Qik (luis): [luisramirezescalante1985@gmail.com]
+Número de cuenta: [1004115453]
+
+3. TOKE- QIK BANRESERVAS (PAGOS RÁPIDOS)
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta o Usuario qik: [809-706-5502]
+Tipo de cuenta: Ahorros
+
+4. BANCO POPULAR
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta: [772542833] O [824866537]
+Tipo de cuenta: Ahorros
+
+Confirmar Monto a Pagar: RD$ [Monto]
+Concepto: [Nombre del curso]
+Enviar comprobante de pago
+
 Reglas comerciales para agentes:
 - Responder con tono dominicano profesional, claro, empatico y orientado a cierre.
 - Explicar que aprendera la persona, como puede mejorar sus oportunidades laborales y por que conviene iniciar.
@@ -311,6 +341,7 @@ const INTECA_AGENT_KNOWLEDGE_FILES = [
 ];
 
 let cachedIntecaAgentKnowledgeBase: string | null = null;
+let cachedSupabaseKnowledge: string = "";
 
 function getAgentKnowledgeMaxChars() {
   const configuredLimit = Number(process.env.AGENT_KNOWLEDGE_MAX_CHARS || 48_000);
@@ -340,6 +371,10 @@ function getIntecaAgentKnowledgeBase() {
     return `FUENTE: ${relativePath}\n${content}`;
   }).filter(Boolean);
 
+  if (cachedSupabaseKnowledge) {
+    fileKnowledge.push(`FUENTE: Catálogo Oficial Supabase (PRIORIDAD ALTA - Usa estrictamente esta información para cursos, horarios y precios)\n${cachedSupabaseKnowledge}`);
+  }
+
   const combinedKnowledge = [INTECA_AGENT_KNOWLEDGE_BASE.trim(), ...fileKnowledge]
     .join('\n\n---\n\n')
     .replace(/\n{4,}/g, '\n\n\n')
@@ -361,14 +396,14 @@ Alcance de uso: ${scope}.
 
 ${getIntecaAgentKnowledgeBase()}
 
-REGLAS DE CONVERSACION, PARAFRASEO Y SEGURIDAD:
-- Puedes conversar de forma fluida, profesional, empatica y natural, usando espanol dominicano neutro.
-- Puedes parafrasear para adaptar el mensaje al canal, al nivel del cliente y a su necesidad.
-- No cambies datos sensibles: precios, duraciones, fechas, horarios, condiciones, avales, advertencias, requisitos, limitaciones, pagos ni certificaciones.
-- No inventes beneficios, cupos, empleos garantizados, pasantias, alianzas, descuentos, testimonios, resultados, pagos aprobados ni facturas emitidas.
-- Si la informacion no esta confirmada en la base o en el contexto de la solicitud, dilo con claridad y escala a Luis o a un asesor autorizado.
-- Cuando hables por INTECA, presenta los cursos como oportunidades de formacion practica y mejora profesional, sin prometer resultados garantizados.
-- Si el contexto pertenece a otra empresa, usa estas reglas como guia de calidad, pero no presentes datos de INTECA como si fueran de esa empresa.
+REGLAS ESTRICTAS DE CONVERSACION Y SEGURIDAD:
+1. IDENTIDAD Y SALUDO INICIAL: Si el usuario te saluda por primera vez o es el inicio de la conversación, DEBES responder textualmente con este formato: "¡Hola, [Nombre del cliente]! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. ¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?"
+2. RESPUESTAS CONCRETAS: Responde directamente a lo que pide el usuario usando la información de Supabase. Da horarios y precios de forma concreta, tal cual están en el catálogo.
+3. PAGOS: Si piden información de pago o desean inscribirse, entrega el Documento de Pago completo (Banreservas, Qik, Toke, Popular).
+4. Sé amable, humano y dominicano neutral.
+5. Puedes conversar de forma fluida, profesional, empatica y natural, usando espanol dominicano neutro.
+6. No cambies datos sensibles: precios, duraciones, fechas, horarios, condiciones, avales, advertencias, requisitos, limitaciones, pagos ni certificaciones.
+7. No inventes beneficios, cupos, empleos garantizados, pasantias, alianzas, descuentos, testimonios, resultados, pagos aprobados ni facturas emitidas.
 `;
 }
 
@@ -377,6 +412,21 @@ function getIntecaKnowledgeSourcesStatus() {
     path: relativePath,
     loaded: Boolean(readAgentKnowledgeFile(relativePath)),
   }));
+}
+
+function trimWhatsAppReply(text: string) {
+  return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1_500);
+}
+
+function buildFallbackWhatsAppReply(customerName: string | undefined, userMessage: string) {
+  const greetingName = customerName ? `, ${customerName}` : '';
+  const lowerMessage = userMessage.toLowerCase();
+
+  if (lowerMessage.includes('autoriz')) {
+    return trimWhatsAppReply(`¡Hola${greetingName}! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA.\n\nEl programa de Técnico u Oficial de Autorizaciones Médicas dura 5 meses y las clases son un solo día a la semana.\n\n¿Te gustaría que te comparta los precios o prefieres ver los horarios que tenemos disponibles?`);
+  }
+
+  return trimWhatsAppReply(`¡Hola${greetingName}! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA.\n\n¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?`);
 }
 
 function getWhatsAppMessageText(message: any) {
@@ -413,14 +463,47 @@ function findWhatsAppContactName(event: any, waId: string) {
 }
 
 async function generateWhatsAppAutoReply(userMessage: string, conversation: Conversation, customerName?: string, hasPhone = false, salesState?: SalesOpportunity) {
-  const instructions = process.env.WHATSAPP_PAYMENT_INSTRUCTIONS || '';
+  const instructions = process.env.WHATSAPP_PAYMENT_INSTRUCTIONS || `Documento de Pago – INTECA SRL
+Instituto Técnico del Caribe (INTECA) Tel: [809-643-5502]
+Nombre del titular: Luis Alcides Ramirez Escalante
+Cedula: 224-0013869-3
+
+Datos para Realizar el Pago
+1. BANRESERVAS
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta: [9606185447]
+Tipo de cuenta: Ahorros
+
+2. Qik
+Nombre del titular: Luis Alcides Ramirez Escalante
+Alias Qik (luis): [luisramirezescalante1985@gmail.com]
+Número de cuenta: [1004115453]
+
+3. TOKE- QIK BANRESERVAS (PAGOS RÁPIDOS)
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta o Usuario qik: [809-706-5502]
+Tipo de cuenta: Ahorros
+
+4. BANCO POPULAR
+Nombre del titular: Luis Alcides Ramirez Escalante
+Número de cuenta: [772542833] O [824866537]
+Tipo de cuenta: Ahorros
+
+Confirmar Monto a Pagar: RD$ [Monto]
+Concepto: [Nombre del curso]
+Enviar comprobante de pago`;
+
   if (salesState?.stage === 'won' && isPaymentQuestion(userMessage)) return { reply: 'Tu pago de inscripción ya está validado. El grupo y el acceso al campus están pendientes de confirmación. Si deseas pagar otro concepto, indícalo para que INTECA lo revise.', awaiting: '' as AwaitingField };
   if (salesState?.stage === 'payment_review' && isPaymentQuestion(userMessage)) return { reply: 'Tu aviso de pago está pendiente de revisión. No hace falta repetir la transferencia mientras INTECA verifica el comprobante.', awaiting: '' as AwaitingField };
+  
   // Payment details come only from administrator configuration, never generated bank numbers.
   if (isPaymentQuestion(userMessage) || (conversation.awaiting === 'payment' && /^(sí|si|claro|por favor)[.!\s]*$/i.test(userMessage))) {
     return paymentReply(conversation, instructions);
   }
-  const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. La asignación de grupo y el acceso al campus están pendientes de confirmación. Para otra consulta puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. Para una consulta adicional puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : fallbackReply(conversation, userMessage, instructions);
+  
+  const customFallbackText = buildFallbackWhatsAppReply(customerName, userMessage);
+  const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. La asignación de grupo y el acceso al campus están pendientes de confirmación. Para otra consulta puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. Para una consulta adicional puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : { reply: customFallbackText, awaiting: '' as AwaitingField };
+  
   if (!process.env.GEMINI_API_KEY) return fallback;
   try {
     const contents = JSON.stringify({
@@ -1531,7 +1614,7 @@ app.get('/api/agents/runtime/manifest', (_req, res) => {
     configurationPrecedence: [
       '1. Credenciales por empresa guardadas en backend seguro o Supabase con cifrado.',
       '2. Variables de entorno del servidor en Render para integraciones globales.',
-      '3. Valores de ejemplo solo para UI; nunca se usan como acceso real.',
+      '3. Valores de ejemplo solo para UI; never se usan como acceso real.',
     ],
     persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
     queue: process.env.SUPABASE_URL
@@ -2547,7 +2630,7 @@ Reglas:
 1. No inventes avales, precios, fechas ni garantías no indicadas.
 2. La pieza debe crear deseo y necesidad de forma ética, con beneficio práctico y CTA fuerte.
 3. Si es flyer, incluye escena visual, texto principal, CTA, elementos obligatorios y prompt de imagen en inglés.
-4. Si es video, incluye guion por segundos, texto en pantalla, voz en off, escenas, portada y CTA.
+4. Si es video, incluye guion por segundos, texto en pantalla, voz en off, scenes, portada y CTA.
 5. Debe ser útil para Meta Ads, WhatsApp, YouTube Shorts/Reels y landing.
 6. Puedes parafrasear con estilo publicitario, pero manteniendo exactamente precios, duraciones, advertencias y condiciones confirmadas.
 
@@ -2816,6 +2899,22 @@ Reglas:
 
 // Server Initialization
 async function startServer() {
+  try {
+    const catalogUrl = "https://cldqyiyecxeagnzlylwr.supabase.co/storage/v1/object/public/knowledge-base/Catalogo_Academico_INTECA_2026.txt"; 
+    if (catalogUrl.startsWith("http")) {
+      console.log("Descargando catálogo desde Supabase...");
+      const response = await fetch(catalogUrl);
+      if (response.ok) {
+        cachedSupabaseKnowledge = await response.text();
+        console.log("Catálogo descargado y listo para Mariela López.");
+      } else {
+        console.log("No se pudo descargar el catálogo. Revisa la URL o si el bucket es Public.");
+      }
+    }
+  } catch (error) {
+    console.error("Error al descargar catálogo de Supabase:", error);
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
