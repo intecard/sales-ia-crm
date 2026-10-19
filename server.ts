@@ -14,6 +14,8 @@ import { ConversationStore, conversationKey, rememberUser, rememberReply, isPaym
 
 import { SalesStore, salesSignal, salesReply, SALES_RULES, issueSalesSession, verifySalesSession, type SalesOpportunity } from './sales-agent';
 
+import { whatsAppGenerationConfig, parseWhatsAppAnswer, splitWhatsAppText } from './whatsapp-ai';
+
 import { CatalogStore, catalogReply, catalogPaymentReply, catalogFallback, catalogPrompt, rememberCatalogCourse, unavailableCatalog } from './whatsapp-catalog';
 
 import { EnrollmentAgent, ENROLLMENT_ERRORS, enrollmentError, welcomeText } from './enrollment-agent';
@@ -409,7 +411,7 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
   }
   const factualAnswer = catalogReply(catalog, conversation, userMessage);
   if (factualAnswer) return factualAnswer;
-  const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. Para otra consulta sobre tu matrícula puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. No necesitas repetir la transferencia.', awaiting: '' as AwaitingField } : catalogFallback(conversation, userMessage);
+  const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. Para otra consulta sobre tu matrícula puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. No necesitas repetir la transferencia.', awaiting: '' as AwaitingField } : catalogFallback(conversation, userMessage, catalog);
   if (!catalog) return /^(hola|buenas|gracias)[!.\s]*$/i.test(userMessage) ? fallback : unavailableCatalog();
   if (!process.env.GEMINI_API_KEY) return fallback;
   try {
@@ -424,7 +426,7 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
     const response = await generateGeminiContentWithFallback(contents, {
       systemInstruction: `${catalogPrompt(catalog)}\n\n${CONVERSATION_RULES}\n\n${SALES_RULES}`,
       temperature: 0.2,
-      maxOutputTokens: 1800,
+      maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
@@ -434,19 +436,11 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
         },
         required: ['reply', 'awaiting'],
       },
-    });
-    const parsed = JSON.parse(response.text || '{}');
-    // Gemini rejects empty enum values; keep the existing empty internal memory state.
-    if (parsed.awaiting === 'none') parsed.awaiting = '';
-    const validFields = ['', 'course', 'fullName', 'schedule', 'email', 'payment'];
-    if (typeof parsed.reply !== 'string' || !parsed.reply.trim() || !validFields.includes(parsed.awaiting)) return fallback;
-    if (parsed.awaiting && conversation.facts[parsed.awaiting as keyof typeof conversation.facts]) return fallback;
-    const reply = parsed.reply.trim().replace(/\*\*([^*]+)\*\*/g, '*$1*');
-    // Never send a sentence cut off by a character slice or an unfinished model response.
-    if (reply.length > 3500 || response.candidates?.[0]?.finishReason === 'MAX_TOKENS') return fallback;
-    return { reply, awaiting: parsed.awaiting as AwaitingField };
-  } catch {
-    console.warn('WhatsApp AI unavailable; using context-aware response');
+    }, true);
+    return parseWhatsAppAnswer(response.text || '', response.candidates?.[0]?.finishReason, conversation);
+  } catch (error) {
+    const reason = error instanceof Error && error.message.startsWith('WHATSAPP_AI_') ? error.message : 'WHATSAPP_AI_PROVIDER_ERROR';
+    console.warn('WhatsApp AI fallback', { reason });
     return fallback;
   }
 }
@@ -570,7 +564,7 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
         const reply = answer.reply;
 
         console.log('Sending WhatsApp reply', { recipientKind: recipient.kind });
-        await sendWhatsAppTextMessage(recipient, reply);
+        for (const chunk of splitWhatsAppText(reply)) await sendWhatsAppTextMessage(recipient, chunk);
         rememberReply(conversation, reply, answer.awaiting, messageId);
         await whatsAppConversations.save(memoryKey, conversation);
         if (sale) {
@@ -855,7 +849,7 @@ function summarizeGeminiError(error: unknown) {
   };
 }
 
-async function generateGeminiContentWithFallback(contents: string, config?: Record<string, unknown>) {
+async function generateGeminiContentWithFallback(contents: string, config?: Record<string, unknown>, whatsApp = false) {
   let lastError: unknown;
   const modelCandidates = getAvailableGeminiModelCandidates();
 
@@ -869,7 +863,7 @@ async function generateGeminiContentWithFallback(contents: string, config?: Reco
       return await ai.models.generateContent({
         model,
         contents,
-        config,
+        config: whatsApp ? whatsAppGenerationConfig(model, config) : config,
       });
     } catch (error) {
       lastError = error;

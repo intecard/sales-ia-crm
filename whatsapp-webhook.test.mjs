@@ -106,6 +106,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
         return new Response(JSON.stringify({messages:[{id:'wamid.test'}]}));
       }
       if (!target.includes('generativelanguage.googleapis.com')) throw new Error('Unexpected network request');
+      if (body.generationConfig.thinkingConfig.thinkingLevel !== 'LOW' || body.generationConfig.maxOutputTokens < 4096) throw new Error('Invalid WhatsApp generation settings');
       const fields = body.generationConfig.responseSchema.properties.awaiting.enum;
       if (fields.includes('') || !fields.includes('none')) throw new Error('Invalid Gemini enum');
       const context = JSON.parse(body.contents[0].parts[0].text);
@@ -121,7 +122,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     };
     require('./dist/server.cjs');
   `], { cwd: import.meta.dirname, env: { ...process.env, NODE_ENV:'production', PORT:'0',
-    GEMINI_API_KEY:'test-key', GEMINI_MODEL:'test-model', GEMINI_FALLBACK_MODELS:'test-model',
+    GEMINI_API_KEY:'test-key', GEMINI_MODEL:'gemini-3.8-flash', GEMINI_FALLBACK_MODELS:'gemini-3.8-flash',
     SUPABASE_URL:'', SUPABASE_SERVICE_ROLE_KEY:'',
     WHATSAPP_PAYMENT_INSTRUCTIONS:'Banco de prueba: TEST-ONLY. Titular de prueba.',
     WHATSAPP_AUTO_REPLY_ENABLED:'true', WHATSAPP_ACCESS_TOKEN:'test-token', WHATSAPP_PHONE_NUMBER_ID:'business-test' },
@@ -187,6 +188,17 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     assert.match(records('TEST_SEND ')[9].text.body, /11:00 a. m.–1:00/);
     assert.doesNotMatch(records('TEST_SEND ')[9].text.body, /Hola|Autorizaciones/);
     assert.equal(records('TEST_CONTEXT ').length, 5, 'catalog facts work without Gemini');
+    // Reproduce the user's exact follow-up messages after the program has been remembered.
+    await post('Todo', 'DO.contactB');
+    await waitFor(() => records('TEST_SEND ').length === 11);
+    assert.match(records('TEST_SEND ')[10].text.body, /Farmacocinética/);
+    await post('Quiero información completa sobre el curso', 'DO.contactB');
+    await waitFor(() => records('TEST_SEND ').length === 12);
+    const complete = records('TEST_SEND ')[11].text.body;
+    assert.match(complete, /4 meses/); assert.match(complete, /10,500/);
+    assert.match(complete, /Farmacocinética/); assert.match(complete, /11:00 a. m.–1:00/);
+    assert.doesNotMatch(complete, /No tengo confirmado|¿Qué curso/);
+    assert.equal(records('TEST_CONTEXT ').length, 5, 'complete information does not depend on model availability');
   } finally {
     const exited = once(child,'exit'); child.kill('SIGTERM'); await exited;
   }

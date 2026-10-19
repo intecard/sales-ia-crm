@@ -19,3 +19,10 @@ Para administrar también los métodos de pago desde el TXT, añadir al final un
 `GET /api/knowledge/inteca/status` consulta el archivo y devuelve `whatsAppCatalog`: URL, fecha de consulta, SHA-256, cantidad de programas, fuente de pagos y errores. `GET /api/health` muestra el mismo estado sin bloquear el control de salud con una descarga.
 
 `npm run test:whatsapp` comprueba actualización, fallos, instrucciones de pago, diferencias entre programas y conservación de contexto. Todas las llamadas a proveedores en las pruebas están simuladas; no se envían mensajes a clientes.
+
+
+## Conversaciones y ficha completa
+
+Las solicitudes «Todo», «información completa», «cuéntame más» y sus variantes recuperan la ficha del curso conversado: descripción, duración, modalidad publicada, temario, competencias, beneficios, oportunidades laborales, inversión, horarios y condiciones del documento. Funcionan sin Gemini. Se guarda el último curso conversado por separado del curso de inscripción para responder seguimientos sin cambiar la matrícula elegida.
+
+Las respuestas de IA usan un presupuesto de salida de 4096 tokens y nivel de razonamiento bajo en Gemini 3. Una pregunta repetida al final no elimina la información útil anterior. Los mensajes que exceden el límite del canal se dividen conservando su contenido. Los errores de formato o límite se registran con códigos, sin registrar prompts ni datos del cliente.

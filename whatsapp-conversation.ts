@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 export type AwaitingField = '' | 'course' | 'fullName' | 'schedule' | 'email' | 'payment';
 export interface Conversation {
-  facts: { fullName?: string; course?: string; schedule?: string; email?: string; wantsEnrollment?: boolean; paymentRequested?: boolean };
+  facts: { fullName?: string; course?: string; lastDiscussedCourse?: string; schedule?: string; email?: string; wantsEnrollment?: boolean; paymentRequested?: boolean };
   turns: Array<{ role: 'user' | 'assistant'; text: string; id?: string }>;
   awaiting: AwaitingField;
   updatedAt: number;

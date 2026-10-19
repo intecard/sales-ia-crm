@@ -92,3 +92,31 @@ test('a schedule question while awaiting a name is not saved as the name', () =>
   rememberUser(chat, 'Cuales son los horarios?', 'q');
   assert.equal(chat.facts.fullName, undefined);
 });
+
+test('Todo and natural information requests return the complete remembered course, including old memory aliases', () => {
+  const catalog = parseCatalog(fixture), chat = newConversation();
+  chat.facts.course = 'Farmacología Aplicada';
+  chat.facts.schedule = 'sabado manana';
+  for (const request of ['Todo', 'Quiero información completa sobre el curso', 'Cuéntame más', 'De qué se trata?', 'Dame todos los detalles', 'Me puedes orientar sobre ese curso']) {
+    const answer = catalogReply(catalog, chat, request)!;
+    assert.ok(answer, request);
+    assert.match(answer.reply, /Farmacología Aplicada para Visitadores Médicos/);
+    assert.match(answer.reply, /4 meses/); assert.match(answer.reply, /10,500/);
+    assert.match(answer.reply, /Farmacocinética/); assert.match(answer.reply, /Interpretar información básica/);
+    assert.match(answer.reply, /8:00–10:00/);
+    assert.doesNotMatch(answer.reply, /No tengo confirmado|¿Qué curso/);
+  }
+  const fallback = catalogFallback(chat, 'Quiero información completa sobre el curso', catalog);
+  assert.match(fallback.reply, /Farmacocinética/);
+});
+
+test('detail questions stay focused and follow-ups refer to the course most recently discussed', () => {
+  const catalog = parseCatalog(fixture), chat = newConversation();
+  chat.facts.course = 'Técnico u Oficial de Autorizaciones Médicas';
+  rememberCatalogCourse(catalog, chat, 'Qué enseñan en Farmacología?');
+  assert.equal(chat.facts.course, 'Técnico u Oficial de Autorizaciones Médicas');
+  assert.match(catalogReply(catalog, chat, 'Todo')!.reply, /Farmacología/);
+  assert.match(catalogReply(catalog, chat, 'Qué materias voy a ver?')!.reply, /Farmacocinética/);
+  assert.doesNotMatch(catalogReply(catalog, chat, 'Quiero información de los horarios')!.reply, /Farmacocinética/);
+  assert.equal(catalogReply(catalog, newConversation(), 'Todo')!.awaiting, 'course');
+});
