@@ -272,29 +272,6 @@ Canales oficiales:
 - WhatsApp principal: 809-643-5502
 - Correo institucional actual: intecaedu@gmail.com
 
-Curso principal confirmado:
-- Nombre: Tecnico u Oficial de Autorizaciones Medicas.
-- Modalidad: virtual.
-- Duracion: 5 meses.
-- Precio confirmado: inscripcion RD$2,500 y mensualidad RD$2,000.
-- Contenido: PBS, flujo de autorizaciones, validacion de coberturas, precertificaciones, atencion al afiliado, procesos ARS, SISALRIL, CNSS, SDSS, Ley 87-01, reclamos y casos practicos.
-- Beneficio: prepara al participante para comprender y ejecutar procesos reales de autorizaciones medicas en ARS, clinicas, hospitales, farmacias y centros de salud.
-
-Otros programas confirmados o previstos:
-- Precertificaciones medicas.
-- Atencion al usuario en salud.
-- Farmacologia aplicada.
-- Ley 87-01.
-- Facturacion medica.
-- Enfermeria, con duracion confirmada de 1 ano.
-- Cursos del sector salud.
-- Precios base usados por INTECA cuando no exista otra tarifa aprobada: inscripcion RD$2,500 y mensualidad RD$2,000.
-
-Horarios confirmados para ofertas virtuales cuando esten disponibles:
-- Lunes a viernes: 3:00 p. m. a 5:00 p. m. y 7:00 p. m. a 9:00 p. m.
-- Sabados: 10:00 a. m. a 12:00 m. y 2:00 p. m. a 4:00 p. m.
-- Domingos: 9:00 a. m. a 11:00 a. m.
-
 Documento de Pago – INTECA SRL
 Instituto Técnico del Caribe (INTECA) Tel: [809-643-5502]
 Nombre del titular: Luis Alcides Ramirez Escalante
@@ -368,14 +345,23 @@ function getIntecaAgentKnowledgeBase() {
   const fileKnowledge = INTECA_AGENT_KNOWLEDGE_FILES.map((relativePath) => {
     const content = readAgentKnowledgeFile(relativePath);
     if (!content) return '';
-    return `FUENTE: ${relativePath}\n${content}`;
+    return `FUENTE SECUNDARIA: ${relativePath}\n${content}`;
   }).filter(Boolean);
 
+  // Inyección prioritaria de Supabase
+  let priorityKnowledge = "";
   if (cachedSupabaseKnowledge) {
-    fileKnowledge.push(`FUENTE: Catálogo Oficial Supabase (PRIORIDAD ALTA - Usa estrictamente esta información para cursos, horarios y precios)\n${cachedSupabaseKnowledge}`);
+    priorityKnowledge = `FUENTE PRINCIPAL (PRIORIDAD ABSOLUTA - CATÁLOGO OFICIAL DE SUPABASE):
+USA EXCLUSIVAMENTE ESTA INFORMACIÓN PARA HORARIOS, PRECIOS, DURACIÓN Y DETALLES DE LOS CURSOS:
+---
+${cachedSupabaseKnowledge}
+---
+FIN DE FUENTE PRINCIPAL.
+
+`;
   }
 
-  const combinedKnowledge = [INTECA_AGENT_KNOWLEDGE_BASE.trim(), ...fileKnowledge]
+  const combinedKnowledge = [priorityKnowledge, INTECA_AGENT_KNOWLEDGE_BASE.trim(), ...fileKnowledge]
     .join('\n\n---\n\n')
     .replace(/\n{4,}/g, '\n\n\n')
     .trim();
@@ -398,12 +384,10 @@ ${getIntecaAgentKnowledgeBase()}
 
 REGLAS ESTRICTAS DE CONVERSACION Y SEGURIDAD:
 1. IDENTIDAD Y SALUDO INICIAL: Si el usuario te saluda por primera vez o es el inicio de la conversación, DEBES responder textualmente con este formato: "¡Hola, [Nombre del cliente]! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. ¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?"
-2. RESPUESTAS CONCRETAS: Responde directamente a lo que pide el usuario usando la información de Supabase. Da horarios y precios de forma concreta, tal cual están en el catálogo.
+2. EXTRACCIÓN DE DATOS: Cuando un prospecto pregunte por un curso (ej: Atención al Usuario en Salud), DEBES leer la FUENTE PRINCIPAL (CATÁLOGO OFICIAL DE SUPABASE) y darle EXACTAMENTE la duración, los horarios disponibles y el precio que dice ahí. NO INVENTES horarios generales de fines de semana. Si el catálogo dice un horario específico, da ese. Si el catálogo NO menciona un horario o curso, di "Actualmente no tengo información confirmada sobre ese curso/horario, déjame que un asesor lo verifique."
 3. PAGOS: Si piden información de pago o desean inscribirse, entrega el Documento de Pago completo (Banreservas, Qik, Toke, Popular).
 4. Sé amable, humano y dominicano neutral.
-5. Puedes conversar de forma fluida, profesional, empatica y natural, usando espanol dominicano neutro.
-6. No cambies datos sensibles: precios, duraciones, fechas, horarios, condiciones, avales, advertencias, requisitos, limitaciones, pagos ni certificaciones.
-7. No inventes beneficios, cupos, empleos garantizados, pasantias, alianzas, descuentos, testimonios, resultados, pagos aprobados ni facturas emitidas.
+5. Puedes conversar de forma fluida, pero NUNCA asumas precios u horarios que no estén explícitamente en el Catálogo de Supabase.
 `;
 }
 
@@ -1614,7 +1598,7 @@ app.get('/api/agents/runtime/manifest', (_req, res) => {
     configurationPrecedence: [
       '1. Credenciales por empresa guardadas en backend seguro o Supabase con cifrado.',
       '2. Variables de entorno del servidor en Render para integraciones globales.',
-      '3. Valores de ejemplo solo para UI; never se usan como acceso real.',
+      '3. Valores de ejemplo solo para UI; nunca se usan como acceso real.',
     ],
     persistence: process.env.SUPABASE_URL ? 'supabase-ready' : 'memory-runtime',
     queue: process.env.SUPABASE_URL
