@@ -1367,7 +1367,7 @@ app.post('/api/sales/course-mapping', async (req, res) => {
   const parsed = z.object({ courseTitle: z.string().trim().min(3).max(250), campusCourseId: z.string().min(1).max(150) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Selecciona los dos cursos.' });
   try {
-    const course = (await enrollmentAgent.courses()).find(c => c.id === parsed.data.campusCourseId);
+    const course = (await enrollmentAgent.courses()).find((c: any) => c.id === parsed.data.campusCourseId);
     if (!course) return res.status(400).json({ error: 'El curso no existe en el campus.' });
     const body = { course_title: parsed.data.courseTitle, campus_course_id: course.id, campus_course_title: course.title, verified_by: getConfiguredAdminCredentials().email, updated_at: new Date().toISOString() };
     const existing = await salesStore.request(`crm_campus_course_mapping?course_title=eq.${encodeURIComponent(parsed.data.courseTitle)}&select=course_title`);
