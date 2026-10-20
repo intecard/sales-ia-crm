@@ -164,6 +164,10 @@ export class SalesStore {
           'INVALID_ACTION',
           'QUOTE_REQUIRED',
           'RECEIPT_REQUIRED',
+          'AD_BUDGET',
+          'AD_PLAN',
+          'AD_APPROVAL',
+          'AD_STATE',
         ];
         throw new Error(
           known.includes(result.message)

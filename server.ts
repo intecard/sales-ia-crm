@@ -19,6 +19,7 @@ import { whatsAppGenerationConfig, parseWhatsAppAnswer, splitWhatsAppText } from
 import { CatalogStore, catalogReply, catalogPaymentReply, catalogFallback, catalogPrompt, rememberCatalogCourse, unavailableCatalog, findCourses } from './whatsapp-catalog';
 
 import { EnrollmentAgent, ENROLLMENT_ERRORS, enrollmentError, welcomeText } from './enrollment-agent';
+import { adPlanSchema } from './advertising-plans';
 import { AdvertisingAgent, AD_RULES, AD_ERRORS, CHANNELS, campaignSchema, hasDiscount, hasUnlistedPrice, adError } from './advertising-agent';
 
 dotenv.config();
@@ -1344,6 +1345,27 @@ app.use('/api/advertising', (req, res, next) => {
 });
 const adFail = (res: express.Response, error: unknown) => { const code = adError(error); return res.status(code === 'AD_STORAGE' ? 503 : 409).json({ error: AD_ERRORS[code], code }); };
 app.get('/api/advertising', async (_req, res) => { try { res.json(await advertisingAgent.snapshot()); } catch (error) { adFail(res, error); } });
+app.post('/api/advertising/plans', async (req, res) => {
+  const parsed = adPlanSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'El presupuesto total mínimo es RD$1,000. Revisa curso, canales, días y límites.' });
+  try { return res.json(await advertisingAgent.plans.create(parsed.data)); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/plans/:id/approve', async (req, res) => {
+  const parsed = z.object({ contentHash: z.string().regex(/^[a-f0-9]{64}$/), reviewed: z.literal(true) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_APPROVAL });
+  try { return res.json(await advertisingAgent.plans.approve(String(req.params.id), parsed.data.contentHash, getConfiguredAdminCredentials().email || '')); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/plans/:id/evaluate', async (req, res) => {
+  try { return res.json(await advertisingAgent.evaluatePlan(String(req.params.id))); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/plans/:id/cancel', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
+  try {
+    const rows = await salesStore.request(`crm_ad_plans?id=eq.${req.params.id}&state=in.(draft,approved)`, 'PATCH', { state: 'cancelled' });
+    if (!rows.length) throw Error('AD_STATE');
+    return res.json({ success: true, externalCampaignsChanged: false });
+  } catch (error) { return adFail(res, error); }
+});
 app.post('/api/advertising/verify', async (req, res) => {
   const parsed = z.enum(CHANNELS).safeParse(req.body?.channel);
   if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
@@ -1508,7 +1530,7 @@ app.get('/api/health', (req, res) => {
     whatsAppCatalog: { ...whatsAppCatalog.status(), paymentInstructionsConfigured: Boolean(process.env.WHATSAPP_PAYMENT_INSTRUCTIONS?.trim()) },
     salesAgent: salesStore.status(),
     enrollmentAgent: enrollmentAgent.status(),
-    advertisingAgent: { policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },
+    advertisingAgent: { minimumPlanBudgetDop: 1000, budgetControl: 'crm_allocation_only', automaticSpendingEnabled: false, policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     geminiModels: {
       configured: getGeminiModelCandidates(),

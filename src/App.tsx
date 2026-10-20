@@ -1485,11 +1485,8 @@ export function App() {
             {activeTab === 'adsWallet' && (
               <AdsWalletCommandCenter
                 currentOrg={currentOrg}
-                paymentProfiles={adPaymentProfiles}
-                spendDecisions={adSpendDecisions}
-                campaigns={campaigns}
-                deploymentMode={effectiveDeploymentMode}
-                onRegisterPaymentProfile={handleRegisterAdPaymentProfile}
+                onOpenAds={() => setActiveTab('agents')}
+                onConfigure={() => setActiveTab('settings')}
               />
             )}
 

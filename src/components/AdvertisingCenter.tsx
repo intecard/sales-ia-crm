@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import type { AdPlan } from '../../advertising-plans';
 import type { AdCampaign, AdChannel } from '../../advertising-agent';
 
 const names: Record<AdChannel, string> = { facebook: 'Facebook', instagram: 'Instagram', meta_ads: 'Meta Ads', google_ads: 'Google Ads', youtube: 'YouTube' };
 const states: Record<string, string> = { draft: 'Pendiente de revisión', approved: 'Aprobada', executing: 'En ejecución: no repetir', published: 'Publicada', prepared: 'Creada en pausa: completar anuncio en la plataforma', uploaded_private: 'Video subido en privado', review_required: 'Revisar resultado en la plataforma', blocked: 'Bloqueada: requiere nuevo borrador', rejected: 'Rechazada / cancelada' };
-type Snapshot = { campaigns: AdCampaign[]; courses: { title: string; investment: string }[]; connections: { channel: AdChannel; configured: boolean; missing: string[]; capability: string; destination: string }[] };
+type Snapshot = { plans: AdPlan[]; campaigns: AdCampaign[]; courses: { title: string; investment: string }[]; connections: { channel: AdChannel; configured: boolean; missing: string[]; capability: string; destination: string }[] };
 const field = 'w-full rounded-lg border border-slate-600 bg-slate-950 p-2 text-sm text-white';
 const button = 'rounded-lg border border-slate-600 px-3 py-2 text-sm text-white disabled:opacity-40 hover:bg-slate-700';
 async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -16,6 +17,7 @@ export function AdvertisingCenter({ onConfigure }: { onConfigure?: () => void })
   const [courseTitle, setCourseTitle] = useState('');
   const [title, setTitle] = useState(''); const [body, setBody] = useState('');
   const [mediaUrl, setMediaUrl] = useState(''); const [discountDetails, setDiscountDetails] = useState('');
+  const [planId, setPlanId] = useState(''); const [totalBudgetDop, setTotalBudgetDop] = useState(0);
   const [dailyBudget, setDailyBudget] = useState(0); const [schedule, setSchedule] = useState('');
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const [reviews, setReviews] = useState<Record<string, boolean>>({}); const [discounts, setDiscounts] = useState<Record<string, boolean>>({});
@@ -54,9 +56,11 @@ export function AdvertisingCenter({ onConfigure }: { onConfigure?: () => void })
       <label className="block text-sm">Archivo público de Supabase (opcional para Facebook)<input className={field} type="url" value={mediaUrl} onChange={e => setMediaUrl(e.target.value)} placeholder="https://…supabase.co/storage/v1/object/public/…" /></label>
       <p className="text-xs text-slate-400">Instagram: JPEG y texto hasta 2,200 caracteres. YouTube: MP4 hasta 20 MB. El dueño debe revisar también cualquier texto o promoción dentro de la imagen o del video.</p>
       <label className="block text-sm">Descuento propuesto, importe y condiciones (dejar vacío si no hay)<textarea className={field} rows={2} value={discountDetails} onChange={e => setDiscountDetails(e.target.value)} placeholder="Esto solicita revisión; no autoriza el descuento." /></label>
-      {channel.endsWith('_ads') && <label className="block text-sm">Presupuesto diario propuesto en RD$<input className={field} type="number" min={1} max={100000} value={dailyBudget} onChange={e => setDailyBudget(Number(e.target.value))} /><span className="text-xs">No activa gasto. La campaña se crea pausada.</span></label>}
+      {channel.endsWith('_ads') && <div className="space-y-2"><label className="block text-sm">Plan autorizado (créalo en Tarjeta & Pauta IA)<select className={field} value={planId} onChange={e => setPlanId(e.target.value)}><option value="">Selecciona un plan</option>{snapshot?.plans.filter(p => p.state === 'approved' && p.payload.courseTitle === courseTitle && p.payload.channels.includes(channel as 'meta_ads' | 'google_ads')).map(p => <option key={p.id} value={p.id}>{p.payload.courseTitle} · Total RD${p.payload.totalBudgetDop} · {p.id.slice(0,8)}</option>)}</select></label>
+      <label className="block text-sm">Asignación total de esta campaña (RD$)<input className={field} type="number" min={1} max={1000000} step="0.01" value={totalBudgetDop} onChange={e => setTotalBudgetDop(Number(e.target.value))}/></label>
+      <label className="block text-sm">Asignación diaria de esta campaña (RD$)<input className={field} type="number" min={1} max={100000} step="0.01" value={dailyBudget} onChange={e => setDailyBudget(Number(e.target.value))}/></label><p className="text-xs">El servidor impide asignar más que el total y el límite diario del plan entre todos sus anuncios. La campaña externa se crea en pausa; falta configurar su límite de gasto en la plataforma.</p></div>}
       <label className="block text-sm">Ejecutar después de aprobar, en la fecha indicada (opcional; hora de tu dispositivo)<input className={field} type="datetime-local" value={schedule} onChange={e => setSchedule(e.target.value)} /></label>
-      <button className={`${button} bg-blue-700`} disabled={busy || !courseTitle || title.length < 3 || body.length < 10} onClick={() => void run(async () => { await api('/campaigns', { channel, courseTitle, title, body, mediaUrl, discountDetails, dailyBudget, scheduledAt: schedule ? new Date(schedule).toISOString() : null }); setTitle(''); setBody(''); setDiscountDetails(''); }, 'Campaña guardada. Revisa y autoriza abajo; todavía no se publicó.')}>Guardar para revisión</button>
+      <button className={`${button} bg-blue-700`} disabled={busy || !courseTitle || title.length < 3 || body.length < 10} onClick={() => void run(async () => { await api('/campaigns', { channel, courseTitle, title, body, mediaUrl, discountDetails, dailyBudget, totalBudgetDop, planId: channel.endsWith('_ads') ? planId || null : null, scheduledAt: schedule ? new Date(schedule).toISOString() : null }); setTitle(''); setBody(''); setDiscountDetails(''); }, 'Campaña guardada. Revisa y autoriza abajo; todavía no se publicó.')}>Guardar para revisión</button>
     </div>
     <div className="border-t border-slate-700 pt-4 space-y-3"><h3 className="font-bold">Campañas y solicitudes de autorización</h3>
       {!snapshot?.campaigns.length && <p className="text-sm text-slate-400">Todavía no hay campañas guardadas.</p>}

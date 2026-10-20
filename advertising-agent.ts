@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { AdvertisingPlans, evaluatePerformance } from './advertising-plans.ts';
 import type { CatalogStore } from './whatsapp-catalog.ts';
 
 export const CHANNELS = ['facebook', 'instagram', 'meta_ads', 'google_ads', 'youtube'] as const;
@@ -20,11 +21,13 @@ export const campaignSchema = z.object({
   mediaUrl: z.string().url().max(2000).or(z.literal('')).default(''),
   discountDetails: z.string().trim().max(1000).default(''),
   scheduledAt: z.string().datetime().nullable().default(null),
-  dailyBudget: z.number().finite().min(0).max(100000).default(0),
-});
+  dailyBudget: z.number().finite().min(0).max(100000).multipleOf(0.01).default(0),
+  totalBudgetDop: z.number().finite().min(0).max(1000000).multipleOf(0.01).default(0),
+  planId: z.string().uuid().nullable().default(null),
+}).strict();
 export type CampaignInput = z.infer<typeof campaignSchema>;
 export interface AdCampaign {
-  id: string; payload: CampaignInput; catalog_hash: string; content_hash: string;
+  id: string; plan_id?: string | null; payload: CampaignInput; catalog_hash: string; content_hash: string;
   discount_required: boolean; discount_approved: boolean; approved_hash: string | null;
   approved_by: string | null; state: string; scheduled_at: string | null;
   approved_destination?: string | null;
@@ -40,6 +43,7 @@ const required: Record<AdChannel, string[]> = {
   youtube: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN', 'YOUTUBE_CHANNEL_ID'],
 };
 export const AD_ERRORS: Record<string, string> = {
+  AD_PLAN: 'Primero crea y autoriza un plan en Tarjeta & Pauta IA para este curso y canal.',
   AD_STORAGE: 'No se pudo guardar la campaña. Comprueba Supabase.',
   AD_AUTH: 'Vuelve a iniciar sesión como administrador del CRM.',
   AD_INPUT: 'Revisa los campos de la campaña.',
@@ -51,18 +55,20 @@ export const AD_ERRORS: Record<string, string> = {
   AD_APPROVAL: 'Requiere revisión del dueño y autorización expresa del descuento si corresponde.',
   AD_STATE: 'La campaña ya cambió de estado. Actualiza la lista.',
   AD_MEDIA: 'Usa un archivo público de Storage del Supabase de INTECA. Instagram requiere una imagen JPEG; YouTube un video MP4 de hasta 20 MB.',
-  AD_BUDGET: 'Indica el presupuesto diario en DOP. Esta operación solo prepara la campaña pagada en pausa.',
+  AD_BUDGET: 'La asignación supera el saldo total o diario del plan, o sus importes no son válidos. Las campañas se preparan en pausa.',
   AD_CURRENCY: 'La cuenta publicitaria debe operar en DOP. No se convertirá moneda automáticamente.',
 };
 export function adError(error: unknown) { const code = error instanceof Error ? error.message : ''; return AD_ERRORS[code] ? code : 'AD_STORAGE'; }
 
 export class AdvertisingAgent {
+  readonly plans: AdvertisingPlans;
   private store: Store;
   private catalog: Pick<CatalogStore, 'get'>;
   private env: NodeJS.ProcessEnv;
   private fetcher: typeof fetch;
   private running = false;
   constructor(store: Store, catalog: Pick<CatalogStore, 'get'>, env = process.env, fetcher: typeof fetch = (...args) => fetch(...args)) {
+    this.plans = new AdvertisingPlans(store, catalog);
     this.store = store; this.catalog = catalog; this.env = env; this.fetcher = fetcher;
   }
   configuration() {
@@ -146,7 +152,7 @@ export class AdvertisingAgent {
   async snapshot() {
     const campaigns = await this.store.request('crm_ad_campaigns?order=created_at.desc&limit=100');
     const catalog = await this.catalog.get();
-    return { campaigns, connections: this.configuration(), courses: catalog?.courses.map(c => ({ title: c.title, investment: c.investment })) || [],
+    return { campaigns, plans: await this.plans.list(), connections: this.configuration(), courses: catalog?.courses.map(c => ({ title: c.title, investment: c.investment })) || [],
       policy: { maxAutonomousDiscountPercent: 0, requiresOwnerApproval: true, paidCampaignsPaused: true, scheduleIntervalSeconds: 60 } };
   }
   async metrics(channel: AdChannel) {
@@ -161,13 +167,28 @@ export class AdvertisingAgent {
     }
     throw new Error('AD_INPUT');
   }
+  async evaluatePlan(id: string) {
+    const plan = await this.plans.get(id);
+    const observations = [];
+    for (const channel of plan.payload.channels) {
+      try {
+        const identity = await this.verify(channel);
+        if (!('currency' in identity) || identity.currency !== 'DOP') throw new Error('AD_CURRENCY');
+        const metrics = await this.metrics(channel);
+        const recommendation = evaluatePerformance({ spentDop: 0, paidEnrollments: null, paidRevenueDop: null, attributionVerified: false, complete: !metrics.partial, ageHours: 0, lastIncreaseHours: 0, currentDailyDop: 0, dailyLimitDop: plan.payload.dailyLimitDop, remainingDop: plan.payload.totalBudgetDop, targetCacDop: plan.payload.targetCacDop });
+        observations.push({ channel, metrics, recommendation, scope: 'Métricas de la cuenta, últimos 7 días. No son gasto total del plan ni matrículas verificadas.' });
+      } catch (error) { observations.push({ channel, error: adError(error), recommendation: { action: 'hold', reason: 'Conecta y verifica la cuenta antes de evaluar inversión.', applied: false } }); }
+    }
+    return { checkedAt: new Date().toISOString(), observations, automaticSpendingEnabled: false, attributionVerified: false };
+  }
   async create(input: CampaignInput) {
     const payload = campaignSchema.parse(input);
     const catalog = await this.catalog.get();
     if (!catalog || !catalog.courses.some(c => c.title === payload.courseTitle)) throw new Error('AD_CATALOG');
     if (payload.mediaUrl) this.mediaUrl(payload.mediaUrl);
+    if (payload.channel.endsWith('_ads')) await this.plans.validateCampaign(payload.planId, payload.courseTitle, payload.channel, payload.totalBudgetDop, payload.dailyBudget);
     const content_hash = hash({ payload, catalogHash: catalog.hash });
-    return (await this.store.request('crm_ad_campaigns', 'POST', { payload, content_hash, catalog_hash: catalog.hash,
+    return (await this.store.request('crm_ad_campaigns', 'POST', { payload, plan_id: payload.planId, content_hash, catalog_hash: catalog.hash,
       discount_required: !!payload.discountDetails || !!payload.mediaUrl || hasDiscount([payload.title, payload.body]) || hasUnlistedPrice(`${payload.title}\n${payload.body}`, catalog.courses.find(c => c.title === payload.courseTitle)!.investment), scheduled_at: payload.scheduledAt }))[0];
   }
   async approve(id: string, expectedHash: string, discounts: boolean, actor: string, expectedDestination: string) {
@@ -175,6 +196,7 @@ export class AdvertisingAgent {
     if (row.state !== 'draft' || expectedHash !== row.content_hash) throw new Error('AD_STATE');
     if (!actor || (row.discount_required && !discounts)) throw new Error('AD_APPROVAL');
     await this.currentCatalog(row);
+    if (row.payload.channel.endsWith('_ads')) await this.plans.validateCampaign(row.plan_id, row.payload.courseTitle, row.payload.channel, row.payload.totalBudgetDop, row.payload.dailyBudget);
     this.configured(row.payload.channel);
     const destination = this.destination(row.payload.channel);
     if (!expectedDestination || expectedDestination !== destination) throw new Error('AD_STATE');
@@ -207,6 +229,7 @@ export class AdvertisingAgent {
       row.content_hash !== hash({ payload: row.payload, catalogHash: row.catalog_hash }) ||
       ((row.discount_required || hasDiscount([row.payload.title, row.payload.body, row.payload.discountDetails])) && !row.discount_approved)) throw new Error('AD_APPROVAL');
     await this.currentCatalog(row);
+    if (row.payload.channel.endsWith('_ads')) await this.plans.validateCampaign(row.plan_id, row.payload.courseTitle, row.payload.channel, row.payload.totalBudgetDop, row.payload.dailyBudget);
     this.configured(row.payload.channel);
     if (!row.approved_destination || row.approved_destination !== this.destination(row.payload.channel)) throw new Error('AD_APPROVAL');
     const identity = await this.verify(row.payload.channel);

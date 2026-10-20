@@ -27,6 +27,12 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await post('/api/ai/generate-marketing', { promotionOffer: '50% de descuento' })).status, 401);
     const blocked = await post('/api/ai/generate-marketing', { promotionOffer: '50% de descuento' }, { Cookie: cookie });
     assert.equal(blocked.status, 409); assert.match((await blocked.json()).error, /autorización/);
+    assert.equal((await post('/api/advertising/plans', {})).status, 401);
+    const planHeaders = { Cookie: cookie, 'X-CRM-Action': 'advertising' };
+    const plan = {courseTitle:'Curso de prueba', totalBudgetDop:1000, dailyLimitDop:200, durationDays:7, targetCacDop:500, channels:['meta_ads']};
+    assert.equal((await post('/api/advertising/plans', {...plan,totalBudgetDop:999}, planHeaders)).status,400);
+    assert.equal((await post('/api/advertising/plans', {...plan,cvc:'test-only'}, planHeaders)).status,400);
+    assert.equal((await post('/api/advertising/plans', plan, {Cookie:cookie})).status,403);
     const anonymousApproval = await post('/api/advertising/campaigns/00000000-0000-4000-8000-000000000001/approve', { reviewed: true, approveDiscount: true }, { 'X-CRM-Action': 'advertising' });
     assert.equal(anonymousApproval.status, 401);
   } finally { child.kill('SIGTERM'); if (child.exitCode === null) await once(child, 'exit'); }

@@ -1,352 +1,67 @@
-import React, { useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  CreditCard,
-  Lock,
-  ShieldCheck,
-  Sparkles,
-  TrendingUp,
-  WalletCards,
-} from 'lucide-react';
-import {
-  AdPaymentProfile,
-  AdPlatform,
-  AdSpendDecision,
-  MarketingCampaign,
-  OrganizationTenant,
-} from '../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { OrganizationTenant } from '../types';
+import type { AdPlan } from '../../advertising-plans';
+import type { AdCampaign } from '../../advertising-agent';
 
-interface AdsWalletCommandCenterProps {
-  currentOrg: OrganizationTenant;
-  paymentProfiles: AdPaymentProfile[];
-  spendDecisions: AdSpendDecision[];
-  campaigns: MarketingCampaign[];
-  deploymentMode: 'production' | 'trial';
-  onRegisterPaymentProfile: (provider: AdPlatform, cardLast4: string, dailyLimit: number) => void;
+const field = 'mt-1 w-full rounded-xl border border-slate-600 bg-slate-950 p-3 text-white';
+const button = 'rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40';
+const money = (n: number) => `RD$${n.toLocaleString('es-DO', { maximumFractionDigits: 2 })}`;
+type Snapshot = { plans: AdPlan[]; campaigns: AdCampaign[]; courses: { title: string; investment: string }[]; connections: { channel: string; configured: boolean; destination: string }[] };
+async function api<T>(path = '', body?: unknown): Promise<T> {
+  const response = await fetch(`/api/advertising${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CRM-Action': 'advertising' }, ...(body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }) });
+  const data = await response.json(); if (!response.ok) throw Error(data.error || 'No se pudo completar la operación.'); return data;
 }
-
-export const AdsWalletCommandCenter: React.FC<AdsWalletCommandCenterProps> = ({
-  currentOrg,
-  paymentProfiles,
-  spendDecisions,
-  campaigns,
-  deploymentMode,
-  onRegisterPaymentProfile,
-}) => {
-  const [draftProvider, setDraftProvider] = useState<AdPlatform>('Meta Ads');
-  const [draftLast4, setDraftLast4] = useState('');
-  const [draftDailyLimit, setDraftDailyLimit] = useState(1000);
-  const [previewReady, setPreviewReady] = useState(false);
-
-  const orgProfiles = paymentProfiles.filter((profile) => profile.organizationId === currentOrg.id);
-  const orgDecisions = spendDecisions.filter(
-    (decision) => decision.organizationId === currentOrg.id,
-  );
-  const paidCampaigns = campaigns.filter((campaign) => campaign.paidByAgent);
-
-  const monthlyLimit = useMemo(
-    () => orgProfiles.reduce((total, profile) => total + profile.spendingLimitMonthly, 0),
-    [orgProfiles],
-  );
-
-  const handlePrepareCard = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (draftLast4.length !== 4) return;
-    onRegisterPaymentProfile(draftProvider, draftLast4, draftDailyLimit);
-    setPreviewReady(true);
-    setDraftLast4('');
-  };
-
-  return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
-      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-1">
-            <WalletCards className="w-3.5 h-3.5" />
-            <span>Tarjeta empresarial, pauta inteligente y control de gasto</span>
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">Tarjeta & Pauta IA</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            La empresa registra su método de pago, define límites y los agentes invierten solo en
-            campañas con reglas de rentabilidad, trazabilidad y autorización.
-          </p>
-        </div>
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-black border ${
-            deploymentMode === 'trial'
-              ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-              : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-          }`}
-        >
-          {deploymentMode === 'trial' ? 'Modo prueba' : 'Versión real'}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <form
-          onSubmit={handlePrepareCard}
-          className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 xl:col-span-1"
-        >
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-black text-white uppercase tracking-wider">
-              Registrar tarjeta
-            </h2>
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            En producción se conecta con Meta/Google/Stripe o procesador autorizado. El CRM solo
-            debe guardar token seguro, marca y últimos 4 dígitos, nunca el número completo.
-          </p>
-
-          <div className="space-y-3 text-xs">
-            <label className="block">
-              <span className="text-slate-300 font-bold">Plataforma de pauta</span>
-              <select
-                value={draftProvider}
-                onChange={(event) => setDraftProvider(event.target.value as AdPlatform)}
-                className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-              >
-                {['Meta Ads', 'Google Ads', 'YouTube Ads', 'TikTok Ads'].map((provider) => (
-                  <option key={provider} value={provider} className="bg-slate-900">
-                    {provider}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-slate-300 font-bold">Últimos 4 dígitos visibles</span>
-              <input
-                value={draftLast4}
-                onChange={(event) =>
-                  setDraftLast4(event.target.value.replace(/\D/g, '').slice(0, 4))
-                }
-                placeholder="1234"
-                className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-              />
-            </label>
-            <label className="block">
-              <span className="text-slate-300 font-bold">Límite diario autorizado</span>
-              <input
-                type="number"
-                min={0}
-                value={draftDailyLimit}
-                onChange={(event) => setDraftDailyLimit(Number(event.target.value))}
-                className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-              />
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl px-4 py-2 text-sm"
-          >
-            Preparar conexión segura
-          </button>
-
-          {previewReady && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 rounded-xl p-3 text-xs">
-              Perfil registrado de forma segura con tarjeta enmascarada. La conexión real de cobro
-              queda pendiente de tokenizar la tarjeta con el proveedor autorizado.
-            </div>
-          )}
-        </form>
-
-        <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-            <span className="text-[10px] uppercase font-black text-slate-500">
-              Perfiles activos
-            </span>
-            <p className="text-3xl font-black text-white mt-2">{orgProfiles.length}</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Tarjetas o cuentas publicitarias vinculadas.
-            </p>
-          </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-            <span className="text-[10px] uppercase font-black text-slate-500">Límite mensual</span>
-            <p className="text-3xl font-black text-emerald-400 mt-2">
-              RD${monthlyLimit.toLocaleString()}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">Gasto máximo permitido por reglas.</p>
-          </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-            <span className="text-[10px] uppercase font-black text-slate-500">
-              Campañas pagadas
-            </span>
-            <p className="text-3xl font-black text-cyan-300 mt-2">{paidCampaigns.length}</p>
-            <p className="text-xs text-slate-400 mt-1">Solo cuando hay tarjeta y autorización.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4">
-            <ShieldCheck className="w-4 h-4 text-cyan-300" />
-            Métodos de pago y límites
-          </h2>
-          {orgProfiles.length === 0 ? (
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300">
-              No hay tarjeta real registrada para {currentOrg.name}. Los agentes pueden preparar
-              campañas, pero no pagar pauta hasta conectar Meta Ads, Google Ads o un procesador.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {orgProfiles.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="bg-slate-950 border border-slate-800 rounded-xl p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-black text-white">{profile.provider}</h3>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {profile.cardBrand} terminada en {profile.cardLast4} ·{' '}
-                        {profile.billingEmail}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[10px] font-black px-2 py-1 rounded-full border ${
-                        profile.status === 'Activa'
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                      }`}
-                    >
-                      {profile.status}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 text-xs">
-                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
-                      <span className="text-slate-500 font-bold uppercase text-[10px]">Diario</span>
-                      <p className="text-white font-black">RD${profile.spendingLimitDaily}</p>
-                    </div>
-                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
-                      <span className="text-slate-500 font-bold uppercase text-[10px]">
-                        Mensual
-                      </span>
-                      <p className="text-white font-black">
-                        RD${profile.spendingLimitMonthly.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
-                      <span className="text-slate-500 font-bold uppercase text-[10px]">Modo</span>
-                      <p className="text-cyan-300 font-black">{profile.approvalMode}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4">
-            <TrendingUp className="w-4 h-4 text-emerald-300" />
-            Decisiones estratégicas de pauta
-          </h2>
-          {orgDecisions.length === 0 ? (
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300">
-              Todavía no hay decisiones de inversión. El agente de publicidad generará una cuando
-              exista campaña, objetivo, presupuesto y canal conectado.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {orgDecisions.map((decision) => (
-                <div
-                  key={decision.id}
-                  className="bg-slate-950 border border-slate-800 rounded-xl p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-white font-black">{decision.campaignTitle}</h3>
-                      <p className="text-xs text-slate-400 mt-1">{decision.objective}</p>
-                    </div>
-                    <span className="text-[10px] font-black px-2 py-1 rounded-full border bg-blue-500/20 text-blue-300 border-blue-500/30">
-                      {decision.status}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-xs">
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-                      <span className="text-slate-500 uppercase font-bold text-[10px]">Canal</span>
-                      <p className="text-white font-black">{decision.channel}</p>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-                      <span className="text-slate-500 uppercase font-bold text-[10px]">
-                        Presupuesto
-                      </span>
-                      <p className="text-emerald-300 font-black">
-                        RD${decision.recommendedBudgetDop.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-                      <span className="text-slate-500 uppercase font-bold text-[10px]">Ventas</span>
-                      <p className="text-cyan-300 font-black">{decision.expectedSales}</p>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-                      <span className="text-slate-500 uppercase font-bold text-[10px]">Riesgo</span>
-                      <p className="text-amber-300 font-black">{decision.riskLevel}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-300 mt-3 leading-relaxed">
-                    {decision.reasoning}
-                  </p>
-                  <div className="mt-3 space-y-1">
-                    {decision.guardrails.map((guardrail) => (
-                      <div
-                        key={guardrail}
-                        className="flex items-start gap-2 text-xs text-slate-300"
-                      >
-                        <Lock className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                        <span>{guardrail}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-amber-300" />
-          Reglas para que los agentes paguen campañas
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-          {[
-            {
-              icon: CheckCircle2,
-              title: 'Solo dentro de límites',
-              text: 'El gasto nunca supera el límite diario/mensual definido por la empresa.',
-            },
-            {
-              icon: TrendingUp,
-              title: 'Escala por pagos',
-              text: 'El presupuesto sube únicamente cuando hay leads útiles, pagos o ROAS medible.',
-            },
-            {
-              icon: AlertTriangle,
-              title: 'Pausa automática',
-              text: 'Si CPL, CAC o frecuencia se salen de rango, el agente pausa y deja auditoría.',
-            },
-            {
-              icon: ShieldCheck,
-              title: 'Aprobación sensible',
-              text: 'Campañas institucionales, testimonios y alto presupuesto requieren aprobación.',
-            },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.title} className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-                <Icon className="w-5 h-5 text-cyan-300 mb-3" />
-                <h3 className="font-black text-white">{item.title}</h3>
-                <p className="text-slate-400 mt-1 leading-relaxed">{item.text}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
+export function AdsWalletCommandCenter({ currentOrg, onOpenAds, onConfigure }: { currentOrg: OrganizationTenant; onOpenAds: () => void; onConfigure: () => void }) {
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [courseTitle, setCourseTitle] = useState(''); const [total, setTotal] = useState(1000); const [daily, setDaily] = useState(200);
+  const [days, setDays] = useState(7); const [cac, setCac] = useState(500); const [channel, setChannel] = useState('meta_ads');
+  const [reviews, setReviews] = useState<Record<string, boolean>>({}); const [evaluation, setEvaluation] = useState<Record<string, any>>({});
+  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
+  const refresh = useCallback(async () => { const result = await api<Snapshot>(); setSnapshot(result); setCourseTitle(old => old || result.courses[0]?.title || ''); }, []);
+  const available = currentOrg.id === 'org_inteca_main';
+  useEffect(() => { if (available) void refresh().catch(e => setError(e.message)); }, [available, refresh]);
+  async function run(task: () => Promise<unknown>, message: string) { setBusy(true); setError(''); setNotice(''); try { await task(); await refresh(); setNotice(message); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }
+  if (!available) return <div className="p-6">La conexión real de publicidad está habilitada para INTECA. Esta empresa requiere su propia configuración.</div>;
+  return <main className="mx-auto max-w-6xl space-y-6 p-5 text-white">
+    <header className="rounded-2xl bg-slate-900 p-5"><h1 className="text-2xl font-bold">Tarjeta, presupuesto y plan de publicidad</h1><p className="mt-2 text-sm text-slate-300">INTECA · Elige un curso, define cuánto puedes invertir y revisa el plan antes de preparar anuncios.</p></header>
+    {error && <p role="alert" className="rounded-xl bg-red-900 p-3">{error}</p>}{notice && <p role="status" className="rounded-xl bg-emerald-900 p-3">{notice}</p>}
+    <section className="space-y-3 rounded-2xl bg-slate-900 p-5"><h2 className="text-lg font-bold">1. Registrar la tarjeta con la plataforma</h2>
+      <p className="text-sm text-slate-300">Ingresa el número completo, vencimiento y CVC únicamente en la página segura de Meta o Google. Ellos gestionan el método de pago para sus cargos posteriores. Este CRM no recibe ni almacena esos datos.</p>
+      <div className="flex flex-wrap gap-3"><a className={button} href="https://business.facebook.com/" target="_blank" rel="noreferrer">Abrir Meta Business → Facturación y pagos</a><a className={button} href="https://ads.google.com/" target="_blank" rel="noreferrer">Abrir Google Ads → Facturación</a></div>
+      <p className="text-xs text-slate-400">Registrar una tarjeta no conecta por sí solo el agente. También necesita permisos API sobre la cuenta publicitaria. YouTube Ads se paga desde Google Ads.</p>
+      <div className="grid gap-2 sm:grid-cols-2">{snapshot?.connections.filter(c => c.channel.endsWith('_ads')).map(c => <p key={c.channel} className="rounded-lg border border-slate-700 p-3 text-sm">{c.channel === 'meta_ads' ? 'Meta Ads' : 'Google Ads'} · {c.configured ? 'Credenciales presentes; falta verificar acceso y facturación' : 'Pendiente de conexión'}<br/><span className="text-xs text-slate-400">Cuenta: {c.destination || 'Sin configurar'} · Tarjeta: sin verificación desde el CRM</span></p>)}</div>
+      <button className={button} onClick={onConfigure}>Configurar conexiones</button>
+    </section>
+    <section className="space-y-4 rounded-2xl bg-slate-900 p-5"><h2 className="text-lg font-bold">2. Crear un plan con presupuesto limitado</h2>
+      <p className="text-sm text-slate-300">Mínimo {money(1000)} para el plan completo, sin renovación automática. El monto mostrado es una propuesta: no se cobra ni se autoriza al abrir esta pantalla.</p>
+      <label className="block text-sm">Curso del catálogo<select className={field} value={courseTitle} onChange={e => setCourseTitle(e.target.value)}>{snapshot?.courses.map(c => <option key={c.title}>{c.title}</option>)}</select></label>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Presupuesto total máximo (RD$)<input className={field} type="number" min={1000} max={1000000} step="0.01" value={total} onChange={e => setTotal(Number(e.target.value))}/></label>
+      <label className="text-sm">Límite diario del plan (RD$)<input className={field} type="number" min={1} max={total} step="0.01" value={daily} onChange={e => setDaily(Number(e.target.value))}/></label>
+      <label className="text-sm">Duración propuesta de la prueba (días)<input className={field} type="number" min={3} max={30} value={days} onChange={e => setDays(Number(e.target.value))}/></label>
+      <label className="text-sm">Costo máximo objetivo por matrícula pagada (RD$)<input className={field} type="number" min={1} max={1000000} step="0.01" value={cac} onChange={e => setCac(Number(e.target.value))}/></label></div>
+      <label className="block text-sm">Canal inicial<select className={field} value={channel} onChange={e => setChannel(e.target.value)}><option value="meta_ads">Meta Ads: Facebook e Instagram</option><option value="google_ads">Google Ads: búsqueda</option><option value="both">Meta Ads y Google Ads: presupuesto total compartido</option></select></label>
+      <p className="text-xs text-slate-400">El costo objetivo se decide según tu margen. No es una promesa de ventas. Para un presupuesto pequeño conviene probar primero un solo canal.</p>
+      <button className={button} disabled={busy || !courseTitle || total < 1000 || daily <= 0 || daily > total || cac <= 0} onClick={() => void run(() => api('/plans', { courseTitle, totalBudgetDop: total, dailyLimitDop: daily, durationDays: days, targetCacDop: cac, channels: channel === 'both' ? ['meta_ads', 'google_ads'] : [channel] }), 'Plan guardado. Revisa sus condiciones y autorízalo abajo.')}>Crear y guardar plan</button>
+    </section>
+    <section className="space-y-3"><h2 className="text-lg font-bold text-slate-800 dark:text-white">3. Revisar planes y resultados</h2>
+      {!snapshot?.plans.length && <p className="rounded-xl bg-slate-900 p-4">Todavía no hay planes guardados.</p>}
+      {snapshot?.plans.map(p => { const allocated = snapshot.campaigns.filter(c => c.plan_id === p.id && c.state !== 'rejected').reduce((sum, c) => sum + c.payload.totalBudgetDop, 0); return <article key={p.id} className="space-y-3 rounded-2xl bg-slate-900 p-5">
+        <h3 className="font-bold">{p.payload.courseTitle} · {p.state === 'approved' ? 'Plan autorizado' : p.state === 'cancelled' ? 'Cancelado' : 'Pendiente de tu autorización'}</h3>
+        <p className="text-sm">Total: {money(p.payload.totalBudgetDop)} · Diario: {money(p.payload.dailyLimitDop)} · {p.payload.durationDays} días propuestos</p>
+        <p className="text-xs text-slate-400">Asignado a borradores cargados: {money(allocated)}. Esto no representa gasto realizado; la API limita la suma de todos los borradores del plan.</p>
+        <p className="text-sm text-cyan-200">Pruebas: {money(p.strategy.testBudgetDop)} · Anuncios con resultados: {money(p.strategy.winnerBudgetDop)} · Reserva: {money(p.strategy.reserveDop)}</p>
+        <p className="text-sm">{p.strategy.objective}</p><p className="text-sm text-slate-300">{p.strategy.audience}</p>
+        <p className="text-sm text-slate-300">Datos vigentes: {p.strategy.courseFacts.duration} · {p.strategy.courseFacts.investment}</p>
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-300">{p.strategy.steps.map(s => <li key={s}>{s}</li>)}</ol>
+        <div className="grid gap-2 sm:grid-cols-2">{p.strategy.variants.map(v => <div key={v.name} className="rounded-xl border border-slate-700 p-3 text-sm"><strong>{v.name}</strong><p>{v.hypothesis}</p></div>)}</div>
+        <p className="text-sm text-amber-200">{p.strategy.activation}</p>
+        {p.state === 'draft' && <><label className="flex gap-2 text-sm"><input type="checkbox" checked={!!reviews[p.id]} onChange={e => setReviews({...reviews, [p.id]: e.target.checked})}/>Revisé y autorizo este plan y estos límites. Cada anuncio y descuento conserva su aprobación separada.</label><button className={button} disabled={busy || !reviews[p.id]} onClick={() => void run(() => api(`/plans/${p.id}/approve`, { contentHash: p.content_hash, reviewed: true }), 'Plan autorizado para preparar campañas dentro de sus límites. No se activó gasto.')}>Autorizar plan</button></>}
+        {p.state === 'approved' && <button className={button} onClick={onOpenAds}>Preparar anuncios en Agentes IA → Publicidad</button>}
+        <button className={`${button} ml-2`} disabled={busy} onClick={() => void run(async () => { const result = await api(`/plans/${p.id}/evaluate`, {}); setEvaluation(old => ({...old, [p.id]: result})); }, 'Evaluación actualizada. No se modificó ningún presupuesto externo.')}>Consultar evidencia y recomendación</button>
+        {evaluation[p.id] && <div className="space-y-2 rounded-xl border border-slate-700 p-3 text-sm">{evaluation[p.id].observations.map((o: any) => <div key={o.channel}><strong>{o.channel === 'meta_ads' ? 'Meta Ads' : 'Google Ads'}</strong><p>{o.recommendation.reason}</p>{o.metrics && <details><summary>Métricas de la cuenta · últimos 7 días</summary><pre className="overflow-auto text-xs">{JSON.stringify(o.metrics, null, 2)}</pre></details>}</div>)}<p className="text-amber-200">Atribución de matrículas pendiente. Aumentos y pausas automáticos todavía no están activos.</p></div>}
+        {p.state !== 'cancelled' && <button className={`${button} ml-2 bg-slate-700`} disabled={busy} onClick={() => void run(() => api(`/plans/${p.id}/cancel`, {}), 'Plan cancelado en el CRM. Las campañas externas ya creadas se revisan en Meta o Google.')}>Cancelar plan en el CRM</button>}
+      </article>; })}
+    </section>
+    <p className="rounded-xl border border-amber-400 bg-slate-900 p-4 text-sm text-amber-100">Los límites de este panel controlan las asignaciones del CRM. Antes de activar anuncios hay que establecer y comprobar los límites en Meta o Google; un presupuesto diario de plataforma puede ser un promedio. Esta versión mantiene las campañas pagadas en pausa.</p>
+  </main>;
+}
