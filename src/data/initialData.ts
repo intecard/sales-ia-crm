@@ -79,8 +79,8 @@ export const INITIAL_ORGANIZATIONS: OrganizationTenant[] = [
 export const INITIAL_USERS: UserProfile[] = [
   {
     id: 'usr_admin',
-    name: 'Director Luis Ramírez',
-    email: 'luis.ramirez@inteca.edu',
+    name: 'Administrador',
+    email: 'demo@example.invalid',
     role: 'Admin',
     organizationId: 'org_inteca_main',
     avatarUrl:
@@ -88,8 +88,8 @@ export const INITIAL_USERS: UserProfile[] = [
   },
   {
     id: 'usr_sales_lead',
-    name: 'Valeria Mendoza',
-    email: 'valeria.mendoza@inteca.edu',
+    name: 'Supervisor de demostración',
+    email: 'demo@example.invalid',
     role: 'Supervisor',
     organizationId: 'org_inteca_main',
     avatarUrl:
@@ -541,412 +541,21 @@ export const INITIAL_PRODUCTS_SERVICES: ProductService[] = [
   },
 ];
 
-export const INITIAL_OPPORTUNITIES: SalesOpportunity[] = [
-  {
-    id: 'opp_1001',
-    organizationId: 'org_inteca_main',
-    leadId: 'lead_101',
-    title: 'Inscripción grupo Autorizaciones Médicas octubre',
-    companyName: 'Prospecto individual INTECA',
-    stage: 'Cotización',
-    productServiceId: 'svc_inteca_autorizaciones',
-    quotedAmount: 12500,
-    currency: 'DOP',
-    probability: 86,
-    expectedCloseDate: '2026-10-01',
-    ownerName: 'Valeria Sotomayor',
-    nextStep: 'Confirmar inscripción RD$2,500 y enviar comprobante por WhatsApp.',
-    riskLevel: 'Bajo',
-  },
-  {
-    id: 'opp_1002',
-    organizationId: 'org_clinica_santa_luz',
-    leadId: 'lead_102',
-    title: 'Convenio preventivo para 120 colaboradores',
-    companyName: 'Distribuidora Caribe Norte',
-    stage: 'Negociación',
-    productServiceId: 'svc_clinica_plan_empresarial',
-    quotedAmount: 85000,
-    currency: 'DOP',
-    probability: 72,
-    expectedCloseDate: '2026-10-08',
-    ownerName: 'Supervisor Comercial',
-    nextStep: 'Enviar cotización ajustada con ITBIS y condiciones de pago a 15 días.',
-    riskLevel: 'Medio',
-  },
-  {
-    id: 'opp_1003',
-    organizationId: 'org_autoprime_rd',
-    leadId: 'lead_103',
-    title: 'Cierre de financiamiento SUV familiar',
-    companyName: 'Cliente AutoPrime RD',
-    stage: 'Cierre',
-    productServiceId: 'svc_autoprime_financiamiento',
-    quotedAmount: 45000,
-    currency: 'DOP',
-    probability: 91,
-    expectedCloseDate: '2026-09-30',
-    ownerName: 'Ejecutivo Ventas',
-    nextStep: 'Validar carta laboral, preparar contrato y emitir factura de servicio.',
-    riskLevel: 'Bajo',
-  },
-];
+export const INITIAL_OPPORTUNITIES: SalesOpportunity[] = [];
 
-export const INITIAL_QUOTES: CommercialQuote[] = [
-  {
-    id: 'quote_5001',
-    organizationId: 'org_inteca_main',
-    opportunityId: 'opp_1001',
-    quoteNumber: 'COT-2026-0001',
-    customerName: 'Alejandro Gómez Santander',
-    customerTaxId: 'Pendiente',
-    issueDate: '2026-09-26',
-    validUntil: '2026-10-01',
-    status: 'Enviada',
-    currency: 'DOP',
-    subtotal: 12500,
-    taxAmount: 0,
-    total: 12500,
-    items: [
-      {
-        id: 'qli_1',
-        productServiceId: 'svc_inteca_autorizaciones',
-        description: 'Técnico en Autorizaciones Médicas - modalidad virtual',
-        quantity: 1,
-        unitPrice: 12500,
-        discountPercent: 0,
-      },
-    ],
-  },
-  {
-    id: 'quote_5002',
-    organizationId: 'org_clinica_santa_luz',
-    opportunityId: 'opp_1002',
-    quoteNumber: 'COT-2026-0002',
-    customerName: 'Distribuidora Caribe Norte SRL',
-    customerTaxId: '132-0000001-5',
-    issueDate: '2026-09-26',
-    validUntil: '2026-10-08',
-    status: 'Aceptada',
-    currency: 'DOP',
-    subtotal: 85000,
-    taxAmount: 15300,
-    total: 100300,
-    items: [
-      {
-        id: 'qli_2',
-        productServiceId: 'svc_clinica_plan_empresarial',
-        description: 'Plan corporativo de consultas preventivas - primer mes',
-        quantity: 1,
-        unitPrice: 85000,
-        discountPercent: 0,
-      },
-    ],
-  },
-];
+export const INITIAL_QUOTES: CommercialQuote[] = [];
 
-export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [
-  {
-    id: 'einvoice_7001',
-    organizationId: 'org_clinica_santa_luz',
-    quoteId: 'quote_5002',
-    issuer: {
-      legalName: 'Clínica Santa Luz SRL',
-      commercialName: 'Clínica Santa Luz',
-      taxId: '131-9000000-2',
-      fiscalAddress: 'Av. Salud Integral 45, Santo Domingo, República Dominicana',
-      email: 'facturacion@clinicasantaluz.com',
-      phone: '809-000-2000',
-    },
-    receiver: {
-      legalName: 'Distribuidora Caribe Norte SRL',
-      taxId: '132-0000001-5',
-      fiscalAddress: 'Calle Principal 18, Santiago, República Dominicana',
-      email: 'cuentas@caribenorte.com',
-    },
-    customerName: 'Distribuidora Caribe Norte SRL',
-    customerTaxId: '132-0000001-5',
-    fiscalType: 'Factura de crédito fiscal',
-    ncf: 'B0100000042',
-    eNcf: 'E310000000042',
-    dgiiStatus: 'Lista para enviar',
-    integrationMode: 'Producción pendiente',
-    subtotal: 85000,
-    taxAmount: 15300,
-    total: 100300,
-    currency: 'DOP',
-    issuedAt: '2026-09-26T09:30:00-04:00',
-    dueDate: '2026-10-11',
-    paymentStatus: 'Pendiente',
-    lineItems: [
-      {
-        id: 'ecf_line_7001_1',
-        quantity: 1,
-        description: 'Plan corporativo de consultas preventivas - primer mes',
-        unitPrice: 85000,
-        discountAmount: 0,
-        taxableAmount: 85000,
-        exemptAmount: 0,
-        itbisAmount: 15300,
-        iscAmount: 0,
-        otherTaxAmount: 0,
-        total: 100300,
-      },
-    ],
-    taxBreakdown: {
-      taxableAmount: 85000,
-      exemptAmount: 0,
-      itbisRate: 18,
-      itbisAmount: 15300,
-      iscAmount: 0,
-      otherChargesAmount: 0,
-      grandTotal: 100300,
-    },
-    xmlStatus: 'XML generado',
-    pdfStatus: 'Representación PDF generada',
-    digitalSignatureHash: 'PENDIENTE_CERTIFICADO_DIGITAL_DGII',
-    qrVerificationUrl:
-      'https://ecf.dgii.gov.do/test/verificacion?encf=E310000000042&rnc=13190000002',
-    qrPayload:
-      'RNCEmisor=13190000002&ENCF=E310000000042&MontoTotal=100300.00&FechaEmision=2026-09-26',
-    auditTrail: [
-      'Cotización aceptada por el cliente',
-      'Factura electrónica generada y pendiente de conexión fiscal DGII',
-      'Pendiente conectar certificado digital, secuencia NCF real y endpoint DGII',
-    ],
-  },
-  {
-    id: 'einvoice_7002',
-    organizationId: 'org_autoprime_rd',
-    transactionId: 'tx_8802',
-    issuer: {
-      legalName: 'AutoPrime RD SRL',
-      commercialName: 'AutoPrime RD',
-      taxId: '131-8000000-1',
-      fiscalAddress: 'Av. Automotriz 12, Santo Domingo, República Dominicana',
-      email: 'facturacion@autoprimerd.com',
-      phone: '809-000-3000',
-    },
-    receiver: {
-      legalName: 'Guillermo Restrepo',
-      taxId: '001-0000000-1',
-      fiscalAddress: 'Santo Domingo, República Dominicana',
-      email: 'cliente@example.com',
-    },
-    customerName: 'Guillermo Restrepo',
-    customerTaxId: '001-0000000-1',
-    fiscalType: 'Factura de consumo',
-    ncf: 'B0200000090',
-    eNcf: 'E320000000090',
-    dgiiStatus: 'Lista para enviar',
-    integrationMode: 'Producción pendiente',
-    subtotal: 38135.59,
-    taxAmount: 6864.41,
-    total: 45000,
-    currency: 'DOP',
-    issuedAt: '2026-09-25T16:20:00-04:00',
-    dueDate: '2026-09-25',
-    paymentStatus: 'Pagada',
-    lineItems: [
-      {
-        id: 'ecf_line_7002_1',
-        quantity: 1,
-        description: 'Servicio de gestión comercial automotriz',
-        unitPrice: 38135.59,
-        discountAmount: 0,
-        taxableAmount: 38135.59,
-        exemptAmount: 0,
-        itbisAmount: 6864.41,
-        iscAmount: 0,
-        otherTaxAmount: 0,
-        total: 45000,
-      },
-    ],
-    taxBreakdown: {
-      taxableAmount: 38135.59,
-      exemptAmount: 0,
-      itbisRate: 18,
-      itbisAmount: 6864.41,
-      iscAmount: 0,
-      otherChargesAmount: 0,
-      grandTotal: 45000,
-    },
-    xmlStatus: 'XML generado',
-    pdfStatus: 'Representación PDF generada',
-    digitalSignatureHash: 'PENDIENTE_CERTIFICADO_DIGITAL_DGII',
-    qrVerificationUrl:
-      'https://ecf.dgii.gov.do/test/verificacion?encf=E320000000090&rnc=13180000001',
-    qrPayload:
-      'RNCEmisor=13180000001&ENCF=E320000000090&MontoTotal=45000.00&FechaEmision=2026-09-25',
-    auditTrail: [
-      'Pago marcado como completado en datos operativos',
-      'Factura de consumo generada',
-      'No enviada a DGII por falta de credenciales de producción',
-    ],
-  },
-];
+export const INITIAL_ELECTRONIC_INVOICES: ElectronicInvoice[] = [];
 
-export const INITIAL_ACCOUNTING_REPORTS: AccountingReport[] = [
-  {
-    id: 'acct_report_income_2026_09',
-    organizationId: 'org_inteca_main',
-    type: 'Estado de resultados',
-    period: 'Septiembre 2026',
-    status: 'Generado',
-    generatedByAgentId: 'agent_accounting',
-    highlights: [
-      'Ingresos concentrados en inscripciones y mensualidades.',
-      'Gastos principales: pauta digital, herramientas y soporte operativo.',
-      'Utilidad neta positiva si se mantiene disciplina de cobro y seguimiento.',
-    ],
-    totals: {
-      ingresos: 142500,
-      costos: 27500,
-      gastos: 38500,
-      utilidadNeta: 76500,
-    },
-    nextAction:
-      'Conciliar cobros confirmados con comprobantes bancarios y separar gastos por campaña.',
-  },
-  {
-    id: 'acct_report_balance_2026_09',
-    organizationId: 'org_inteca_main',
-    type: 'Balance general',
-    period: 'Corte 30/09/2026',
-    status: 'En revisión',
-    generatedByAgentId: 'agent_accounting',
-    highlights: [
-      'Activos principales: efectivo, cuentas por cobrar y licencias CRM.',
-      'Pasivos principales: servicios por pagar y gastos acumulados.',
-      'Patrimonio actualizado con resultado acumulado del periodo.',
-    ],
-    totals: {
-      activos: 385000,
-      pasivos: 128000,
-      patrimonio: 257000,
-    },
-    nifReference:
-      'NIF B-6: estructura para Estado de Situación Financiera en forma de reporte o cuenta.',
-    nextAction:
-      'Validar cuentas por cobrar, obligaciones pendientes y clasificación de activos/pasivos.',
-  },
-  {
-    id: 'acct_report_cashflow_2026_09',
-    organizationId: 'org_inteca_main',
-    type: 'Estado de flujo de efectivo',
-    period: 'Septiembre 2026',
-    status: 'Pendiente datos',
-    generatedByAgentId: 'agent_accounting',
-    highlights: [
-      'Entradas por pagos de inscripción y mensualidades.',
-      'Salidas por anuncios, herramientas, producción de contenidos y gastos administrativos.',
-      'Pendiente importar extracto bancario para cerrar conciliación.',
-    ],
-    totals: {
-      entradasEfectivo: 97500,
-      salidasEfectivo: 41200,
-      flujoNeto: 56300,
-    },
-    nextAction:
-      'Importar extracto bancario, asociar comprobantes y emitir flujo final del periodo.',
-  },
-];
+export const INITIAL_ACCOUNTING_REPORTS: AccountingReport[] = [];
 
-export const INITIAL_PURCHASE_REQUESTS: PurchaseRequest[] = [
-  {
-    id: 'pr_2026_0001',
-    organizationId: 'org_inteca_main',
-    requestNumber: 'OC-INTECA-2026-0001',
-    supplierName: 'Proveedor de pauta digital',
-    requesterName: 'Camila Growth Copy',
-    description: 'Presupuesto para campaña de relanzamiento de Autorizaciones Médicas',
-    amount: 10000,
-    currency: 'DOP',
-    status: 'Solicitada',
-    requiredBy: '2026-10-01',
-  },
-  {
-    id: 'pr_2026_0002',
-    organizationId: 'org_inteca_main',
-    requestNumber: 'OC-INTECA-2026-0002',
-    supplierName: 'Herramientas de automatización',
-    requesterName: 'Sofía e-CF',
-    description: 'Proveedor para firma digital, QR y e-CF',
-    amount: 18500,
-    currency: 'DOP',
-    status: 'En revisión' as PurchaseRequest['status'],
-    requiredBy: '2026-10-05',
-  },
-];
+export const INITIAL_PURCHASE_REQUESTS: PurchaseRequest[] = [];
 
-export const INITIAL_CASH_RECEIPTS: CashReceipt[] = [
-  {
-    id: 'cash_receipt_001',
-    organizationId: 'org_inteca_main',
-    receiptNumber: 'REC-INTECA-2026-0001',
-    payerName: 'Alejandro Gómez',
-    concept: 'Inscripción Técnico en Autorizaciones Médicas',
-    amount: 2500,
-    currency: 'DOP',
-    paymentMethod: 'Transferencia',
-    receivedAt: '2026-09-27T10:35:00-04:00',
-    linkedTransactionId: 'tx_8801',
-  },
-  {
-    id: 'cash_receipt_002',
-    organizationId: 'org_inteca_main',
-    receiptNumber: 'REC-INTECA-2026-0002',
-    payerName: 'María Castillo',
-    concept: 'Mensualidad curso sector salud',
-    amount: 2000,
-    currency: 'DOP',
-    paymentMethod: 'Efectivo',
-    receivedAt: '2026-09-27T11:10:00-04:00',
-  },
-];
+export const INITIAL_CASH_RECEIPTS: CashReceipt[] = [];
 
-export const INITIAL_BANK_RECONCILIATIONS: BankReconciliation[] = [
-  {
-    id: 'bank_rec_2026_09',
-    organizationId: 'org_inteca_main',
-    bankName: 'Banco principal',
-    accountMask: '****-5502',
-    period: 'Septiembre 2026',
-    internalBalance: 97500,
-    bankStatementBalance: 95000,
-    difference: 2500,
-    status: 'Diferencia pendiente',
-    pendingItems: [
-      'Transferencia de Alejandro Gómez pendiente de confirmar en extracto.',
-      'Comisión bancaria pendiente de clasificar.',
-    ],
-  },
-];
+export const INITIAL_BANK_RECONCILIATIONS: BankReconciliation[] = [];
 
-export const INITIAL_DAILY_INVENTORY_REPORTS: DailyInventoryReport[] = [
-  {
-    id: 'inv_daily_001',
-    organizationId: 'org_inteca_main',
-    reportDate: '2026-09-27',
-    itemName: 'Cupos Técnico en Autorizaciones Médicas',
-    openingStock: 200,
-    entries: 0,
-    exits: 14,
-    closingStock: 186,
-    alertLevel: 'Normal',
-  },
-  {
-    id: 'inv_daily_002',
-    organizationId: 'org_inteca_main',
-    reportDate: '2026-09-27',
-    itemName: 'Cupos Taller Ley 87-01',
-    openingStock: 35,
-    entries: 0,
-    exits: 28,
-    closingStock: 7,
-    alertLevel: 'Bajo',
-  },
-];
+export const INITIAL_DAILY_INVENTORY_REPORTS: DailyInventoryReport[] = [];
 
 export const INITIAL_LICENSE_PLANS: LicensePlan[] = [
   {
@@ -1059,8 +668,8 @@ export const INITIAL_TENANT_LICENSES: TenantLicense[] = [
 ];
 
 export const PLATFORM_OWNER_CONTROL: PlatformOwnerControl = {
-  ownerName: 'Luis Ramirez',
-  ownerEmail: 'intecaedu@gmail.com',
+  ownerName: 'Administrador',
+  ownerEmail: '',
   ownerRole: 'Super Admin CRM',
   canGrantLicenses: true,
   canCreateTenants: true,
@@ -1078,7 +687,7 @@ export const INITIAL_COMPANY_ADMINS: CompanyAdminProfile[] = [
     id: 'company_admin_inteca',
     organizationId: 'org_inteca_main',
     name: 'Administrador Operativo INTECA',
-    email: 'operaciones@inteca.com.do',
+    email: 'demo@example.invalid',
     role: 'Admin Empresa',
     canGrantLicenses: false,
     canManageUsers: true,
@@ -1107,7 +716,7 @@ export const INITIAL_COMPANY_STAFF_USERS: CompanyStaffUser[] = [
     id: 'staff_inteca_sales',
     organizationId: 'org_inteca_main',
     name: 'Equipo Ventas INTECA',
-    email: 'ventas@inteca.com.do',
+    email: 'demo@example.invalid',
     role: 'Ventas',
     department: 'Ventas',
     status: 'Activo',
@@ -1117,7 +726,7 @@ export const INITIAL_COMPANY_STAFF_USERS: CompanyStaffUser[] = [
     id: 'staff_inteca_marketing',
     organizationId: 'org_inteca_main',
     name: 'Equipo Marketing INTECA',
-    email: 'marketing@inteca.com.do',
+    email: 'demo@example.invalid',
     role: 'Marketing',
     department: 'Marketing',
     status: 'Activo',
@@ -1125,157 +734,15 @@ export const INITIAL_COMPANY_STAFF_USERS: CompanyStaffUser[] = [
   },
 ];
 
-export const INITIAL_AD_PAYMENT_PROFILES: AdPaymentProfile[] = [
-  {
-    id: 'adpay_meta_demo',
-    organizationId: 'org_inteca_main',
-    provider: 'Meta Ads',
-    cardBrand: 'Visa',
-    cardLast4: '4242',
-    cardholderName: 'INTECA SRL',
-    billingEmail: 'intecaedu@gmail.com',
-    spendingLimitDaily: 1000,
-    spendingLimitMonthly: 30000,
-    status: 'Requiere verificación',
-    approvalMode: 'Requiere aprobación del dueño',
-    connectedAccountId: 'pendiente_meta_ad_account',
-  },
-  {
-    id: 'adpay_google_demo',
-    organizationId: 'org_inteca_main',
-    provider: 'Google Ads',
-    cardBrand: 'Mastercard',
-    cardLast4: '1881',
-    cardholderName: 'INTECA SRL',
-    billingEmail: 'intecaedu@gmail.com',
-    spendingLimitDaily: 1000,
-    spendingLimitMonthly: 30000,
-    status: 'No configurada',
-    approvalMode: 'Solo manual',
-  },
-];
+export const INITIAL_AD_PAYMENT_PROFILES: AdPaymentProfile[] = [];
 
-export const INITIAL_AD_SPEND_DECISIONS: AdSpendDecision[] = [
-  {
-    id: 'ad_decision_aut_med_meta',
-    organizationId: 'org_inteca_main',
-    campaignTitle: 'Autorizaciones Médicas hacia WhatsApp',
-    channel: 'Meta Ads',
-    objective: 'Conseguir conversaciones calificadas y pagos de inscripción',
-    recommendedBudgetDop: 1000,
-    maxBudgetDop: 3000,
-    expectedLeads: 45,
-    expectedSales: 5,
-    targetRoas: 3.5,
-    riskLevel: 'Medio',
-    status: 'Recomendado',
-    reasoning:
-      'El curso tiene oferta clara, WhatsApp conectado y embudo directo a pago; conviene iniciar con prueba controlada y escalar solo anuncios con conversaciones útiles.',
-    guardrails: [
-      'Pausar si el CPL sube 35% sobre objetivo sin pagos.',
-      'No duplicar presupuesto sin pago validado o intención alta registrada.',
-      'Enviar tráfico solo a WhatsApp o landing con UTM y seguimiento de pago.',
-    ],
-    createdByAgentId: 'agent_media_buyer',
-    createdAt: '2026-09-27T08:00:00-04:00',
-  },
-];
+export const INITIAL_AD_SPEND_DECISIONS: AdSpendDecision[] = [];
 
-export const INITIAL_SUPPLIER_QUOTE_EVALUATIONS: SupplierQuoteEvaluation[] = [
-  {
-    id: 'quote_eval_ecf_provider',
-    organizationId: 'org_inteca_main',
-    supplierName: 'Proveedor fiscal e-CF',
-    country: 'República Dominicana',
-    quoteNumber: 'COT-ECF-2026-01',
-    category: 'Facturación electrónica',
-    requestedItem: 'Servicio de integración e-CF, firma digital y QR',
-    amount: 18500,
-    currency: 'DOP',
-    deliveryDays: 7,
-    warrantyScore: 82,
-    qualityScore: 88,
-    priceScore: 79,
-    complianceScore: 91,
-    negotiationStatus: 'Negociando',
-    recommendation:
-      'Negociar soporte de certificación DGII incluido y descuento por pago anual antes de aprobar.',
-    agentNotes:
-      'La propuesta cumple los elementos críticos: XML, PDF, firma, QR y ambiente de producción pendiente.',
-  },
-];
+export const INITIAL_SUPPLIER_QUOTE_EVALUATIONS: SupplierQuoteEvaluation[] = [];
 
-export const INITIAL_PROCUREMENT_AGENT_TASKS: ProcurementAgentTask[] = [
-  {
-    id: 'proc_task_local_ecf',
-    organizationId: 'org_inteca_main',
-    scope: 'Nacional',
-    agentName: 'Agente IA Compras Nacionales',
-    taskType: 'Negociación',
-    supplierOrItem: 'Proveedor fiscal e-CF',
-    status: 'En proceso',
-    expectedSavingPercent: 12,
-    nextAction:
-      'Solicitar segunda cotización local y comparar soporte, SLA, implementación y costo total.',
-  },
-  {
-    id: 'proc_task_intl_ads_tools',
-    organizationId: 'org_inteca_main',
-    scope: 'Internacional',
-    agentName: 'Agente IA Compras Internacionales',
-    taskType: 'Cotización',
-    supplierOrItem: 'Herramientas IA para imagen/video publicitario',
-    status: 'Pendiente',
-    expectedSavingPercent: 18,
-    nextAction:
-      'Comparar proveedores por API, costo por pieza, derechos de uso comercial y límite mensual.',
-  },
-];
+export const INITIAL_PROCUREMENT_AGENT_TASKS: ProcurementAgentTask[] = [];
 
-export const INITIAL_COMPANY_KPIS: CompanyKpiMetric[] = [
-  {
-    id: 'kpi_sales_daily',
-    organizationId: 'org_inteca_main',
-    area: 'Ventas',
-    name: 'Ventas diarias validadas',
-    currentValue: 0,
-    targetValue: 5,
-    unit: 'Cantidad',
-    status: 'Atención',
-    trend: 'Sin datos',
-    ownerAgentId: 'agent_closer',
-    recommendation:
-      'Conectar pagos y WhatsApp para medir ventas reales; mientras tanto solo registrar pagos validados manualmente.',
-  },
-  {
-    id: 'kpi_ads_roas',
-    organizationId: 'org_inteca_main',
-    area: 'Marketing',
-    name: 'ROAS de pauta',
-    currentValue: 0,
-    targetValue: 3.5,
-    unit: '%',
-    status: 'Sin datos',
-    trend: 'Sin datos',
-    ownerAgentId: 'agent_media_buyer',
-    recommendation:
-      'No escalar campañas hasta conectar costos de Meta/Google y pagos confirmados por pasarela.',
-  },
-  {
-    id: 'kpi_proc_savings',
-    organizationId: 'org_inteca_main',
-    area: 'Compras',
-    name: 'Ahorro esperado en negociaciones',
-    currentValue: 12,
-    targetValue: 15,
-    unit: '%',
-    status: 'Atención',
-    trend: 'Sube',
-    ownerAgentId: 'agent_procurement_national',
-    recommendation:
-      'Solicitar mínimo tres cotizaciones por compra relevante antes de emitir orden de compra.',
-  },
-];
+export const INITIAL_COMPANY_KPIS: CompanyKpiMetric[] = [];
 
 const SHARED_AGENT_CONVERSATION_GUIDE = `
 Guia compartida obligatoria para todos los agentes:
@@ -1500,7 +967,7 @@ const RAW_MULTI_AGENTS_SPEC = [
       'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
     description:
       'Construye campañas de pauta, estructura de anuncios, públicos, presupuesto, pruebas A/B, remarketing, control de CPL/CAC/ROAS y escalamiento de ganadores.',
-    systemPrompt: `Eres Marco Media Buyer, experto en publicidad digital. Preparas campañas en Meta Ads, Google Ads, YouTube Ads, TikTok y remarketing. Diseñas públicos, palabras clave, ofertas, anuncios, presupuesto, pruebas A/B, métricas, reglas de pausa y reglas de escalamiento. Tu meta es comprar atención rentable y enviar tráfico calificado al embudo sin quemar presupuesto.`,
+    systemPrompt: `Eres Marco Media Buyer, experto en publicidad digital. Preparas campañas en Meta Ads, Google Ads, YouTube Ads, TikTok y remarketing. Diseñas públicos, palabras clave, ofertas, anuncios, presupuesto, pruebas A/B, métricas, reglas de pausa y reglas de escalamiento. Tu meta es preparar publicidad verificable con el catálogo vigente. No ofrezcas descuentos, rebajas, becas, gratuidad ni precios especiales sin aprobación expresa del dueño para esa campaña. No actives gasto ni declares conexión sin evidencia del proveedor.`,
     autonomyLevel: 'Semiautónomo',
     operatingMandate:
       'Convertir presupuesto publicitario en conversaciones calificadas, oportunidades y pagos medibles.',
@@ -1518,7 +985,7 @@ const RAW_MULTI_AGENTS_SPEC = [
       minimumQualifiedLeadsDaily: 60,
     },
     approvalPolicy: {
-      canLaunchCommercialCampaigns: true,
+      canLaunchCommercialCampaigns: false,
       requiresApprovalForTestimonials: true,
       requiresApprovalForInstitutionalNews: true,
       maxDiscountPercent: 0,
@@ -2416,504 +1883,12 @@ export const INITIAL_LAUNCH_PLANS: LaunchCampaignPlan[] = [
   },
 ];
 
-export const INITIAL_OWNER_ACTIONS: OwnerActionNotification[] = [
-  {
-    id: 'owner_call_001',
-    priority: 'Alta',
-    type: 'Llamada requerida',
-    title: 'Lead caliente pide confirmar salida laboral antes de pagar',
-    leadName: 'María Fernanda Ríos Benítez',
-    leadPhone: '+573128849012',
-    leadEmail: 'mafe.rios@growthdigital.co',
-    recommendedAction:
-      'Llamar, confirmar que el curso desarrolla habilidades prácticas y cerrar con inscripción hoy. Mencionar precio solo si coincide con oferta autorizada.',
-    dueAt: '2026-09-27T15:30:00-04:00',
-    assignedAgentId: 'agent_owner_ops',
-    status: 'Pendiente',
-  },
-  {
-    id: 'owner_payment_001',
-    priority: 'Media',
-    type: 'Pago recibido',
-    title: 'Pago de inscripción validado, factura e-CF lista para revisar',
-    leadName: 'Lucía Mendoza Paredes',
-    leadPhone: '+51984123765',
-    leadEmail: 'lucia.mendoza@gmail.com',
-    recommendedAction:
-      'No llamar. Solo revisar si desea factura fiscal; el CRM ya marcó venta y dejó trazabilidad.',
-    dueAt: '2026-09-27T16:00:00-04:00',
-    assignedAgentId: 'agent_billing',
-    status: 'Notificado',
-  },
-  {
-    id: 'owner_campaign_001',
-    priority: 'Media',
-    type: 'Campaña lista',
-    title: 'Flyer y video de Autorizaciones Médicas listos para generar/publicar',
-    recommendedAction:
-      'Aprobar logo, oferta y fecha de grupo antes de conectar generación automática y pauta real.',
-    dueAt: '2026-09-27T18:00:00-04:00',
-    assignedAgentId: 'agent_creative',
-    status: 'Pendiente',
-  },
-];
+export const INITIAL_OWNER_ACTIONS: OwnerActionNotification[] = [];
 
-export const INITIAL_AUDIT_LOG: AuditLogEntry[] = [
-  {
-    id: 'audit_001',
-    timestamp: '2026-09-27T07:15:00-04:00',
-    actorType: 'Sistema',
-    actorName: 'Sales AI CRM',
-    module: 'Integraciones',
-    action: 'Actualizó',
-    entityType: 'Webhook',
-    entityId: 'int_whatsapp_cloud',
-    summary: 'Webhook de WhatsApp Cloud API preparado para verificación de Meta.',
-    details:
-      'Ruta /api/webhooks/meta/whatsapp habilitada con validación por META_WEBHOOK_VERIFY_TOKEN y recepción POST de mensajes/statuses.',
-    sourceChannel: 'WhatsApp',
-    severity: 'Éxito',
-    status: 'Registrado',
-  },
-  {
-    id: 'audit_002',
-    timestamp: '2026-09-27T07:20:00-04:00',
-    actorType: 'Agente IA',
-    actorName: 'Camila Growth Copy',
-    module: 'Marketing',
-    action: 'Generó',
-    entityType: 'Campaña',
-    entityId: 'cmp_101',
-    summary: 'Campaña de adquisición y conversión preparada para Autorizaciones Médicas.',
-    details:
-      'Incluye propuesta de valor, público objetivo, oferta autorizada, embudo de adquisición/conversión/aceleración y CTA hacia WhatsApp.',
-    sourceChannel: 'Meta Ads',
-    severity: 'Info',
-    status: 'Registrado',
-  },
-  {
-    id: 'audit_003',
-    timestamp: '2026-09-27T07:28:00-04:00',
-    actorType: 'Agente IA',
-    actorName: 'Sofía e-CF',
-    module: 'Pagos',
-    action: 'Validó',
-    entityType: 'Pago',
-    entityId: 'tx_8801',
-    summary: 'Pago de inscripción validado en flujo operativo.',
-    details:
-      'El CRM marcó la transacción como completada, dejó la trazabilidad y mantuvo factura electrónica en producción pendiente hasta conectar DGII/proveedor fiscal.',
-    sourceChannel: 'Sistema',
-    severity: 'Éxito',
-    status: 'Registrado',
-  },
-  {
-    id: 'audit_004',
-    timestamp: '2026-09-27T07:34:00-04:00',
-    actorType: 'Agente IA',
-    actorName: 'Bruno Owner Ops',
-    module: 'Lanzamientos',
-    action: 'Notificó',
-    entityType: 'Acción del dueño',
-    entityId: 'owner_call_001',
-    summary: 'Llamada humana recomendada para lead de alta intención.',
-    details:
-      'Se preparó aviso con nombre, teléfono, correo, contexto comercial y acción recomendada para cerrar con intervención humana.',
-    sourceChannel: 'Sistema',
-    severity: 'Advertencia',
-    status: 'Pendiente revisión',
-  },
-  {
-    id: 'audit_005',
-    timestamp: '2026-09-27T07:42:00-04:00',
-    actorType: 'Agente IA',
-    actorName: 'Isabella Creativa',
-    module: 'Creativos',
-    action: 'Generó',
-    entityType: 'CreativeAsset',
-    entityId: 'creative_aut_med_flyer',
-    summary: 'Brief de flyer con imagen de call center de salud preparado.',
-    details:
-      'Incluye prompt visual, copy de flyer, oferta autorizada, beneficios laborales y llamada a WhatsApp para reservar cupo.',
-    sourceChannel: 'Meta Ads',
-    severity: 'Info',
-    status: 'Registrado',
-  },
-];
+export const INITIAL_AUDIT_LOG: AuditLogEntry[] = [];
 
-export const INITIAL_LEADS: Lead[] = [
-  {
-    id: 'lead_101',
-    firstName: 'Alejandro',
-    lastName: 'Gómez Santander',
-    age: 32,
-    gender: 'Masculino',
-    country: 'México',
-    province: 'Ciudad de México',
-    city: 'CDMX',
-    address: 'Av. Insurgentes Sur 1420',
-    email: 'alejandro.gomez@techcorp.mx',
-    phone: '+52 55 4192 8821',
-    whatsapp: '+525541928821',
-    telegram: '@alegomez_mx',
-    facebook: 'facebook.com/ale.gomez.santander',
-    instagram: '@alegomez_tech',
-    linkedin: 'linkedin.com/in/alejandro-gomez-santander',
-    company: 'TechCorp México',
-    roleTitle: 'Gerente de Innovación Comercial',
-    interests: ['Inteligencia Artificial', 'CRM', 'Automatización de Ventas'],
-    courseOfInterestId: 'crs_ai_biz',
+export const INITIAL_LEADS: Lead[] = [];
 
-    funnelId: 'fn_default',
-    stageId: 'negociacion',
-    status: 'Activo',
-    buyProbability: 88,
-    estimatedValue: 12500,
-    source: 'Meta Ads',
-    scoreAI: 92,
+export const INITIAL_CAMPAIGNS: MarketingCampaign[] = [];
 
-    personalityAnalysis: {
-      discType: 'Dominante',
-      decisionSpeed: 'Rápida',
-      dominantPainPoint:
-        'Necesita automatizar el flujo de ventas de su equipo de 12 vendedores que están saturados.',
-      buyingMotivation:
-        'Optimizar tiempos y multiplicar la conversión de leads sin contratar más personal.',
-      objectionsHistory: [
-        'Duda sobre la integración con su pasarela local',
-        'Aclarado: Integración nativa habilitada.',
-      ],
-    },
-    currentEmotion: 'Muy Entusiasta',
-
-    lastInteraction: '2026-07-29T18:45:00-07:00',
-    nextFollowUp: '2026-07-30T10:00:00-07:00',
-    responseTimeMinutes: 3,
-    deviceUsed: 'iPhone 15 Pro Max (iOS 18)',
-    browserUsed: 'Safari Mobile 18.2',
-    ipLocation: 'CDMX, México (IP 187.210.45.12)',
-    assignedAgentId: 'agent_closer',
-    organizationId: 'org_inteca_main',
-    tags: ['Alta Prioridad', 'Meta Ads Campaign Q3', 'Paga hoy', 'Decisor'],
-
-    conversationHistory: [
-      {
-        id: 'msg_1',
-        sender: 'lead',
-        channel: 'WhatsApp',
-        messageType: 'text',
-        content:
-          'Hola INTECA! Vi su anuncio sobre el Diplomado en IA Aplicada a Negocios. ¿Aún tienen disponible la beca del 40%?',
-        timestamp: '2026-07-29T18:30:00-07:00',
-        sentiment: 'Positivo',
-        aiIntent: 'Consulta de precio y promoción',
-      },
-      {
-        id: 'msg_2',
-        sender: 'ai_agent',
-        agentName: 'Valeria Sotomayor (Closer IA)',
-        channel: 'WhatsApp',
-        messageType: 'text',
-        content:
-          '¡Hola Alejandro! Qué gusto saludarte. Sí, justamente nos quedan las últimas 3 becas del 40% OFF para el grupo que inicia este martes. El precio regular es de $499 USD, pero con tu beca especial queda en solo $299 USD (o 3 cuotas sin intereses de $99 USD). ¿Te gustaría reservar tu vacante de inmediato con todos los bonos incluidos?',
-        timestamp: '2026-07-29T18:31:00-07:00',
-        sentiment: 'Positivo',
-        aiIntent: 'Presentación de oferta y cierre',
-      },
-      {
-        id: 'msg_3',
-        sender: 'lead',
-        channel: 'WhatsApp',
-        messageType: 'text',
-        content:
-          'Suena excelente Valeria. ¿Aceptan tarjeta de crédito o PayPal? Me interesa pagar hoy para asegurar el cupo.',
-        timestamp: '2026-07-29T18:35:00-07:00',
-        sentiment: 'Positivo',
-        aiIntent: 'Intención clara de compra',
-      },
-      {
-        id: 'msg_4',
-        sender: 'ai_agent',
-        agentName: 'Valeria Sotomayor (Closer IA)',
-        channel: 'WhatsApp',
-        messageType: 'payment_link',
-        content:
-          '¡Perfecto Alejandro! Aceptamos Stripe (Tarjetas Visa/Mastercard/Amex), PayPal, Google Pay y Apple Pay. Aquí tienes tu enlace de inscripción segura con el cupón aplicado: https://inteca.edu/pay/checkout?ref=ALEGOMEZ_AI2026. Al pagar, el sistema te emitirá automáticamente tu factura e instructivo de ingreso al campus virtual. ¿Deseas que te acompañe en la pantalla?',
-        timestamp: '2026-07-29T18:36:00-07:00',
-        sentiment: 'Positivo',
-        aiIntent: 'Envío de pasarela de pago',
-      },
-    ],
-    documents: [
-      {
-        id: 'doc_1',
-        title: 'Folleto_Diplomado_IA_INTECA.pdf',
-        type: 'PDF Cursos',
-        url: 'https://inteca.edu/docs/brochure_ia.pdf',
-        fileSize: '3.4 MB',
-        uploadedAt: '2026-07-29T18:32:00-07:00',
-      },
-    ],
-    createdAt: '2026-07-29T18:30:00-07:00',
-    updatedAt: '2026-07-29T18:45:00-07:00',
-  },
-  {
-    id: 'lead_102',
-    firstName: 'María Fernanda',
-    lastName: 'Ríos Benítez',
-    age: 28,
-    gender: 'Femenino',
-    country: 'Colombia',
-    province: 'Antioquia',
-    city: 'Medellín',
-    address: 'Calle 10 # 43D-21 El Poblado',
-    email: 'mafe.rios@growthdigital.co',
-    phone: '+57 312 884 9012',
-    whatsapp: '+573128849012',
-    telegram: '@maferios_mkt',
-    instagram: '@mafe_growth',
-    company: 'GrowthDigital Colombia',
-    roleTitle: 'Especialista en Marketing Digital',
-    interests: ['Growth Hacking', 'Meta Ads', 'Funnel Automation'],
-    courseOfInterestId: 'crs_mkt_automation',
-
-    funnelId: 'fn_default',
-    stageId: 'pago_pendiente',
-    status: 'Activo',
-    buyProbability: 95,
-    estimatedValue: 100300,
-    source: 'Google Ads',
-    scoreAI: 96,
-
-    personalityAnalysis: {
-      discType: 'Influyente',
-      decisionSpeed: 'Rápida',
-      dominantPainPoint:
-        'Busca certificación internacional para ascender a Directora de Marketing.',
-      buyingMotivation:
-        'Reconocimiento laboral e implementación inmediata en clientes de su agencia.',
-      objectionsHistory: [],
-    },
-    currentEmotion: 'Urgente',
-
-    lastInteraction: '2026-07-29T17:10:00-07:00',
-    nextFollowUp: '2026-07-29T21:00:00-07:00',
-    responseTimeMinutes: 2,
-    deviceUsed: 'MacBook Pro M3 (macOS Sequoia)',
-    browserUsed: 'Chrome 134.0',
-    ipLocation: 'Medellín, Colombia',
-    assignedAgentId: 'agent_director',
-    organizationId: 'org_inteca_main',
-    tags: ['Google Ads Search', 'Checkout Iniciado', 'Pago en Proceso'],
-
-    conversationHistory: [
-      {
-        id: 'msg_201',
-        sender: 'lead',
-        channel: 'WebChat',
-        messageType: 'text',
-        content:
-          'Buenas tardes! Estoy en el checkout del Máster Executive en Marketing Digital. ¿Ofrecen certificado oficial respaldado?',
-        timestamp: '2026-07-29T17:00:00-07:00',
-        sentiment: 'Positivo',
-        aiIntent: 'Verificación de acreditación',
-      },
-      {
-        id: 'msg_202',
-        sender: 'ai_agent',
-        agentName: 'Don Fernando Vane (Director IA)',
-        channel: 'WebChat',
-        messageType: 'text',
-        content:
-          '¡Buenas tardes María Fernanda! Absolutamente. Al completar el Máster recibes la Certificación Executive respaldada por INTECA con código QR institucional verificable en blockchain y valor curricular internacional. Además, tendrás acceso a la bolsa de trabajo exclusiva.',
-        timestamp: '2026-07-29T17:02:00-07:00',
-        sentiment: 'Positivo',
-        aiIntent: 'Confirmación institucional y respaldo',
-      },
-    ],
-    documents: [],
-    createdAt: '2026-07-29T16:50:00-07:00',
-    updatedAt: '2026-07-29T17:10:00-07:00',
-  },
-  {
-    id: 'lead_103',
-    firstName: 'Carlos Eduardo',
-    lastName: 'Vargas Silva',
-    age: 41,
-    gender: 'Masculino',
-    country: 'Chile',
-    province: 'Santiago',
-    city: 'Santiago',
-    email: 'carlos.vargas@inversioneschile.cl',
-    phone: '+56 9 7712 3490',
-    whatsapp: '+56977123490',
-    linkedin: 'linkedin.com/in/carlos-vargas-santiago',
-    company: 'Inversiones & Consultoría Sur',
-    roleTitle: 'Socio Fundador',
-    interests: ['Ventas B2B', 'Negociación Harvard', 'Licitaciones'],
-    courseOfInterestId: 'crs_b2b_sales',
-
-    funnelId: 'fn_default',
-    stageId: 'interesado',
-    status: 'Activo',
-    buyProbability: 65,
-    estimatedValue: 45000,
-    source: 'LinkedIn',
-    scoreAI: 74,
-
-    personalityAnalysis: {
-      discType: 'Concienzudo',
-      decisionSpeed: 'Analítica',
-      dominantPainPoint:
-        'Desea metodologías rigurosas para cerrar cuentas corporativas en el sector financiero.',
-      buyingMotivation: 'Estructura y procesos formales para su equipo de ejecutivos B2B.',
-      objectionsHistory: ['Requiere ver el temario módulo por módulo en detalle'],
-    },
-    currentEmotion: 'Indeciso',
-
-    lastInteraction: '2026-07-29T15:20:00-07:00',
-    nextFollowUp: '2026-07-30T11:00:00-07:00',
-    responseTimeMinutes: 15,
-    deviceUsed: 'Windows 11 Desktop',
-    browserUsed: 'Microsoft Edge 132',
-    ipLocation: 'Santiago, Chile',
-    assignedAgentId: 'agent_director',
-    organizationId: 'org_autoprime_rd',
-    tags: ['B2B Corporate', 'LinkedIn Outreach', 'Socio Director'],
-
-    conversationHistory: [],
-    documents: [],
-    createdAt: '2026-07-29T15:00:00-07:00',
-    updatedAt: '2026-07-29T15:20:00-07:00',
-  },
-  {
-    id: 'lead_104',
-    firstName: 'Lucía',
-    lastName: 'Mendoza Paredes',
-    age: 25,
-    gender: 'Femenino',
-    country: 'Perú',
-    province: 'Lima',
-    city: 'Lima',
-    email: 'lucia.mendoza@gmail.com',
-    phone: '+51 984 123 765',
-    whatsapp: '+51984123765',
-    company: 'Freelance Frontend',
-    roleTitle: 'Desarrolladora Web Jr.',
-    interests: ['Full Stack AI', 'React 19', 'FastAPI', 'Gemini AI'],
-    courseOfInterestId: 'crs_fullstack_ai',
-
-    funnelId: 'fn_default',
-    stageId: 'venta_realizada',
-    status: 'Ganado',
-    buyProbability: 100,
-    estimatedValue: 12500,
-    source: 'TikTok',
-    scoreAI: 99,
-
-    personalityAnalysis: {
-      discType: 'Estable',
-      decisionSpeed: 'Rápida',
-      dominantPainPoint: 'Deseaba dar el salto a desarrolladora Full Stack Senior orientada a IA.',
-      buyingMotivation: 'Crear su propia agencia de aplicaciones web con inteligencia artificial.',
-      objectionsHistory: [],
-    },
-    currentEmotion: 'Muy Entusiasta',
-
-    lastInteraction: '2026-07-29T14:00:00-07:00',
-    responseTimeMinutes: 1,
-    deviceUsed: 'MacBook Air M2',
-    browserUsed: 'Chrome 134.0',
-    ipLocation: 'Lima, Perú',
-    assignedAgentId: 'agent_closer',
-    organizationId: 'org_inteca_main',
-    tags: ['Matriculada', 'Pago Confirmado', 'Estudiante Activa'],
-
-    conversationHistory: [],
-    documents: [
-      {
-        id: 'doc_201',
-        title: 'Recibo_Inscripcion_INTECA_LUCIA.pdf',
-        type: 'Comprobante',
-        url: 'https://inteca.edu/invoices/INV-2026-0891.pdf',
-        fileSize: '1.2 MB',
-        uploadedAt: '2026-07-29T14:05:00-07:00',
-      },
-    ],
-    createdAt: '2026-07-29T13:30:00-07:00',
-    updatedAt: '2026-07-29T14:05:00-07:00',
-  },
-];
-
-export const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
-  {
-    id: 'cmp_101',
-    title: '🚀 Promoción Beca 40% OFF Diplomado IA Negocios (WhatsApp Blast)',
-    channel: 'WhatsApp',
-    status: 'En Ejecución',
-    targetSegment: 'Leads fríos interesados en Inteligencia Artificial (últimos 30 días)',
-    sentCount: 3420,
-    openRatePercent: 94.2,
-    clickRatePercent: 42.8,
-    conversionsCount: 184,
-    revenueGenerated: 55016,
-    generatedByAI: true,
-    contentSnippet:
-      '¡Hola {{nombre}}! 🎓 Solo por hoy activamos la Beca Exclusiva del 40% OFF para el Diplomado Internacional en IA Aplicada a Negocios de INTECA...',
-    createdAt: '2026-07-28T10:00:00-07:00',
-  },
-  {
-    id: 'cmp_102',
-    title: '✉️ Secuencia Email Funnel Relacional: Cómo multiplicar tus ventas con IA',
-    channel: 'Email',
-    status: 'Programada',
-    targetSegment: 'Suscritos a Webinars y Landing Pages INTECA',
-    sentCount: 12500,
-    openRatePercent: 38.5,
-    clickRatePercent: 18.2,
-    conversionsCount: 92,
-    revenueGenerated: 27508,
-    generatedByAI: true,
-    contentSnippet:
-      'Asunto: [Casos Reales] Cómo automatizar el 90% de la gestión de clientes en tu institución...',
-    createdAt: '2026-07-29T08:00:00-07:00',
-  },
-];
-
-export const INITIAL_TRANSACTIONS: PaymentTransaction[] = [
-  {
-    id: 'tx_8801',
-    leadId: 'lead_104',
-    leadName: 'Lucía Mendoza Paredes',
-    courseTitle: 'Técnico en Autorizaciones Médicas',
-    organizationId: 'org_inteca_main',
-    opportunityId: 'opp_1001',
-    quoteId: 'quote_5001',
-    amount: 2500,
-    currency: 'DOP',
-    gateway: 'Transferencia',
-    status: 'Completado',
-    transactionRef: 'TRF-DEMO-2026-0001',
-    invoiceNumber: 'REC-INTECA-2026-0001',
-    invoiceUrl: '',
-    courseActivationCode: 'ACT-AUT-2026-LUCIA',
-    createdAt: '2026-09-26T10:05:00-04:00',
-  },
-  {
-    id: 'tx_8802',
-    leadId: 'lead_103',
-    leadName: 'Guillermo Restrepo',
-    courseTitle: 'Gestión de financiamiento vehículo usado',
-    organizationId: 'org_autoprime_rd',
-    opportunityId: 'opp_1003',
-    amount: 45000,
-    currency: 'DOP',
-    gateway: 'Tarjeta Local',
-    status: 'Completado',
-    transactionRef: 'CARD-DEMO-9812-3321',
-    invoiceNumber: 'B0200000090',
-    invoiceUrl: '',
-    courseActivationCode: 'SERV-AUTO-4410',
-    createdAt: '2026-09-25T16:20:00-04:00',
-  },
-];
+export const INITIAL_TRANSACTIONS: PaymentTransaction[] = [];

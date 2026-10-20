@@ -43,7 +43,7 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   );
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || 'crs_ai_biz');
   const [promotionOffer, setPromotionOffer] = useState(
-    'Inscripción RD$2,500 y mensualidad RD$2,000 para el grupo de octubre',
+    'Utilizar exclusivamente los precios vigentes del catálogo de Supabase',
   );
   const [unfairAdvantage, setUnfairAdvantage] = useState(
     '12+ años de experiencia real en ARS, autorizaciones médicas, call center, capacitación y CRM',
@@ -57,11 +57,14 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedOutput, setGeneratedOutput] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [generationError, setGenerationError] = useState('');
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
 
   const handleGenerateAI = async () => {
     setIsGenerating(true);
+    setGeneratedOutput(null);
+    setGenerationError('');
     try {
       const response = await fetch('/api/ai/generate-marketing', {
         method: 'POST',
@@ -81,38 +84,10 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
       if (data.success && data.content) {
         setGeneratedOutput(data.content);
       } else {
-        throw new Error('Fallback generation');
+        throw new Error(data.error || 'No se pudo generar el contenido.');
       }
     } catch (err) {
-      setGeneratedOutput({
-        title: `Oferta imposible de ignorar: ${selectedCourse?.title}`,
-        bodyText: `Si quieres entrar al sector salud con una habilidad práctica y demandada, esta es tu oportunidad.\n\nEn *${selectedCourse?.title}* aprenderás funciones reales del técnico: validar coberturas, orientar usuarios, manejar solicitudes, dar seguimiento y trabajar con procesos que usan ARS, clínicas y centros médicos.\n\nEsto mejora tu perfil laboral porque no solo dices “quiero trabajar”: demuestras que conoces el flujo, el lenguaje y la responsabilidad del área.\n\nOferta autorizada: *${promotionOffer}*.\n\nLa ventaja es clara: formación práctica, enfoque laboral y seguimiento comercial inmediato. Responde *QUIERO MI CUPO* y te envío el paso de inscripción para reservar hoy.`,
-        callToAction: 'Reservar cupo de inscripción',
-        suggestedImagePrompt:
-          'A high-converting Dominican healthcare training ad, confident student in medical authorization call center, clear job opportunity message, modern clean layout',
-        flyerSpec: {
-          headline: `Aprende ${selectedCourse?.title} y entra al sector salud con una habilidad práctica`,
-          visual:
-            'Call center de salud moderno con estudiante usando headset, logo de INTECA visible y CTA de WhatsApp.',
-          requiredElements: [
-            'Logo INTECA',
-            'Oferta autorizada',
-            'Beneficio laboral',
-            'WhatsApp CTA',
-          ],
-        },
-        videoScript: [
-          '0-3s: ¿Quieres trabajar en salud sin ser médico ni enfermera?',
-          '4-15s: Aprende procesos reales de autorizaciones, coberturas y atención al usuario.',
-          '16-25s: Prepárate para ARS, clínicas y call centers de salud.',
-          '26-30s: Escribe QUIERO MI CUPO y reserva hoy.',
-        ],
-        funnelPlan: [
-          'Adquisición: Meta Ads + WhatsApp con CTA único y público por interés laboral en salud.',
-          'Conversión: respuesta en menos de 5 minutos, nota de voz, pensum, prueba social autorizada y enlace de pago.',
-          'Aceleración: duplicar presupuesto solo en anuncios con CPL y pagos validados.',
-        ],
-      });
+      setGenerationError(err instanceof Error ? err.message : 'No se pudo generar el contenido.');
     } finally {
       setIsGenerating(false);
     }
@@ -169,6 +144,7 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
+      {generationError && <p role="alert" className="rounded-xl bg-red-900/30 p-3 text-red-200">{generationError}</p>}
       {/* Header */}
       <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>

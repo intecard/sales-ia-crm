@@ -1,4 +1,5 @@
 import { EnrollmentCenter } from './EnrollmentCenter';
+import { AdvertisingCenter } from './AdvertisingCenter';
 import { SalesClosingCenter } from './SalesClosingCenter';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -33,6 +34,7 @@ interface AIAgentsCommandProps {
   integrations: ExternalIntegration[];
   onUpdateAgent: (agent: AIAgentSpec) => void;
   onNavigateToChat: () => void;
+  onNavigateToSettings?: () => void;
 }
 
 interface RuntimeIntegrationGroup {
@@ -94,12 +96,12 @@ const PLATFORM_QUICK_LINKS = [
   {
     name: 'Meta Developers',
     category: 'Social Ads',
-    url: 'https://developers.facebook.com/apps/1654488056297391/',
+    url: 'https://developers.facebook.com/apps/',
   },
   {
     name: 'WhatsApp Cloud',
     category: 'Mensajería',
-    url: 'https://developers.facebook.com/apps/1654488056297391/whatsapp-business/wa-settings/',
+    url: 'https://developers.facebook.com/apps/',
   },
   { name: 'Google Ads', category: 'Buscadores', url: 'https://ads.google.com/' },
   { name: 'YouTube Studio', category: 'Video', url: 'https://studio.youtube.com/' },
@@ -131,6 +133,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
   integrations,
   onUpdateAgent,
   onNavigateToChat,
+  onNavigateToSettings,
 }) => {
   const [selectedAgent, setSelectedAgent] = useState<AIAgentSpec>(agents[0]);
   const [isEditingPrompt, setIsEditingPrompt] = useState(false);
@@ -309,7 +312,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
 
         {/* Right 2 Columns: Detailed Inspector & Prompt Editor */}
         <div className="lg:col-span-2 space-y-6">
-          {selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : <>
+          {selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
           {/* Active Agent Profile Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">

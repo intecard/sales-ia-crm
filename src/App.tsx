@@ -1429,6 +1429,7 @@ export function App() {
                 agents={agents}
                 integrations={EXTERNAL_INTEGRATIONS_READINESS}
                 onUpdateAgent={handleUpdateAgent}
+                onNavigateToSettings={() => setActiveTab('settings')}
                 onNavigateToChat={() => setActiveTab('chat')}
               />
             )}

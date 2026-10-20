@@ -100,7 +100,7 @@ const DEFAULT_PRODUCTION_CONFIG_VALUES: Record<string, string> = {
   VITE_DEPLOYMENT_MODE: 'production',
   TRUST_PROXY: 'true',
   WHATSAPP_AUTO_REPLY_ENABLED: 'true',
-  META_GRAPH_API_VERSION: 'v22.0',
+  META_GRAPH_API_VERSION: 'v26.0',
   GEMINI_MODEL: 'gemini-3.5-flash',
   GEMINI_FALLBACK_MODELS,
   SUPABASE_STORAGE_BUCKET: 'sales-ai-crm',
@@ -144,11 +144,11 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         placeholder: 'EAAG...',
         sensitive: true,
       },
-      { key: 'WHATSAPP_PHONE_NUMBER_ID', label: 'Phone Number ID', placeholder: '1241169399089233' },
+      { key: 'WHATSAPP_PHONE_NUMBER_ID', label: 'Phone Number ID', placeholder: 'ID del número de WhatsApp' },
       {
         key: 'WHATSAPP_BUSINESS_ACCOUNT_ID',
         label: 'Business Account ID',
-        placeholder: '1344553444211156',
+        placeholder: 'ID de la cuenta de WhatsApp Business',
       },
       {
         key: 'META_WEBHOOK_VERIFY_TOKEN',
@@ -196,7 +196,7 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     title: 'Meta, Google y YouTube',
     description: 'Pauta, formularios, leads, video y audiencias.',
     fields: [
-      { key: 'META_APP_ID', label: 'Meta App ID', placeholder: '1654488056297391' },
+      { key: 'META_APP_ID', label: 'Meta App ID', placeholder: 'ID de tu aplicación Meta' },
       { key: 'META_APP_SECRET', label: 'Meta App Secret', placeholder: 'app secret', sensitive: true },
       {
         key: 'META_PAGE_ACCESS_TOKEN',
@@ -205,6 +205,8 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         sensitive: true,
       },
       { key: 'META_AD_ACCOUNT_ID', label: 'Meta Ad Account ID', placeholder: 'act_...' },
+      { key: 'META_PAGE_ID', label: 'Facebook Page ID' },
+      { key: 'META_ADS_ACCESS_TOKEN', label: 'Meta Ads Access Token (ads_management)', sensitive: true },
       { key: 'INSTAGRAM_BUSINESS_ACCOUNT_ID', label: 'Instagram Business ID', placeholder: '1784...' },
       {
         key: 'GOOGLE_ADS_DEVELOPER_TOKEN',
@@ -226,7 +228,10 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         sensitive: true,
       },
       { key: 'GOOGLE_ADS_CUSTOMER_ID', label: 'Google Ads Customer ID', placeholder: '0000000000' },
-      { key: 'YOUTUBE_API_KEY', label: 'YouTube API Key', placeholder: 'AIza...', sensitive: true },
+      { key: 'GOOGLE_ADS_LOGIN_CUSTOMER_ID', label: 'Google Ads Manager ID (solo si usas cuenta administradora)' },
+      { key: 'YOUTUBE_CLIENT_ID', label: 'YouTube OAuth Client ID' },
+      { key: 'YOUTUBE_CLIENT_SECRET', label: 'YouTube OAuth Client Secret', sensitive: true },
+      { key: 'YOUTUBE_REFRESH_TOKEN', label: 'YouTube OAuth Refresh Token (lectura y subida)', sensitive: true },
       { key: 'YOUTUBE_CHANNEL_ID', label: 'YouTube Channel ID', placeholder: 'UC...' },
     ],
   },
@@ -302,10 +307,10 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
     useState<OrganizationTenant['plan']>('Business');
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeIntegrationStatus | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, string>>(
-    DEFAULT_PRODUCTION_CONFIG_VALUES,
+    {},
   );
   const [adminPassword, setAdminPassword] = useState('');
-  const [forceProduction, setForceProduction] = useState(true);
+  const [forceProduction, setForceProduction] = useState(false);
   const [redeployAfterSave, setRedeployAfterSave] = useState(true);
   const [isCheckingIntegrations, setIsCheckingIntegrations] = useState(false);
   const [isSavingConfiguration, setIsSavingConfiguration] = useState(false);
@@ -385,7 +390,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
       VITE_DEPLOYMENT_MODE: 'production',
       TRUST_PROXY: 'true',
       WHATSAPP_AUTO_REPLY_ENABLED: 'true',
-      META_GRAPH_API_VERSION: 'v22.0',
+      META_GRAPH_API_VERSION: 'v26.0',
       GEMINI_MODEL: previous.GEMINI_MODEL || DEFAULT_PRODUCTION_CONFIG_VALUES.GEMINI_MODEL,
       GEMINI_FALLBACK_MODELS:
         previous.GEMINI_FALLBACK_MODELS || DEFAULT_PRODUCTION_CONFIG_VALUES.GEMINI_FALLBACK_MODELS,
@@ -454,7 +459,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
           : data.message || 'Configuración guardada. Revisa el estado de integraciones.',
       });
       setAdminPassword('');
-      setConfigValues(DEFAULT_PRODUCTION_CONFIG_VALUES);
+      setConfigValues({});
       void fetchIntegrationStatus();
     } catch (error) {
       setConfigurationMessage({
@@ -704,7 +709,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                 Render Dashboard <ExternalLink className="w-3.5 h-3.5" />
               </a>
               <a
-                href="https://developers.facebook.com/apps/1654488056297391"
+                href="https://developers.facebook.com/apps/"
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center justify-between text-xs text-slate-300 hover:text-white"

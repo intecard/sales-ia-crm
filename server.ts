@@ -16,9 +16,10 @@ import { SalesStore, salesSignal, salesReply, SALES_RULES, issueSalesSession, ve
 
 import { whatsAppGenerationConfig, parseWhatsAppAnswer, splitWhatsAppText } from './whatsapp-ai';
 
-import { CatalogStore, catalogReply, catalogPaymentReply, catalogFallback, catalogPrompt, rememberCatalogCourse, unavailableCatalog } from './whatsapp-catalog';
+import { CatalogStore, catalogReply, catalogPaymentReply, catalogFallback, catalogPrompt, rememberCatalogCourse, unavailableCatalog, findCourses } from './whatsapp-catalog';
 
 import { EnrollmentAgent, ENROLLMENT_ERRORS, enrollmentError, welcomeText } from './enrollment-agent';
+import { AdvertisingAgent, AD_RULES, AD_ERRORS, CHANNELS, campaignSchema, hasDiscount, hasUnlistedPrice, adError } from './advertising-agent';
 
 dotenv.config();
 const whatsAppCatalog = new CatalogStore();
@@ -26,6 +27,9 @@ void whatsAppCatalog.get();
 const salesStore = new SalesStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 void salesStore.verify();
 const enrollmentAgent = new EnrollmentAgent(salesStore);
+const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
+const advertisingTimer = setInterval(() => void advertisingAgent.tick(), 60000);
+advertisingTimer.unref();
 const enrollmentTimer = setInterval(() => void enrollmentAgent.tick(), 60000);
 enrollmentTimer.unref();
 setTimeout(() => void enrollmentAgent.tick(), 10000).unref();
@@ -923,6 +927,8 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
       'META_APP_ID',
       'META_APP_SECRET',
       'META_PAGE_ACCESS_TOKEN',
+      'META_PAGE_ID',
+      'META_ADS_ACCESS_TOKEN',
       'META_AD_ACCOUNT_ID',
       'INSTAGRAM_BUSINESS_ACCOUNT_ID',
     ],
@@ -958,7 +964,7 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     id: 'int_youtube',
     name: 'YouTube Ads y YouTube Shorts',
     category: 'Video',
-    requiredEnvVars: ['YOUTUBE_API_KEY', 'YOUTUBE_CHANNEL_ID'],
+    requiredEnvVars: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN', 'YOUTUBE_CHANNEL_ID'],
     webhookPath: '/api/webhooks/youtube/events',
   },
   {
@@ -1149,6 +1155,8 @@ const AGENT_RUNTIME_REGISTRY = [
 ];
 
 const CONFIGURATION_EXTRA_ENV_VARS = [
+  'GOOGLE_ADS_LOGIN_CUSTOMER_ID',
+  'GOOGLE_ADS_API_VERSION',
   'ADMIN_EMAIL',
   'ADMIN_PASSWORD',
   'ADMIN_NAME',
@@ -1326,6 +1334,48 @@ function buildAgentRuntimeManifest() {
   });
 }
 
+// Advertising approval is exclusively authenticated server-side; prompts cannot approve anything.
+app.use('/api/advertising', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  const admin = getConfiguredAdminCredentials();
+  if (!verifySalesSession(req.headers.cookie || '', admin.password || '', admin.email || '')) return res.status(401).json({ error: AD_ERRORS.AD_AUTH });
+  if (req.method !== 'GET' && req.get('X-CRM-Action') !== 'advertising') return res.status(403).json({ error: 'Solicitud no autorizada.' });
+  next();
+});
+const adFail = (res: express.Response, error: unknown) => { const code = adError(error); return res.status(code === 'AD_STORAGE' ? 503 : 409).json({ error: AD_ERRORS[code], code }); };
+app.get('/api/advertising', async (_req, res) => { try { res.json(await advertisingAgent.snapshot()); } catch (error) { adFail(res, error); } });
+app.post('/api/advertising/verify', async (req, res) => {
+  const parsed = z.enum(CHANNELS).safeParse(req.body?.channel);
+  if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
+  try { return res.json(await advertisingAgent.verify(parsed.data)); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/campaigns', async (req, res) => {
+  const parsed = campaignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
+  try { return res.json(await advertisingAgent.create(parsed.data)); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/campaigns/:id/approve', async (req, res) => {
+  const parsed = z.object({ contentHash: z.string().regex(/^[a-f0-9]{64}$/), reviewed: z.literal(true), approveDiscount: z.boolean(), destination: z.string().min(1).max(100) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_APPROVAL });
+  try { return res.json(await advertisingAgent.approve(String(req.params.id), parsed.data.contentHash, parsed.data.approveDiscount, getConfiguredAdminCredentials().email || '', parsed.data.destination)); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/metrics', async (req, res) => {
+  const parsed = z.enum(['meta_ads', 'google_ads']).safeParse(req.body?.channel);
+  if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
+  try { return res.json(await advertisingAgent.metrics(parsed.data)); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/campaigns/:id/execute', async (req, res) => {
+  try { return res.json(await advertisingAgent.execute(String(req.params.id))); } catch (error) { return adFail(res, error); }
+});
+app.post('/api/advertising/campaigns/:id/reject', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
+  try {
+    const result = await salesStore.request(`crm_ad_campaigns?id=eq.${req.params.id}&state=in.(draft,approved)`, 'PATCH', { state: 'rejected' });
+    if (!result.length) throw new Error('AD_STATE');
+    return res.json({ success: true });
+  } catch (error) { return adFail(res, error); }
+});
+
 // Sales APIs require the real administrator's signed, HttpOnly session.
 app.use('/api/sales', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -1458,6 +1508,7 @@ app.get('/api/health', (req, res) => {
     whatsAppCatalog: { ...whatsAppCatalog.status(), paymentInstructionsConfigured: Boolean(process.env.WHATSAPP_PAYMENT_INSTRUCTIONS?.trim()) },
     salesAgent: salesStore.status(),
     enrollmentAgent: enrollmentAgent.status(),
+    advertisingAgent: { policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     geminiModels: {
       configured: getGeminiModelCandidates(),
@@ -2263,6 +2314,12 @@ Infiere y genera en formato JSON estricto los siguientes campos:
 });
 
 // 3. AI Marketing Generator (Emails, WhatsApp Blasts, Ad Copies, Landing Pages)
+app.use(['/api/ai/generate-marketing', '/api/ai/generate-growth-system', '/api/ai/generate-creative-brief'], (req, res, next) => {
+  const admin = getConfiguredAdminCredentials();
+  if (!verifySalesSession(req.headers.cookie || '', admin.password || '', admin.email || '')) return res.status(401).json({ success: false, error: AD_ERRORS.AD_AUTH });
+  if (hasDiscount(req.body)) return res.status(409).json({ success: false, error: 'La oferta requiere autorización. Crea una propuesta en Agentes IA → Publicidad; solo el dueño puede aprobarla.' });
+  next();
+});
 app.post('/api/ai/generate-marketing', async (req, res) => {
   try {
     const parsed = marketingRequestSchema.safeParse(req.body);
@@ -2281,8 +2338,15 @@ app.post('/api/ai/generate-marketing', async (req, res) => {
       businessContext,
       tacticalMode,
     } = parsed.data;
+    const liveCatalog = await whatsAppCatalog.get();
+    if (!liveCatalog) return res.status(503).json({ success: false, error: AD_ERRORS.AD_CATALOG });
+    const courseMatches = findCourses(liveCatalog, courseTitle || '');
+    if (courseMatches.length !== 1) return res.status(400).json({ success: false, error: 'Selecciona un curso concreto del catálogo vigente.' });
     const prompt = `
 Eres especialista de marketing de ${organizationName || 'una organización comercial'}. Genera contenido publicitario sin inventar beneficios, certificaciones, precios ni promociones.
+${AD_RULES}
+CATÁLOGO VIGENTE (única fuente de precios, horarios y duración):
+${liveCatalog.text}
 
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
@@ -2291,7 +2355,7 @@ ${buildAgentKnowledgePrompt('marketing, publicidad, propuestas de valor, flyers,
 TIPO DE CONTENIDO: ${contentType || 'WhatsApp Campaign'}
 PÚBLICO OBJETIVO: ${targetAudience || 'Profesionales interesados en IA'}
 PRODUCTO O SERVICIO: ${courseTitle || 'No especificado'}
-PROMOCIÓN / OFERTA AUTORIZADA: ${promotionOffer || 'Ninguna'}
+IDEA DEL USUARIO (no constituye autorización; no cambiar precios del catálogo): ${promotionOffer || 'Ninguna'}
 TONO DE VOZ: ${tone || 'Persuasivo, Profesional y Urgente'}
 MODO TÁCTICO: ${tacticalMode || 'completo'}
 
@@ -2360,10 +2424,9 @@ Proporciona el resultado estructurado en JSON con los campos:
     });
 
     const parsedJson = JSON.parse(response.text || '{}');
-    res.json({
-      success: true,
-      content: parsedJson,
-    });
+    const promotionalContent = [parsedJson.title, parsedJson.bodyText, parsedJson.callToAction, parsedJson.flyerSpec, parsedJson.videoScript];
+    if (hasDiscount(promotionalContent) || hasUnlistedPrice(JSON.stringify(promotionalContent), courseMatches[0].investment)) return res.status(409).json({ success: false, error: 'Contenido bloqueado: contiene una ventaja económica o precio que requiere aprobación del dueño en Publicidad.' });
+    res.json({ success: true, content: parsedJson, reviewRequired: true });
   } catch (error: unknown) {
     console.error('Error in /api/ai/generate-marketing:', error);
     const notConfigured = error instanceof Error && error.message === 'AI_NOT_CONFIGURED';
