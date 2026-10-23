@@ -1,0 +1,42 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { AgentConnections } from './agent-connections.ts';
+import { CHANNELS } from './advertising-agent.ts';
+
+test('shared evidence verifies all configured channels once, expires and invalidates after credential change', async () => {
+  let now = Date.parse('2026-10-23T12:00:00Z');
+  let calls = 0;
+  const env = { META_PAGE_ACCESS_TOKEN: 'private-token' };
+  const pool = new AgentConnections({
+    configuration: () => CHANNELS.map(channel => ({ channel, configured: channel !== 'youtube', missing: [] })),
+    verify: async channel => { calls++; await Promise.resolve(); if (channel === 'instagram') throw Error('provider returned private-token'); return { readVerified: true, writeVerified: true }; },
+  }, env, () => now);
+  assert.equal(pool.snapshot()[0].state, 'not_checked');
+  const first = pool.refresh();
+  assert.equal(first, pool.refresh());
+  const results = await first;
+  assert.equal(calls, 4);
+  assert.equal(results.find(row => row.channel === 'youtube')!.state, 'missing_credentials');
+  assert.equal(results.find(row => row.channel === 'instagram')!.state, 'provider_rejected');
+  assert.equal(results[0].readVerified, true);
+  assert.equal(results[0].writeVerified, false);
+  assert.equal(JSON.stringify(results).includes('private-token'), false);
+  now += 15 * 60_000;
+  assert.equal(pool.snapshot()[0].state, 'expired');
+  assert.equal(pool.snapshot()[0].readVerified, false);
+  env.META_PAGE_ACCESS_TOKEN = 'replacement';
+  assert.equal(pool.snapshot()[0].state, 'not_checked');
+});
+
+test('credential rotation during a check cannot validate the replacement credential', async () => {
+  const env = { META_PAGE_ACCESS_TOKEN: 'old' };
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const pool = new AgentConnections({
+    configuration: () => CHANNELS.map(channel => ({ channel, configured: true, missing: [] })),
+    verify: async () => { await gate; return { readVerified: true, writeVerified: false }; },
+  }, env);
+  const pending = pool.refresh();
+  env.META_PAGE_ACCESS_TOKEN = 'new'; release();
+  assert.equal((await pending).every(row => row.state === 'not_checked'), true);
+});

@@ -1,4 +1,5 @@
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
+import { AgentConnections } from './agent-connections';
 import { createFiscalRouter } from './fiscal/routes';
 import express from 'express';
 import path from 'path';
@@ -31,6 +32,7 @@ const salesStore = new SalesStore(process.env.SUPABASE_URL, process.env.SUPABASE
 void salesStore.verify();
 const enrollmentAgent = new EnrollmentAgent(salesStore);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
+const agentConnections = new AgentConnections(advertisingAgent);
 const advertisingTimer = setInterval(() => void advertisingAgent.tick(), 60000);
 advertisingTimer.unref();
 const enrollmentTimer = setInterval(() => void enrollmentAgent.tick(), 60000);
@@ -1307,13 +1309,14 @@ function buildAgentRuntimeManifest() {
     const status =
       missingRequired.length === 0
         ? missingOptional.length === 0
-          ? 'operativo'
+          ? 'configurado_sin_prueba_operativa'
           : 'degradado'
         : 'bloqueado_por_credenciales';
 
     return {
       ...agent,
       status,
+      sharedPlatformConnections: agentConnections.snapshot(),
       requiredIntegrations: requiredIntegrations.filter(Boolean),
       optionalIntegrations: optionalIntegrations.filter(Boolean),
       missingRequired,
@@ -1361,6 +1364,15 @@ app.post('/api/advertising/verify', async (req, res) => {
   const parsed = z.enum(CHANNELS).safeParse(req.body?.channel);
   if (!parsed.success) return res.status(400).json({ error: AD_ERRORS.AD_INPUT });
   try { return res.json(await advertisingAgent.verify(parsed.data)); } catch (error) { return adFail(res, error); }
+});
+
+// All agent workspaces use the same server-side adapters and sanitized evidence.
+// This check only reads provider identities; it cannot publish, charge or grant scopes.
+app.get('/api/advertising/shared-connections', (_req, res) => {
+  res.json({ scope: 'platform_owner', connections: agentConnections.snapshot(), billingVerified: false, conversionsVerified: false });
+});
+app.post('/api/advertising/shared-connections/verify', async (_req, res) => {
+  res.json({ scope: 'platform_owner', connections: await agentConnections.refresh(), billingVerified: false, conversionsVerified: false });
 });
 app.post('/api/advertising/campaigns', async (req, res) => {
   const parsed = campaignSchema.safeParse(req.body);
@@ -2824,6 +2836,8 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sales AI CRM listening on http://0.0.0.0:${PORT}`);
+    void agentConnections.refresh().then(connections => console.log('AGENT_CONNECTION_CHECK', JSON.stringify(connections.map(({channel,state,checkedAt}) => ({channel,state,checkedAt})))))
+      .catch(() => console.warn('AGENT_CONNECTION_CHECK unavailable'));
   });
 }
 

@@ -1,4 +1,5 @@
 import { FiscalWorkspace } from './FiscalWorkspace';
+import { SharedAgentConnections } from './SharedAgentConnections';
 import { BrandedCreativeStudio } from './BrandedCreativeStudio';
 import { EnrollmentCenter } from './EnrollmentCenter';
 import { AdvertisingCenter } from './AdvertisingCenter';
@@ -256,6 +257,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
         </button>
       </div>
 
+      <SharedAgentConnections agentName={selectedAgent.name} />
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Agent Selector List */}
