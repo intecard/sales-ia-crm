@@ -1,3 +1,5 @@
+import { FISCAL_RULE_VERSION } from './fiscal/engine';
+import { createFiscalRouter } from './fiscal/routes';
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
@@ -138,17 +140,6 @@ const creativeBriefRequestSchema = z.object({
   launchDate: z.string().max(40).optional(),
   relaunchDate: z.string().max(40).optional(),
   brandInstructions: z.string().max(1_000).optional(),
-});
-
-const ecfInvoiceRequestSchema = z.object({
-  organizationName: z.string().max(150).optional(),
-  issuer: z.record(z.string(), z.unknown()),
-  receiver: z.record(z.string(), z.unknown()),
-  invoiceType: z.string().max(120),
-  items: z.array(z.record(z.string(), z.unknown())).min(1).max(50),
-  currency: z.string().max(10).default('DOP'),
-  paymentStatus: z.string().max(40).optional(),
-  notes: z.string().max(2_000).optional(),
 });
 
 const accountingReportRequestSchema = z.object({
@@ -1120,10 +1111,10 @@ const AGENT_RUNTIME_REGISTRY = [
   {
     id: 'agent_billing',
     name: 'Agente IA Facturación e-CF',
-    function: 'Prepara pagos, comprobantes, borradores e-CF, XML/PDF y cola fiscal auditada.',
+    function: 'Prepara documentos comerciales por empresa con cálculos deterministas y control previo a emisión fiscal.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_payments', 'int_dgii_ecf', 'int_owner_notifications'],
-    executableTools: ['payments.verify', 'ecf.prepare_xml', 'ecf.validate_required_fields', 'audit.record'],
+    executableTools: ['fiscal.calculate', 'fiscal.prepare_commercial_draft', 'fiscal.review_draft', 'fiscal.read_readiness', 'audit.record'],
     humanIntervention: 'Emisión fiscal, certificado faltante, secuencia no autorizada o rechazo DGII.',
   },
   {
@@ -1398,6 +1389,15 @@ app.post('/api/advertising/campaigns/:id/reject', async (req, res) => {
   } catch (error) { return adFail(res, error); }
 });
 
+// Fiscal data is accessible only through the real platform administrator session.
+app.use('/api/fiscal', (req,res,next) => {
+  res.set('Cache-Control','no-store');
+  const admin=getConfiguredAdminCredentials();
+  if(!verifySalesSession(req.headers.cookie || '',admin.password || '',admin.email || '')) return res.status(401).json({error:'Inicia sesión con el administrador para gestionar la facturación.'});
+  if(req.method!=='GET' && req.get('X-CRM-Action')!=='fiscal') return res.status(403).json({error:'Acción fiscal no autorizada.'});
+  next();
+}, createFiscalRouter(salesStore,()=>getConfiguredAdminCredentials().email || ''));
+
 // Sales APIs require the real administrator's signed, HttpOnly session.
 app.use('/api/sales', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -1553,6 +1553,7 @@ app.get('/api/health', (req, res) => {
     whatsAppCatalog: { ...whatsAppCatalog.status(), paymentInstructionsConfigured: Boolean(process.env.WHATSAPP_PAYMENT_INSTRUCTIONS?.trim()) },
     salesAgent: salesStore.status(),
     enrollmentAgent: enrollmentAgent.status(),
+    fiscalWorkspace: { jurisdiction: 'DO', multiCompany: true, calculationMode: 'deterministic_decimal_strings', preparationEnabled: true, officialEmissionEnabled: false, xmlValidationEnabled: false, rulesVersion: FISCAL_RULE_VERSION },
     advertisingAgent: { minimumPlanBudgetDop: 1000, budgetControl: 'crm_allocation_only', automaticSpendingEnabled: false, policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     geminiModels: {
@@ -2176,22 +2177,7 @@ app.post('/api/webhooks/payments', (_req, res) => {
   return res.status(503).json({ success: false, paymentConfirmed: false, error: 'PAYMENT_PROVIDER_VERIFICATION_NOT_CONFIGURED', message: 'Valida las transferencias desde el panel autenticado de Ventas y Cierre.' });
 });
 
-app.post('/api/webhooks/dgii/ecf-status', (req, res) => {
-  recordServerAudit({
-    actorType: 'Webhook',
-    actorName: 'DGII / Proveedor e-CF',
-    module: 'Facturación',
-    action: 'Recibió',
-    entityType: 'ElectronicInvoiceStatus',
-    summary: 'Estado de factura electrónica recibido.',
-    details:
-      'El CRM está preparado para registrar aceptaciones, rechazos y observaciones cuando se conecte proveedor/certificado fiscal.',
-    sourceChannel: 'API',
-    severity: 'Advertencia',
-    status: 'Pendiente revisión',
-  });
-  return res.status(200).json({ success: true, payloadAccepted: Boolean(req.body) });
-});
+app.post('/api/webhooks/dgii/ecf-status', (_req,res) => res.status(503).json({success:false,payloadAccepted:false,error:'FISCAL_PROVIDER_SIGNATURE_VERIFICATION_NOT_CONFIGURED'}));
 
 // 1. AI Multi-Agent Sales & Negotiation Endpoint
 app.post('/api/ai/chat-agent', async (req, res) => {
@@ -2733,101 +2719,11 @@ Devuelve JSON estricto con:
   }
 });
 
-// 6. AI e-CF Invoice Builder
-app.post('/api/ai/generate-ecf-invoice', async (req, res) => {
-  try {
-    const parsed = ecfInvoiceRequestSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
-    }
-
-    const {
-      organizationName,
-      issuer,
-      receiver,
-      invoiceType,
-      items,
-      currency,
-      paymentStatus,
-      notes,
-    } = parsed.data;
-    const prompt = `
-Eres Sofía e-CF, agente de facturación electrónica para ${organizationName || 'la empresa'}.
-Debes preparar la estructura de una factura electrónica e-CF dominicana lista para XML, PDF, firma digital y QR.
-
-EMISOR:
-${JSON.stringify(issuer, null, 2)}
-
-RECEPTOR:
-${JSON.stringify(receiver, null, 2)}
-
-TIPO DE COMPROBANTE: ${invoiceType}
-MONEDA: ${currency}
-ESTADO DE PAGO: ${paymentStatus || 'Pendiente'}
-NOTAS: ${notes || 'Sin notas'}
-
-ITEMS:
-${JSON.stringify(items, null, 2)}
-
-${buildAgentKnowledgePrompt('facturacion electronica dominicana e-CF, datos institucionales, auditoria fiscal y documentos pendientes de revision')}
-
-Reglas:
-1. Incluye encabezado fiscal con emisor, receptor, RNC, dirección fiscal y fecha.
-2. Incluye número e-CF pendiente de secuencia real si no fue suministrado.
-3. Incluye detalle comercial: cantidad, descripción, precio unitario, descuentos y total.
-4. Desglosa impuestos: gravado, exento, ITBIS, ISC, otros cargos y total.
-5. Incluye campos de firma digital y QR como pendientes si no hay certificado conectado.
-6. No afirmes envío a DGII sin credenciales reales.
-7. Devuelve JSON estricto y auditable.
-8. Puedes parafrasear notas y explicaciones para el cliente, pero no alterar montos, RNC, comprobantes, impuestos ni estados fiscales.
-`;
-
-    const response = await generateGeminiContentWithFallback(prompt, {
-      responseMimeType: 'application/json',
-      responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            fiscalHeader: { type: Type.OBJECT },
-            eCfNumber: { type: Type.STRING },
-            lineItems: { type: Type.ARRAY, items: { type: Type.OBJECT } },
-            taxBreakdown: { type: Type.OBJECT },
-            xmlDraft: { type: Type.STRING },
-            pdfSummary: { type: Type.STRING },
-            digitalSignatureStatus: { type: Type.STRING },
-            qrPayload: { type: Type.STRING },
-            requiredApprovals: { type: Type.ARRAY, items: { type: Type.STRING } },
-            auditNotes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          },
-          required: ['fiscalHeader', 'eCfNumber', 'lineItems', 'taxBreakdown', 'auditNotes'],
-      },
-    });
-
-    const parsedJson = JSON.parse(response.text || '{}');
-    recordServerAudit({
-      actorType: 'Agente IA',
-      actorName: 'Sofía e-CF',
-      module: 'Facturación',
-      action: 'Generó',
-      entityType: 'ElectronicInvoiceDraft',
-      summary: `Factura e-CF preparada para ${String(receiver?.legalName || receiver?.name || 'cliente')}.`,
-      details: `Tipo: ${invoiceType}. Items: ${items.length}. Moneda: ${currency}.`,
-      sourceChannel: 'Sistema',
-      severity: 'Éxito',
-      status: 'Pendiente revisión',
-    });
-
-    res.json({ success: true, invoiceDraft: parsedJson });
-  } catch (error: unknown) {
-    console.error('Error in /api/ai/generate-ecf-invoice:', error);
-    const notConfigured = error instanceof Error && error.message === 'AI_NOT_CONFIGURED';
-    res.status(notConfigured ? 503 : 500).json({
-      success: false,
-      error: notConfigured ? 'AI_NOT_CONFIGURED' : 'AI_ECF_INVOICE_FAILED',
-      requiresHumanReview: true,
-    });
-  }
+// Retired generative fiscal endpoint; use the deterministic company workspace.
+app.post('/api/ai/generate-ecf-invoice', (req,res) => {
+  const admin=getConfiguredAdminCredentials();
+  if(!verifySalesSession(req.headers.cookie || '',admin.password || '',admin.email || '')) return res.status(401).json({error:'Inicia sesión para gestionar facturación.'});
+  return res.status(410).json({success:false,error:'La facturación usa ahora el motor determinista por empresa. Abre Pasarelas y Facturación.',replacement:'/api/fiscal',fiscalIssued:false});
 });
 
 // 7. AI Accounting Report Builder

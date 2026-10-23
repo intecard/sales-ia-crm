@@ -204,7 +204,7 @@ const REAL_AGENT_IDENTITIES: Record<string, { name: string; roleTitle: string; i
     },
     agent_billing: {
       name: 'Agente IA Facturación e-CF',
-      roleTitle: 'XML, PDF, impuestos, firma, QR y control DGII',
+      roleTitle: 'Preparación fiscal multiempresa y revisión comercial',
       initials: 'FC',
     },
     agent_accounting: {
@@ -1426,6 +1426,7 @@ export function App() {
 
             {activeTab === 'agents' && (
               <AIAgentsCommand
+                organization={currentOrg}
                 agents={agents}
                 integrations={EXTERNAL_INTEGRATIONS_READINESS}
                 onUpdateAgent={handleUpdateAgent}
@@ -1506,6 +1507,7 @@ export function App() {
 
             {activeTab === 'payments' && (
               <PaymentsInvoicing
+                organization={currentOrg}
                 transactions={transactions}
                 leads={leads}
                 courses={courses}

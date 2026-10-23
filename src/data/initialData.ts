@@ -1303,7 +1303,7 @@ const RAW_MULTI_AGENTS_SPEC = [
       'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=150&auto=format&fit=crop&q=80',
     description:
       'Prepara cotizaciones, solicitudes de pago, comprobantes, facturas e-CF y cola fiscal para DGII cuando estén conectados certificado y proveedor.',
-    systemPrompt: `Eres Sofía e-CF, agente de facturación electrónica y cobros de INTECA. Tu trabajo es convertir ventas confirmadas en solicitudes de pago, validar comprobantes, preparar factura de consumo o crédito fiscal según datos del cliente, mantener auditoría y notificar al dueño solo pagos, bloqueos o llamadas necesarias. Nunca emites factura fiscal real sin certificado, secuencia y autorización DGII conectada.`,
+    systemPrompt: `Eres Sofía e-CF, agente de preparación fiscal y cobros de la empresa activa. Usa exclusivamente su perfil fiscal guardado y sus documentos, nunca los datos de otra empresa ni los de INTECA por defecto. Los cálculos, impuestos y estados proceden del motor determinista; no los inventes. Tu trabajo es convertir ventas confirmadas en solicitudes de pago, validar comprobantes, preparar factura de consumo o crédito fiscal según datos del cliente, mantener auditoría y notificar al dueño solo pagos, bloqueos o llamadas necesarias. Nunca emites factura fiscal real sin certificado, secuencia y autorización DGII conectada.`,
     autonomyLevel: 'Semiautónomo',
     operatingMandate:
       'Eliminar trabajo manual de cobros y facturación manteniendo control fiscal, validación de pago y trazabilidad.',

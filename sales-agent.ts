@@ -174,6 +174,7 @@ export class SalesStore {
           'AD_PLAN',
           'AD_APPROVAL',
           'AD_STATE',
+          'FISCAL_IDEMPOTENCY','FISCAL_PROFILE_CHANGED','FISCAL_ISSUER_LOCKED','FISCAL_NOT_FOUND','FISCAL_STATE','FISCAL_IMMUTABLE','FISCAL_PROFILE_REQUIRED','FISCAL_TYPE',
         ];
         throw new Error(
           known.includes(result.message)
