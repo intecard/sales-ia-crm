@@ -1,5 +1,6 @@
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
 import { AgentConnections } from './agent-connections';
+import { createIntegrationOAuth } from './integration-oauth';
 import { createFiscalRouter } from './fiscal/routes';
 import express from 'express';
 import path from 'path';
@@ -1338,6 +1339,13 @@ app.use('/api/advertising', (req, res, next) => {
   next();
 });
 const adFail = (res: express.Response, error: unknown) => { const code = adError(error); return res.status(code === 'AD_STORAGE' ? 503 : 409).json({ error: AD_ERRORS[code], code }); };
+app.use('/api/advertising/oauth', createIntegrationOAuth({
+  persist: async variables => {
+    if (!process.env.RENDER_API_KEY || !process.env.RENDER_SERVICE_ID) throw Error('OAUTH_SAVE');
+    for (const [key, value] of Object.entries(variables)) await updateRenderEnvVar(process.env.RENDER_SERVICE_ID, process.env.RENDER_API_KEY, key, value);
+  },
+  verified: () => agentConnections.refresh(),
+}));
 app.get('/api/advertising', async (_req, res) => { try { res.json(await advertisingAgent.snapshot()); } catch (error) { adFail(res, error); } });
 app.post('/api/advertising/plans', async (req, res) => {
   const parsed = adPlanSchema.safeParse(req.body);
@@ -2836,7 +2844,7 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sales AI CRM listening on http://0.0.0.0:${PORT}`);
-    void agentConnections.refresh().then(connections => console.log('AGENT_CONNECTION_CHECK', JSON.stringify(connections.map(({channel,state,checkedAt,failureReason,httpStatus,providerCode}) => ({channel,state,checkedAt,failureReason,httpStatus,providerCode})))))
+    void agentConnections.refresh().then(connections => console.log('AGENT_CONNECTION_CHECK', JSON.stringify(connections.map(({channel,state,checkedAt,failureReason,httpStatus,providerCode,providerReason}) => ({channel,state,checkedAt,failureReason,httpStatus,providerCode,providerReason})))))
       .catch(() => console.warn('AGENT_CONNECTION_CHECK unavailable'));
   });
 }

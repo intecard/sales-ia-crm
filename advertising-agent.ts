@@ -5,14 +5,17 @@ import type { CatalogStore } from './whatsapp-catalog.ts';
 
 export const CHANNELS = ['facebook', 'instagram', 'meta_ads', 'google_ads', 'youtube'] as const;
 export type AdChannel = (typeof CHANNELS)[number];
+const SAFE_PROVIDER_REASONS = new Set(['invalid_grant', 'invalid_client', 'unauthorized_client', 'invalid_scope', 'access_denied', 'USER_PERMISSION_DENIED', 'DEVELOPER_TOKEN_NOT_APPROVED', 'DEVELOPER_TOKEN_INVALID', 'DEVELOPER_TOKEN_PROHIBITED', 'CUSTOMER_NOT_ENABLED', 'CLIENT_CUSTOMER_ID_INVALID', 'NOT_ADS_USER', 'PROJECT_DISABLED', 'ORG_RESTRICTION_VIOLATION', 'SERVICE_DISABLED', 'ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'BILLING_DISABLED', 'CONSUMER_INVALID']);
 export class ProviderAccessError extends Error {
   readonly httpStatus: number;
   readonly providerCode: number | null;
+  readonly providerReason: string | null;
   readonly reason: 'credentials' | 'permissions_or_account' | 'request_or_api' | 'provider_unavailable';
-  constructor(httpStatus: number, providerCode: number | null = null) {
+  constructor(httpStatus: number, providerCode: number | null = null, providerReason: string | null = null) {
     super('AD_PROVIDER');
     this.httpStatus = httpStatus; this.providerCode = providerCode;
-    this.reason = httpStatus === 401 || providerCode === 190 ? 'credentials'
+    this.providerReason = providerReason && SAFE_PROVIDER_REASONS.has(providerReason) ? providerReason : null;
+    this.reason = httpStatus === 401 || providerCode === 190 || ['invalid_grant', 'invalid_client', 'unauthorized_client'].includes(this.providerReason || '') ? 'credentials'
       : httpStatus === 403 || providerCode === 10 || providerCode === 200 ? 'permissions_or_account'
       : httpStatus >= 500 ? 'provider_unavailable' : 'request_or_api';
   }
@@ -112,7 +115,10 @@ export class AdvertisingAgent {
         // request URLs or payloads that could contain credentials.
         const body = await response.json().catch(() => null);
         const code = body?.error?.code;
-        throw new ProviderAccessError(response.status, Number.isSafeInteger(code) ? code : null);
+        const details = Array.isArray(body?.error?.details) ? body.error.details : [];
+        const candidates: unknown[] = [body?.error, ...details.flatMap((detail: { reason?: unknown; errors?: Array<{ errorCode?: Record<string, unknown> }> }) => [detail.reason, ...(Array.isArray(detail.errors) ? detail.errors.flatMap(item => Object.values(item.errorCode || {})) : [])])];
+        const reason = candidates.find((value): value is string => typeof value === 'string' && SAFE_PROVIDER_REASONS.has(value)) || null;
+        throw new ProviderAccessError(response.status, Number.isSafeInteger(code) ? code : null, reason);
       }
       return await response.json();
     } catch (error) {

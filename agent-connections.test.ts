@@ -52,3 +52,9 @@ test('diagnostics distinguish invalid account IDs from rejected credentials with
   assert.equal(rows[1].httpStatus, 400);
   assert.equal(rows[1].providerCode, 190);
 });
+
+test('provider reason allowlist discards arbitrary error text', () => {
+  assert.equal(new ProviderAccessError(400, null, 'invalid_grant').reason, 'credentials');
+  assert.equal(new ProviderAccessError(403, null, 'DEVELOPER_TOKEN_NOT_APPROVED').providerReason, 'DEVELOPER_TOKEN_NOT_APPROVED');
+  assert.equal(new ProviderAccessError(400, null, 'private-token-should-not-leak').providerReason, null);
+});

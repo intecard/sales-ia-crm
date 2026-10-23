@@ -16,6 +16,7 @@ export type ConnectionEvidence = {
   failureReason?: string;
   httpStatus?: number;
   providerCode?: number | null;
+  providerReason?: string | null;
 };
 
 // One server-owned connector pool for every agent; secrets never enter prompts or responses.
@@ -52,11 +53,11 @@ export class AgentConnections {
       if (!configured) return;
       let readVerified = false;
       let invalidConfiguration = false;
-      let diagnostic: Pick<ConnectionEvidence, 'failureReason' | 'httpStatus' | 'providerCode'> = {};
+      let diagnostic: Pick<ConnectionEvidence, 'failureReason' | 'httpStatus' | 'providerCode' | 'providerReason'> = {};
       try { readVerified = (await this.connector.verify(channel)).readVerified === true; }
       catch (error) {
         invalidConfiguration = error instanceof Error && error.message === 'AD_MISSING';
-        if (error instanceof ProviderAccessError) diagnostic = { failureReason: error.reason, httpStatus: error.httpStatus, providerCode: error.providerCode };
+        if (error instanceof ProviderAccessError) diagnostic = { failureReason: error.reason, httpStatus: error.httpStatus, providerCode: error.providerCode, providerReason: error.providerReason };
         // Unknown exception text is deliberately discarded.
       }
       this.results.set(channel, {
