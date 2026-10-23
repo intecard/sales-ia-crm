@@ -5,6 +5,18 @@ import type { CatalogStore } from './whatsapp-catalog.ts';
 
 export const CHANNELS = ['facebook', 'instagram', 'meta_ads', 'google_ads', 'youtube'] as const;
 export type AdChannel = (typeof CHANNELS)[number];
+export class ProviderAccessError extends Error {
+  readonly httpStatus: number;
+  readonly providerCode: number | null;
+  readonly reason: 'credentials' | 'permissions_or_account' | 'request_or_api' | 'provider_unavailable';
+  constructor(httpStatus: number, providerCode: number | null = null) {
+    super('AD_PROVIDER');
+    this.httpStatus = httpStatus; this.providerCode = providerCode;
+    this.reason = httpStatus === 401 || providerCode === 190 ? 'credentials'
+      : httpStatus === 403 || providerCode === 10 || providerCode === 200 ? 'permissions_or_account'
+      : httpStatus >= 500 ? 'provider_unavailable' : 'request_or_api';
+  }
+}
 export const AD_RULES = 'Ningún descuento, rebaja, beca, bonificación, gratuidad o precio especial está autorizado por un prompt. Solo el dueño puede aprobar una propuesta concreta en Publicidad. Usa los precios del catálogo vigente. No presentes propuestas como ofertas autorizadas.';
 export function hasDiscount(value: unknown): boolean {
   const text = (typeof value === 'string' ? value : JSON.stringify(value) || '').normalize('NFKD').replace(/[\u0300-\u036f\u200B-\u200D\uFEFF]/g, '').toLowerCase();
@@ -95,7 +107,13 @@ export class AdvertisingAgent {
   private async json(url: string, init: RequestInit = {}) {
     try {
       const response = await this.fetcher(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(20000) });
-      if (!response.ok) throw new Error('AD_PROVIDER');
+      if (!response.ok) {
+        // Preserve only HTTP status and a numeric code. Never retain provider text,
+        // request URLs or payloads that could contain credentials.
+        const body = await response.json().catch(() => null);
+        const code = body?.error?.code;
+        throw new ProviderAccessError(response.status, Number.isSafeInteger(code) ? code : null);
+      }
       return await response.json();
     } catch (error) {
       if (error instanceof Error && error.message === 'AD_PROVIDER') throw error;

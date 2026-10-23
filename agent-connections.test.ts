@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AgentConnections } from './agent-connections.ts';
-import { CHANNELS } from './advertising-agent.ts';
+import { CHANNELS, ProviderAccessError } from './advertising-agent.ts';
 
 test('shared evidence verifies all configured channels once, expires and invalidates after credential change', async () => {
   let now = Date.parse('2026-10-23T12:00:00Z');
@@ -39,4 +39,16 @@ test('credential rotation during a check cannot validate the replacement credent
   const pending = pool.refresh();
   env.META_PAGE_ACCESS_TOKEN = 'new'; release();
   assert.equal((await pending).every(row => row.state === 'not_checked'), true);
+});
+
+test('diagnostics distinguish invalid account IDs from rejected credentials without provider text', async () => {
+  const pool = new AgentConnections({
+    configuration: () => CHANNELS.map(channel => ({ channel, configured: true, missing: [] })),
+    verify: async channel => { if (channel === 'facebook') throw Error('AD_MISSING'); throw new ProviderAccessError(400, 190); },
+  }, {});
+  const rows = await pool.refresh();
+  assert.equal(rows[0].state, 'invalid_configuration');
+  assert.equal(rows[1].failureReason, 'credentials');
+  assert.equal(rows[1].httpStatus, 400);
+  assert.equal(rows[1].providerCode, 190);
 });

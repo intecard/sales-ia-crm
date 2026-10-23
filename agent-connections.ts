@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { CHANNELS, type AdChannel } from './advertising-agent.ts';
+import { CHANNELS, ProviderAccessError, type AdChannel } from './advertising-agent.ts';
 
 type Connector = {
   configuration(): Array<{ channel: AdChannel; configured: boolean; missing: string[] }>;
@@ -8,11 +8,14 @@ type Connector = {
 export type ConnectionEvidence = {
   channel: AdChannel;
   configured: boolean;
-  state: 'missing_credentials' | 'not_checked' | 'verified_read' | 'provider_rejected' | 'expired';
+  state: 'missing_credentials' | 'invalid_configuration' | 'not_checked' | 'verified_read' | 'provider_rejected' | 'expired';
   checkedAt: string | null;
   readVerified: boolean;
   writeVerified: false;
   message: string;
+  failureReason?: string;
+  httpStatus?: number;
+  providerCode?: number | null;
 };
 
 // One server-owned connector pool for every agent; secrets never enter prompts or responses.
@@ -48,11 +51,19 @@ export class AgentConnections {
       const configured = this.connector.configuration().find(item => item.channel === channel)!.configured;
       if (!configured) return;
       let readVerified = false;
-      try { readVerified = (await this.connector.verify(channel)).readVerified === true; } catch { /* Return fixed messages; provider errors may contain tokens. */ }
+      let invalidConfiguration = false;
+      let diagnostic: Pick<ConnectionEvidence, 'failureReason' | 'httpStatus' | 'providerCode'> = {};
+      try { readVerified = (await this.connector.verify(channel)).readVerified === true; }
+      catch (error) {
+        invalidConfiguration = error instanceof Error && error.message === 'AD_MISSING';
+        if (error instanceof ProviderAccessError) diagnostic = { failureReason: error.reason, httpStatus: error.httpStatus, providerCode: error.providerCode };
+        // Unknown exception text is deliberately discarded.
+      }
       this.results.set(channel, {
-        channel, configured, state: readVerified ? 'verified_read' : 'provider_rejected',
+        channel, configured, state: readVerified ? 'verified_read' : invalidConfiguration ? 'invalid_configuration' : 'provider_rejected',
         checkedAt: new Date(this.now()).toISOString(), readVerified, writeVerified: false,
-        message: readVerified ? 'Acceso de lectura confirmado por el proveedor.' : 'El proveedor no confirmó el acceso. Revisa token, cuenta y permisos en Conexiones.',
+        message: readVerified ? 'Acceso de lectura confirmado por el proveedor.' : invalidConfiguration ? 'El identificador de la cuenta no tiene el formato requerido.' : 'El proveedor no confirmó el acceso. Revisa token, cuenta y permisos en Conexiones.',
+        ...diagnostic,
       });
     })).then(() => {
       this.checkedFingerprint = fingerprint;

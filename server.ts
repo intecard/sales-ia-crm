@@ -2836,7 +2836,7 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sales AI CRM listening on http://0.0.0.0:${PORT}`);
-    void agentConnections.refresh().then(connections => console.log('AGENT_CONNECTION_CHECK', JSON.stringify(connections.map(({channel,state,checkedAt}) => ({channel,state,checkedAt})))))
+    void agentConnections.refresh().then(connections => console.log('AGENT_CONNECTION_CHECK', JSON.stringify(connections.map(({channel,state,checkedAt,failureReason,httpStatus,providerCode}) => ({channel,state,checkedAt,failureReason,httpStatus,providerCode})))))
       .catch(() => console.warn('AGENT_CONNECTION_CHECK unavailable'));
   });
 }
