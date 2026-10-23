@@ -1,3 +1,4 @@
+import { InterestedPipeline } from './InterestedPipeline';
 import React, { useState } from 'react';
 import {
   GitMerge,
@@ -44,6 +45,7 @@ export const SalesFunnelsEditor: React.FC<SalesFunnelsEditorProps> = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
+      <InterestedPipeline />
       {/* Header */}
       <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>

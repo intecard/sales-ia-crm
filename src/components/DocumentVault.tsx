@@ -1,3 +1,4 @@
+import { InterestedPipeline } from './InterestedPipeline';
 import React, { useState } from 'react';
 import {
   FolderLock,
@@ -41,12 +42,13 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ leads }) => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
+      <InterestedPipeline />
       {/* Header */}
       <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-1">
             <FolderLock className="w-3.5 h-3.5 text-cyan-300" />
-            <span>Bóveda Digital de Documentos & Encriptación AES-256</span>
+            <span>Bóveda de documentos y registro de interesados</span>
           </div>
           <h1 className="text-2xl font-extrabold text-white">
             Documentos, Contratos & Audios Organizados por Cliente

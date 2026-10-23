@@ -1432,6 +1432,29 @@ app.get('/api/sales/enrollments', async (_req, res) => {
     return res.json({ enrollments, mappings, paid, configuration: enrollmentAgent.status(), errors: ENROLLMENT_ERRORS });
   } catch (error) { return salesError(res, error); }
 });
+app.get('/api/sales/catalog', async (_req, res) => {
+  const catalog = await whatsAppCatalog.get();
+  if (!catalog) return res.status(503).json({ error: 'No se pudo consultar el catálogo de Supabase.' });
+  return res.json({ courses: catalog.courses, generalSchedule: catalog.generalSchedule });
+});
+app.get('/api/sales/interested-document', async (_req, res) => {
+  try {
+    const rows = [];
+    for (let offset = 0; ; offset += 500) {
+      const page = await salesStore.request(`crm_sales_opportunities?select=contact_key,profile,stage,control,objection,next_action,follow_up_at,updated_at&order=contact_key&limit=500&offset=${offset}`);
+      rows.push(...page); if (page.length < 500) break;
+    }
+    return res.json({ generatedAt: new Date().toISOString(), rows });
+  } catch (error) { return salesError(res, error); }
+});
+app.post('/api/sales/integration-value', rateLimit({ windowMs: 60000, limit: 10 }), (req, res) => {
+  const parsed = z.object({ key: z.string(), adminPassword: z.string().min(1).max(200) }).strict().safeParse(req.body);
+  const admin = getConfiguredAdminCredentials();
+  if (!parsed.success || !validateAdminCredentials(admin.email || '', parsed.data.adminPassword)) return res.status(403).json({ error: 'Confirma tu contraseña de administrador para consultar una clave guardada.' });
+  if (!CONFIGURABLE_ENV_VARS.has(parsed.data.key)) return res.status(400).json({ error: 'Variable no permitida.' });
+  recordServerAudit({ actorType: 'Usuario', actorName: admin.email || '', module: 'Integraciones', action: 'Consultó', entityType: 'ProductionConfig', summary: 'Administrador consultó una variable guardada.', details: parsed.data.key, sourceChannel: 'Web', severity: 'Info', status: 'Registrado' });
+  return res.json({ value: process.env[parsed.data.key] || '' });
+});
 app.get('/api/sales/campus-courses', async (_req, res) => {
   try { return res.json(await enrollmentAgent.courses()); } catch (error) { return salesError(res, new Error(enrollmentError(error))); }
 });
@@ -2604,7 +2627,7 @@ app.post('/api/ai/generate-creative-brief', async (req, res) => {
 
     const prompt = `
 Eres un director creativo de performance marketing para ${organizationName || 'INTECA'}.
-Debes crear un brief listo para una herramienta de generación de imágenes o video.
+Debes crear un brief listo para una herramienta de generación de imágenes o video. Toda pieza de INTECA lleva el logo institucional real sin alterarlo, jerarquía tipográfica clara, beneficios verificables del curso y un llamado a solicitar información. El video explica un beneficio por escena con subtítulos. Apela a aspiraciones reales de aprendizaje sin crear miedo, escasez falsa o promesas de empleo.
 
 PIEZA: ${creativeType}
 CURSO / PRODUCTO: ${courseTitle}

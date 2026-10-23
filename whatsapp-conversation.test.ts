@@ -94,3 +94,13 @@ test('Supabase adapter reloads after restart, handles expiry and falls back hone
     assert.equal((await restarted.get('test-key')).facts.fullName, 'Luis Ramirez');
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('recuerda permiso explícito de llamada y permite revocarlo', () => {
+  const c = newConversation();
+  rememberUser(c, 'Me pueden llamar para explicarme el curso', 'call-1');
+  assert.equal(c.facts.callbackConsent, 'yes');
+  rememberUser(c, 'No me llamen', 'call-2');
+  assert.equal(c.facts.callbackConsent, 'no');
+  rememberUser(c, 'Gracias', 'call-3');
+  assert.equal(c.facts.callbackConsent, 'no');
+});

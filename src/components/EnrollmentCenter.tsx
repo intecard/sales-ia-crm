@@ -41,8 +41,18 @@ export function EnrollmentCenter() {
     [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false);
   const [catalog, setCatalog] = useState<Array<{ id: string; title: string }>>([]),
-    [courseTitle, setCourseTitle] = useState('Técnico u Oficial de Autorizaciones Médicas'),
+    [courseTitle, setCourseTitle] = useState(''),
     [campusCourseId, setCampusCourseId] = useState('');
+  const [crmCourses, setCrmCourses] = useState<Array<{ title: string }>>([]);
+  useEffect(() => {
+    void api<{ courses: Array<{ title: string }> }>('/catalog')
+      .then((data) => {
+        setCrmCourses(data.courses);
+        setCourseTitle(data.courses[0]?.title || '');
+      })
+      .catch((e) => setError(e.message));
+    void loadCourses();
+  }, []);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const refresh = useCallback(async () => {
     try {
@@ -174,11 +184,18 @@ export function EnrollmentCenter() {
         </button>
         <label className="block text-xs">
           Nombre del curso en el CRM
-          <input
+          <select
             className={input}
             value={courseTitle}
             onChange={(e) => setCourseTitle(e.target.value)}
-          />
+          >
+            <option value="">Seleccionar curso del catálogo</option>
+            {crmCourses.map((c) => (
+              <option key={c.title} value={c.title}>
+                {c.title}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="block text-xs">
           Curso existente en el campus
@@ -195,6 +212,12 @@ export function EnrollmentCenter() {
             ))}
           </select>
         </label>
+        {!catalog.length && (
+          <p className="text-sm text-amber-300">
+            No se han cargado cursos del campus. Revisa la sesión y la conexión; los cursos del
+            catálogo no sustituyen los identificadores reales del campus.
+          </p>
+        )}
         <button
           className={btn}
           disabled={busy || !campusCourseId || !courseTitle.trim()}

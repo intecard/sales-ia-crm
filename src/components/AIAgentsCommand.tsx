@@ -1,3 +1,4 @@
+import { BrandedCreativeStudio } from './BrandedCreativeStudio';
 import { EnrollmentCenter } from './EnrollmentCenter';
 import { AdvertisingCenter } from './AdvertisingCenter';
 import { SalesClosingCenter } from './SalesClosingCenter';
@@ -312,7 +313,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
 
         {/* Right 2 Columns: Detailed Inspector & Prompt Editor */}
         <div className="lg:col-span-2 space-y-6">
-          {selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
+          {selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : ['agent_creative', 'agent_video'].includes(selectedAgent.id) ? <BrandedCreativeStudio /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
           {/* Active Agent Profile Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">

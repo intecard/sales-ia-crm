@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 export type AwaitingField = '' | 'course' | 'fullName' | 'schedule' | 'email' | 'payment';
 export interface Conversation {
-  facts: { fullName?: string; course?: string; lastDiscussedCourse?: string; schedule?: string; email?: string; wantsEnrollment?: boolean; paymentRequested?: boolean };
+  facts: { callbackConsent?: 'yes' | 'no'; callbackRequestedAt?: string; fullName?: string; course?: string; lastDiscussedCourse?: string; schedule?: string; email?: string; wantsEnrollment?: boolean; paymentRequested?: boolean };
   turns: Array<{ role: 'user' | 'assistant'; text: string; id?: string }>;
   awaiting: AwaitingField;
   updatedAt: number;
@@ -16,6 +16,9 @@ export function rememberUser(conversation: Conversation, text: string, id: strin
   if (conversation.turns.some(turn => turn.role === 'user' && turn.id === id)) return;
   const lower = normalize(text);
   const facts = conversation.facts;
+  if (/no (?:me )?(?:(?:pueden|deben|quiero que) )?(?:llamen|llames|llamar)|no quiero (?:que me llamen|una llamada)|prefiero (?:que )?no (?:me )?llam/.test(lower)) { facts.callbackConsent = 'no'; facts.callbackRequestedAt = new Date().toISOString(); }
+  else if (/llamame|pueden llamarme|quiero (?:que me llamen|una llamada)|me pueden llamar/.test(lower)) { facts.callbackConsent = 'yes'; facts.callbackRequestedAt = new Date().toISOString(); }
+
   const courses: Array<[RegExp, string]> = [
     [/autorizacion/, 'Técnico u Oficial de Autorizaciones Médicas'],
     [/precertificacion/, 'Precertificaciones Médicas'], [/atencion al (usuario|paciente)/, 'Atención al Usuario'],

@@ -1,3 +1,4 @@
+import { InterestedPipeline } from './InterestedPipeline';
 import React, { useState } from 'react';
 import {
   Users,
@@ -146,6 +147,7 @@ export const LeadsCRM: React.FC<LeadsCRMProps> = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-[1800px] mx-auto overflow-y-auto">
+      <InterestedPipeline />
       {/* Top Header Controls */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-md">
         <div>

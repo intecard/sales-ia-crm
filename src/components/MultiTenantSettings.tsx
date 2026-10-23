@@ -112,7 +112,11 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     title: 'Producción CRM',
     description: 'Dominio, modo producción y reglas base del servidor.',
     fields: [
-      { key: 'APP_URL', label: 'URL pública del CRM', placeholder: 'https://sales.ia.crm.inteca.com.do' },
+      {
+        key: 'APP_URL',
+        label: 'URL pública del CRM',
+        placeholder: 'https://sales.ia.crm.inteca.com.do',
+      },
       { key: 'DEPLOYMENT_MODE', label: 'Modo backend', placeholder: 'production' },
       { key: 'VITE_DEPLOYMENT_MODE', label: 'Modo frontend', placeholder: 'production' },
       { key: 'TRUST_PROXY', label: 'Trust Proxy Render', placeholder: 'true' },
@@ -144,7 +148,11 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         placeholder: 'EAAG...',
         sensitive: true,
       },
-      { key: 'WHATSAPP_PHONE_NUMBER_ID', label: 'Phone Number ID', placeholder: 'ID del número de WhatsApp' },
+      {
+        key: 'WHATSAPP_PHONE_NUMBER_ID',
+        label: 'Phone Number ID',
+        placeholder: 'ID del número de WhatsApp',
+      },
       {
         key: 'WHATSAPP_BUSINESS_ACCOUNT_ID',
         label: 'Business Account ID',
@@ -187,7 +195,12 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         placeholder: 'eyJ...',
         sensitive: true,
       },
-      { key: 'SUPABASE_JWT_SECRET', label: 'JWT Secret', placeholder: 'secreto...', sensitive: true },
+      {
+        key: 'SUPABASE_JWT_SECRET',
+        label: 'JWT Secret',
+        placeholder: 'secreto...',
+        sensitive: true,
+      },
       { key: 'SUPABASE_STORAGE_BUCKET', label: 'Storage Bucket', placeholder: 'sales-ai-crm' },
     ],
   },
@@ -197,7 +210,12 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     description: 'Pauta, formularios, leads, video y audiencias.',
     fields: [
       { key: 'META_APP_ID', label: 'Meta App ID', placeholder: 'ID de tu aplicación Meta' },
-      { key: 'META_APP_SECRET', label: 'Meta App Secret', placeholder: 'app secret', sensitive: true },
+      {
+        key: 'META_APP_SECRET',
+        label: 'Meta App Secret',
+        placeholder: 'app secret',
+        sensitive: true,
+      },
       {
         key: 'META_PAGE_ACCESS_TOKEN',
         label: 'Page Access Token',
@@ -206,8 +224,16 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
       },
       { key: 'META_AD_ACCOUNT_ID', label: 'Meta Ad Account ID', placeholder: 'act_...' },
       { key: 'META_PAGE_ID', label: 'Facebook Page ID' },
-      { key: 'META_ADS_ACCESS_TOKEN', label: 'Meta Ads Access Token (ads_management)', sensitive: true },
-      { key: 'INSTAGRAM_BUSINESS_ACCOUNT_ID', label: 'Instagram Business ID', placeholder: '1784...' },
+      {
+        key: 'META_ADS_ACCESS_TOKEN',
+        label: 'Meta Ads Access Token (ads_management)',
+        sensitive: true,
+      },
+      {
+        key: 'INSTAGRAM_BUSINESS_ACCOUNT_ID',
+        label: 'Instagram Business ID',
+        placeholder: '1784...',
+      },
       {
         key: 'GOOGLE_ADS_DEVELOPER_TOKEN',
         label: 'Google Ads Developer Token',
@@ -228,10 +254,17 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         sensitive: true,
       },
       { key: 'GOOGLE_ADS_CUSTOMER_ID', label: 'Google Ads Customer ID', placeholder: '0000000000' },
-      { key: 'GOOGLE_ADS_LOGIN_CUSTOMER_ID', label: 'Google Ads Manager ID (solo si usas cuenta administradora)' },
+      {
+        key: 'GOOGLE_ADS_LOGIN_CUSTOMER_ID',
+        label: 'Google Ads Manager ID (solo si usas cuenta administradora)',
+      },
       { key: 'YOUTUBE_CLIENT_ID', label: 'YouTube OAuth Client ID' },
       { key: 'YOUTUBE_CLIENT_SECRET', label: 'YouTube OAuth Client Secret', sensitive: true },
-      { key: 'YOUTUBE_REFRESH_TOKEN', label: 'YouTube OAuth Refresh Token (lectura y subida)', sensitive: true },
+      {
+        key: 'YOUTUBE_REFRESH_TOKEN',
+        label: 'YouTube OAuth Refresh Token (lectura y subida)',
+        sensitive: true,
+      },
       { key: 'YOUTUBE_CHANNEL_ID', label: 'YouTube Channel ID', placeholder: 'UC...' },
     ],
   },
@@ -240,28 +273,58 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     title: 'Pagos, pauta y DGII',
     description: 'Tarjeta de campañas, pasarelas, e-CF y notificaciones al dueño.',
     fields: [
-      { key: 'AD_PAYMENT_PROVIDER', label: 'Proveedor tarjeta pauta', placeholder: 'stripe/azul/cardnet' },
+      {
+        key: 'AD_PAYMENT_PROVIDER',
+        label: 'Proveedor tarjeta pauta',
+        placeholder: 'stripe/azul/cardnet',
+      },
       { key: 'AD_PAYMENT_PUBLIC_KEY', label: 'Pauta Public Key', placeholder: 'pk_...' },
-      { key: 'AD_PAYMENT_SECRET_KEY', label: 'Pauta Secret Key', placeholder: 'sk_...', sensitive: true },
+      {
+        key: 'AD_PAYMENT_SECRET_KEY',
+        label: 'Pauta Secret Key',
+        placeholder: 'sk_...',
+        sensitive: true,
+      },
       {
         key: 'AD_PAYMENT_WEBHOOK_SECRET',
         label: 'Pauta Webhook Secret',
         placeholder: 'whsec_...',
         sensitive: true,
       },
-      { key: 'META_ADS_BILLING_ACCOUNT_ID', label: 'Meta Billing Account', placeholder: 'billing id' },
-      { key: 'GOOGLE_ADS_BILLING_SETUP_ID', label: 'Google Billing Setup', placeholder: 'billing setup id' },
+      {
+        key: 'META_ADS_BILLING_ACCOUNT_ID',
+        label: 'Meta Billing Account',
+        placeholder: 'billing id',
+      },
+      {
+        key: 'GOOGLE_ADS_BILLING_SETUP_ID',
+        label: 'Google Billing Setup',
+        placeholder: 'billing setup id',
+      },
       { key: 'PAYMENT_PROVIDER', label: 'Proveedor pagos', placeholder: 'stripe/azul/cardnet' },
       { key: 'PAYMENT_PUBLIC_KEY', label: 'Pagos Public Key', placeholder: 'pk_...' },
-      { key: 'PAYMENT_SECRET_KEY', label: 'Pagos Secret Key', placeholder: 'sk_...', sensitive: true },
+      {
+        key: 'PAYMENT_SECRET_KEY',
+        label: 'Pagos Secret Key',
+        placeholder: 'sk_...',
+        sensitive: true,
+      },
       {
         key: 'PAYMENT_WEBHOOK_SECRET',
         label: 'Pagos Webhook Secret',
         placeholder: 'whsec_...',
         sensitive: true,
       },
-      { key: 'DGII_ECF_ENVIRONMENT', label: 'DGII ambiente e-CF', placeholder: 'production/certification' },
-      { key: 'DGII_ECF_CERTIFICATE_PATH', label: 'Ruta certificado DGII', placeholder: '/etc/secrets/cert.p12' },
+      {
+        key: 'DGII_ECF_ENVIRONMENT',
+        label: 'DGII ambiente e-CF',
+        placeholder: 'production/certification',
+      },
+      {
+        key: 'DGII_ECF_CERTIFICATE_PATH',
+        label: 'Ruta certificado DGII',
+        placeholder: '/etc/secrets/cert.p12',
+      },
       {
         key: 'DGII_ECF_CERTIFICATE_PASSWORD',
         label: 'Clave certificado DGII',
@@ -269,7 +332,12 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         sensitive: true,
       },
       { key: 'DGII_ECF_ISSUER_RNC', label: 'RNC emisor', placeholder: '000000000' },
-      { key: 'DGII_ECF_PROVIDER_API_KEY', label: 'API Key proveedor e-CF', placeholder: 'api key', sensitive: true },
+      {
+        key: 'DGII_ECF_PROVIDER_API_KEY',
+        label: 'API Key proveedor e-CF',
+        placeholder: 'api key',
+        sensitive: true,
+      },
       { key: 'OWNER_NOTIFICATION_WHATSAPP', label: 'WhatsApp dueño', placeholder: '1809...' },
       { key: 'OWNER_NOTIFICATION_EMAIL', label: 'Email dueño', placeholder: 'correo@dominio.com' },
     ],
@@ -279,7 +347,11 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     title: 'Creativos IA',
     description: 'Proveedores para imágenes, flyers, videos y piezas publicitarias.',
     fields: [
-      { key: 'IMAGE_GENERATION_PROVIDER', label: 'Proveedor imágenes', placeholder: 'openai/replicate/etc' },
+      {
+        key: 'IMAGE_GENERATION_PROVIDER',
+        label: 'Proveedor imágenes',
+        placeholder: 'openai/replicate/etc',
+      },
       {
         key: 'IMAGE_GENERATION_API_KEY',
         label: 'API Key imágenes',
@@ -287,7 +359,12 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         sensitive: true,
       },
       { key: 'VIDEO_GENERATION_PROVIDER', label: 'Proveedor video', placeholder: 'runway/veo/etc' },
-      { key: 'VIDEO_GENERATION_API_KEY', label: 'API Key video', placeholder: 'key', sensitive: true },
+      {
+        key: 'VIDEO_GENERATION_API_KEY',
+        label: 'API Key video',
+        placeholder: 'key',
+        sensitive: true,
+      },
     ],
   },
 ];
@@ -306,9 +383,30 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
   const [newOrganizationPlan, setNewOrganizationPlan] =
     useState<OrganizationTenant['plan']>('Business');
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeIntegrationStatus | null>(null);
-  const [configValues, setConfigValues] = useState<Record<string, string>>(
-    {},
-  );
+  const [configValues, setConfigValues] = useState<Record<string, string>>({});
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+  async function toggleKey(key: string) {
+    if (visibleKeys[key]) {
+      setVisibleKeys((old) => ({ ...old, [key]: false }));
+      return;
+    }
+    if (!configValues[key]) {
+      try {
+        const response = await fetch('/api/sales/integration-value', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CRM-Action': 'sales' },
+          body: JSON.stringify({ key, adminPassword }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw Error(data.error);
+        setConfigValues((old) => ({ ...old, [key]: data.value }));
+      } catch (e) {
+        setConfigurationMessage({ type: 'error', text: (e as Error).message });
+        return;
+      }
+    }
+    setVisibleKeys((old) => ({ ...old, [key]: true }));
+  }
   const [adminPassword, setAdminPassword] = useState('');
   const [forceProduction, setForceProduction] = useState(false);
   const [redeployAfterSave, setRedeployAfterSave] = useState(true);
@@ -575,8 +673,9 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
             </h2>
             <p className="text-xs text-slate-400 max-w-3xl">
               Pega aquí las claves reales de Render, Supabase, Meta, WhatsApp, Gemini, Google,
-              pagos, DGII y creativos IA. El servidor guarda solo las variables enviadas, no muestra
-              secretos de vuelta y permite activar producción sin volver al panel de cada módulo.
+              pagos, DGII y creativos IA. El servidor guarda solo las variables enviadas, permite
+              consultar valores guardados con tu contraseña de administrador y permite activar
+              producción sin volver al panel de cada módulo.
             </p>
           </div>
 
@@ -807,14 +906,21 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                             <input
                               value={configValues[field.key] || ''}
                               onChange={(event) => updateConfigValue(field.key, event.target.value)}
-                              type={field.sensitive ? 'password' : 'text'}
+                              type={
+                                field.sensitive && !visibleKeys[field.key] ? 'password' : 'text'
+                              }
                               placeholder={field.placeholder || field.key}
                               autoComplete="off"
                               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 pr-9 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                             />
-                            {field.sensitive && (
-                              <EyeOff className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2" />
-                            )}
+                            <button
+                              type="button"
+                              aria-label={`${visibleKeys[field.key] ? 'Ocultar' : 'Mostrar'} ${field.label}`}
+                              onClick={() => void toggleKey(field.key)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-400"
+                            >
+                              {visibleKeys[field.key] ? 'Ocultar' : 'Ver'}
+                            </button>
                           </div>
                           {field.helper && (
                             <p className="text-[10px] text-slate-500 mt-1">{field.helper}</p>

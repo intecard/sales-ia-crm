@@ -22,6 +22,16 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await post('/api/advertising/campaigns', {})).status, 401);
     const login = await post('/api/auth/login', { email: 'owner@example.test', password: 'test-only-password' }); assert.equal(login.status, 200);
     const cookie = login.headers.get('set-cookie').split(';')[0];
+    assert.equal((await fetch(base+'/api/sales/interested-document')).status,401);
+    assert.equal((await fetch(base+'/api/sales/catalog')).status,401);
+    const valueBody={key:'ADMIN_EMAIL',adminPassword:'test-only-password'};
+    assert.equal((await post('/api/sales/integration-value',valueBody)).status,401);
+    assert.equal((await post('/api/sales/integration-value',valueBody,{Cookie:cookie})).status,403);
+    const secretHeaders={Cookie:cookie,'X-CRM-Action':'sales'};
+    assert.equal((await post('/api/sales/integration-value',{...valueBody,adminPassword:'wrong'},secretHeaders)).status,403);
+    assert.equal((await post('/api/sales/integration-value',{...valueBody,key:'PATH'},secretHeaders)).status,400);
+    const reveal=await post('/api/sales/integration-value',{key:'GEMINI_API_KEY',adminPassword:'test-only-password'},secretHeaders);
+    assert.equal(reveal.status,200);assert.equal(reveal.headers.get('cache-control'),'no-store');assert.equal((await reveal.json()).value,'');
     assert.equal((await post('/api/advertising/campaigns', {}, { Cookie: cookie })).status, 403);
     assert.equal((await post('/api/advertising/campaigns', {}, { Cookie: cookie, 'X-CRM-Action': 'advertising' })).status, 400);
     assert.equal((await post('/api/ai/generate-marketing', { promotionOffer: '50% de descuento' })).status, 401);
