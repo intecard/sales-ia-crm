@@ -424,6 +424,19 @@ export function App() {
     return null;
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' })
+      .then(async response => {
+        if (cancelled) return;
+        if (response.status === 401) { setAuthSession(null); return; }
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled && data.success && data.session?.mode === 'real') setAuthSession(data.session);
+      }).catch(() => { /* A temporary network failure is not a logout. */ });
+    return () => { cancelled = true; };
+  }, []);
+
   const effectiveDeploymentMode = deploymentMode;
   const isTrialMode = false;
 

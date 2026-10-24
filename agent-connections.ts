@@ -58,6 +58,8 @@ export class AgentConnections {
       try { readVerified = (await this.connector.verify(channel)).readVerified === true; }
       catch (error) {
         if (channel === 'google_ads') providerHelp = googleAdsAccessHelp(error);
+        if (error instanceof ProviderAccessError && error.providerCode === 190 && ['facebook', 'instagram', 'meta_ads'].includes(channel)) providerHelp = 'Meta rechazó el token de acceso (código 190). Reconecta Meta para renovar Facebook, Instagram y Meta Ads; no cambies el token independiente de WhatsApp.';
+        if (channel === 'youtube' && error instanceof ProviderAccessError && error.providerReason === 'invalid_grant') providerHelp = 'Google rechazó el token de renovación de YouTube (invalid_grant). Reconecta YouTube con la cuenta propietaria del canal y concede los permisos solicitados. La conexión de Google Ads se administra por separado.';
         invalidConfiguration = error instanceof Error && error.message === 'AD_MISSING';
         if (error instanceof ProviderAccessError) diagnostic = { failureReason: error.reason, httpStatus: error.httpStatus, providerCode: error.providerCode, providerReason: error.providerReason };
         // Unknown exception text is deliberately discarded.

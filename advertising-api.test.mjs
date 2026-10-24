@@ -18,6 +18,8 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     const port = output.match(/TEST_PORT=(\d+)/)?.[1]; assert.ok(port, output);
     const base = 'http://127.0.0.1:'+port;
     const post = (path, body, headers={}) => fetch(base+path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    assert.equal((await fetch(base+'/api/auth/session')).status, 401);
+    assert.equal((await fetch(base+'/api/auth/session', {headers:{Cookie:'crm_sales_session=forged'}})).status, 401);
     assert.equal((await fetch(base+'/api/advertising')).status, 401);
     assert.equal((await fetch(base+'/api/advertising/shared-connections')).status, 401);
     assert.equal((await fetch(base+'/api/advertising/oauth/configuration')).status, 401);
@@ -28,6 +30,14 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await post('/api/advertising/campaigns', {})).status, 401);
     const login = await post('/api/auth/login', { email: 'owner@example.test', password: 'test-only-password' }); assert.equal(login.status, 200); assert.ok(login.headers.get('set-cookie').includes('SameSite=Strict'));
     const cookie = login.headers.get('set-cookie').split(';')[0];
+    const restored = await fetch(base+'/api/auth/session', {headers:{Cookie:cookie}});
+    assert.equal(restored.status,200);
+    assert.equal(restored.headers.get('cache-control'),'no-store');
+    assert.equal(restored.headers.get('set-cookie'),null);
+    const restoredBody=await restored.json();
+    assert.equal(restoredBody.session.email,'owner@example.test');
+    assert.equal(JSON.stringify(restoredBody).includes('test-only-password'),false);
+
     assert.equal((await post('/api/advertising/oauth/youtube/start', {}, { Cookie: cookie })).status, 403);
     assert.equal((await fetch(base+'/api/advertising/oauth/youtube/callback?state=untrusted&code=untrusted')).status, 409);
     assert.equal((await post('/api/advertising/shared-connections/verify', {}, { Cookie: cookie })).status, 403);

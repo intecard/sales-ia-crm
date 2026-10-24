@@ -1808,6 +1808,21 @@ app.get('/api/knowledge/inteca/status', async (_req, res) => {
   });
 });
 
+// Restore UI identity only from the signed, unexpired owner cookie.
+// This does not renew the cookie or extend its lifetime.
+app.get('/api/auth/session', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const credentials = getConfiguredAdminCredentials();
+  if (!credentials.email || !credentials.password || !verifySalesSession(req.headers.cookie || '', credentials.password, credentials.email)) {
+    return res.status(401).json({ success: false, error: 'SESSION_REQUIRED' });
+  }
+  return res.json({ success: true, session: {
+    mode: 'real', userName: process.env.ADMIN_NAME || 'Luis Ramirez', email: credentials.email,
+    role: 'Super Admin CRM', organizationName: process.env.ADMIN_ORGANIZATION || 'INTECA SRL',
+    token: '', loginAt: new Date().toISOString(),
+  } });
+});
+
 app.post('/api/auth/login', (req, res) => {
   const parsed = authLoginRequestSchema.safeParse(req.body);
   if (!parsed.success) {
