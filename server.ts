@@ -1,3 +1,4 @@
+import { probeMetaClient } from './meta-oauth-diagnostics';
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
 import { AgentConnections } from './agent-connections';
 import { createIntegrationOAuth } from './integration-oauth';
@@ -2845,6 +2846,7 @@ async function startServer() {
         .then(result => console.log('OAUTH_RENDER_WRITE_CHECK', JSON.stringify(result)))
         .catch(error => console.warn('OAUTH_RENDER_WRITE_CHECK', JSON.stringify({ writeVerified: false, code: error instanceof RenderPersistenceError ? error.code : 'NETWORK', httpStatus: error instanceof RenderPersistenceError ? error.httpStatus : undefined })));
     }
+    if (process.env.CRM_META_OAUTH_DIAGNOSTIC === 'true') void probeMetaClient(process.env).then(result => console.log('OAUTH_META_CLIENT_CHECK', JSON.stringify(result)));
     void renderRequest(process.env.RENDER_SERVICE_ID || '', process.env.RENDER_API_KEY || '')
       .then(() => console.log('OAUTH_RENDER_CHECK', JSON.stringify({ readVerified: true })))
       .catch(error => console.warn('OAUTH_RENDER_CHECK', JSON.stringify({ readVerified: false, code: error instanceof RenderPersistenceError ? error.code : 'OAUTH_RENDER_UNAVAILABLE', httpStatus: error instanceof RenderPersistenceError ? error.httpStatus : undefined })));

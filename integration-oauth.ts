@@ -1,3 +1,4 @@
+import { MetaOAuthError, metaOAuthJson } from './meta-oauth-diagnostics.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import express from 'express';
 import { RenderPersistenceError } from './render-persistence.ts';
@@ -20,6 +21,12 @@ const scopes: Record<Provider, string[]> = {
   youtube: ['https://www.googleapis.com/auth/youtube.readonly', 'https://www.googleapis.com/auth/youtube.upload'],
 };
 const messages: Record<string, string> = {
+  OAUTH_META_SECRET: 'Meta rechazó el secreto de INTECA Publicidad IA. Revisa META_APP_SECRET de esa aplicación en Render; el secreto de WhatsApp pertenece a otra aplicación.',
+  OAUTH_META_REDIRECT: 'Meta rechazó la URL de retorno. Debe coincidir exactamente con la registrada para esta aplicación.',
+  OAUTH_META_CODE: 'Meta rechazó el código de autorización. Inicia un flujo nuevo desde el CRM y complétalo una sola vez.',
+  OAUTH_META_PAGE: 'Meta no permitió obtener el acceso de la página configurada. Revisa los permisos concedidos y que esa página esté seleccionada.',
+  OAUTH_META_NETWORK: 'El servidor no pudo contactar con Meta durante el intercambio OAuth.',
+  OAUTH_META_EXCHANGE: 'Meta rechazó el intercambio OAuth. El registro OAUTH_META_FAILURE identifica la etapa y el código del proveedor sin mostrar secretos.',
   OAUTH_CONFIG: 'Falta la configuración del cliente OAuth o un APP_URL HTTPS válido.',
   OAUTH_STATE: 'La autorización venció, fue usada o no corresponde a esta sesión. Iníciala otra vez desde Agentes IA.',
   OAUTH_DENIED: 'No se concedió la autorización. No se modificaron las credenciales.',
@@ -58,8 +65,8 @@ export function createIntegrationOAuth(options: Options) {
     try { origin = new URL(env.APP_URL || ''); } catch { throw Error('OAUTH_CONFIG'); }
     if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw Error('OAUTH_CONFIG');
     const prefix = p === 'google_ads' ? 'GOOGLE_ADS' : 'YOUTUBE';
-    const clientId = p === 'meta' ? env.META_APP_ID : env[`${prefix}_CLIENT_ID`];
-    const clientSecret = p === 'meta' ? env.META_APP_SECRET : env[`${prefix}_CLIENT_SECRET`];
+    const clientId = p === 'meta' ? env.META_APP_ID?.trim() : env[`${prefix}_CLIENT_ID`]?.trim();
+    const clientSecret = p === 'meta' ? env.META_APP_SECRET?.trim() : env[`${prefix}_CLIENT_SECRET`]?.trim();
     if (!clientId?.trim() || !clientSecret?.trim() || !env.RENDER_API_KEY || !env.RENDER_SERVICE_ID) throw Error('OAUTH_CONFIG');
     const redirectUri = `${origin.origin}/api/advertising/oauth/${p}/callback`;
     const configHash = hash(JSON.stringify([clientId, clientSecret, redirectUri, version(), env.META_PAGE_ID, env.INSTAGRAM_BUSINESS_ACCOUNT_ID, env.META_AD_ACCOUNT_ID, env.GOOGLE_ADS_CUSTOMER_ID, env.GOOGLE_ADS_LOGIN_CUSTOMER_ID, env.YOUTUBE_CHANNEL_ID, env.RENDER_SERVICE_ID]));
@@ -129,12 +136,12 @@ export function createIntegrationOAuth(options: Options) {
       if (!code || code.length > 4096) throw Error('OAUTH_PROVIDER');
       let variables: Record<string, string>;
       if (p === 'meta') {
-        const token = await json(`https://graph.facebook.com/${version()}/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: c.clientId!, client_secret: c.clientSecret!, redirect_uri: c.redirectUri, code }).toString() });
+        const token = await metaOAuthJson(`https://graph.facebook.com/${version()}/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: c.clientId!, client_secret: c.clientSecret!, redirect_uri: c.redirectUri, code }).toString() }, 'code_exchange', fetcher);
         if (typeof token.access_token !== 'string' || !token.access_token) throw Error('OAUTH_PROVIDER');
         // Long-lived user token, followed by the access token for the existing Page.
-        const long = await json(`https://graph.facebook.com/${version()}/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: c.clientId!, client_secret: c.clientSecret!, fb_exchange_token: token.access_token }).toString() });
+        const long = await metaOAuthJson(`https://graph.facebook.com/${version()}/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: c.clientId!, client_secret: c.clientSecret!, fb_exchange_token: token.access_token }).toString() }, 'long_lived_exchange', fetcher);
         if (typeof long.access_token !== 'string' || !long.access_token || !/^\d+$/.test(env.META_PAGE_ID || '')) throw Error('OAUTH_ACCOUNT');
-        const page = await json(`https://graph.facebook.com/${version()}/${env.META_PAGE_ID}?fields=id,access_token,instagram_business_account`, { headers: { Authorization: `Bearer ${long.access_token}` } });
+        const page = await metaOAuthJson(`https://graph.facebook.com/${version()}/${env.META_PAGE_ID}?fields=id,access_token,instagram_business_account`, { headers: { Authorization: `Bearer ${long.access_token}` } }, 'page_access', fetcher);
         if (page.id !== env.META_PAGE_ID || typeof page.access_token !== 'string' || !page.access_token || page.instagram_business_account?.id !== env.INSTAGRAM_BUSINESS_ACCOUNT_ID) throw Error('OAUTH_ACCOUNT');
         variables = { META_PAGE_ACCESS_TOKEN: page.access_token, META_ADS_ACCESS_TOKEN: long.access_token };
       } else {
@@ -161,6 +168,7 @@ export function createIntegrationOAuth(options: Options) {
       await options.verified();
       return res.json({ success: true, apiReady: !apiPending, ...(apiPending ? { message: 'La autorización de Google se guardó, pero la API sigue pendiente: ' + apiPending, cloudConsoleUrl: GOOGLE_ADS_CLOUD_CONSOLE } : {}), redirect: '/?integration_reconnected=' + p });
     } catch (error) {
+      if (error instanceof MetaOAuthError) console.warn('OAUTH_META_FAILURE', JSON.stringify({ stage: error.stage, httpStatus: error.httpStatus, providerCode: error.providerCode, providerSubcode: error.providerSubcode, code: error.message }));
       const key = error instanceof Error && messages[error.message] ? error.message : 'OAUTH_PROVIDER';
       // Fixed public text only; no code, state, token, client secret, provider payload or stack.
       return res.status(409).json({ error: messages[key], code: key });
