@@ -381,26 +381,34 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
-  async function toggleKey(key: string) {
+  const [revealKey, setRevealKey] = useState<string | null>(null);
+  const [revealPassword, setRevealPassword] = useState('');
+  const [revealError, setRevealError] = useState('');
+  const [revealing, setRevealing] = useState(false);
+  async function toggleKey(key: string, confirmation?: string) {
     if (visibleKeys[key]) {
       setVisibleKeys((old) => ({ ...old, [key]: false }));
       setRevealedValues(old => { const next = { ...old }; delete next[key]; return next; });
       return;
     }
     if (!configValues[key]) {
+      if (!confirmation && !adminPassword.trim()) { setRevealKey(key); setRevealError(''); return; }
+      setRevealing(true);
       try {
         const response = await fetch('/api/sales/integration-value', {
           method: 'POST', cache: 'no-store',
           headers: { 'Content-Type': 'application/json', 'X-CRM-Action': 'sales' },
-          body: JSON.stringify({ key, adminPassword }),
+          body: JSON.stringify({ key, adminPassword: confirmation || adminPassword }),
         });
         const data = await response.json();
         if (!response.ok) throw Error(data.error);
+        if (typeof data.value !== 'string' || !data.value) throw Error('Esta variable no tiene un valor guardado en el servidor.');
         setRevealedValues((old) => ({ ...old, [key]: data.value }));
+        setRevealKey(null); setRevealPassword(''); setRevealError('');
       } catch (e) {
-        setConfigurationMessage({ type: 'error', text: (e as Error).message });
+        setRevealKey(key); setRevealError((e as Error).message);
         return;
-      }
+      } finally { setRevealing(false); }
     }
     setVisibleKeys((old) => ({ ...old, [key]: true }));
   }
@@ -599,6 +607,22 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
+      {revealKey && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="reveal-title" className="w-full max-w-md bg-slate-900 text-white border border-slate-600 rounded-2xl p-5 space-y-4">
+            <h2 id="reveal-title" className="font-bold">Ver clave guardada</h2>
+            <p className="text-sm text-slate-300">Confirma tu contraseña de administrador para consultar <strong>{revealKey}</strong>. La consulta no modifica la clave.</p>
+            <label className="block text-sm">Contraseña de administrador
+              <input autoFocus type="password" autoComplete="current-password" value={revealPassword} onChange={e => setRevealPassword(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && revealPassword && !revealing) { e.preventDefault(); void toggleKey(revealKey, revealPassword); } }} className="mt-2 w-full bg-slate-950 border border-slate-600 rounded-lg p-2" />
+            </label>
+            {revealError && <p role="alert" className="text-sm text-rose-300">{revealError}</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" disabled={revealing} onClick={() => { setRevealKey(null); setRevealPassword(''); setRevealError(''); }} className="px-4 py-2 rounded-lg bg-slate-700">Cancelar</button>
+              <button type="button" disabled={!revealPassword || revealing} onClick={() => void toggleKey(revealKey, revealPassword)} className="px-4 py-2 rounded-lg bg-blue-600 disabled:opacity-50">{revealing ? 'Consultando…' : 'Mostrar clave guardada'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -928,7 +952,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                           <div className="relative mt-1">
                             <input
                               id={`integration-field-${field.key}`}
-                              value={configValues[field.key] ?? revealedValues[field.key] ?? ''}
+                              value={configValues[field.key] || revealedValues[field.key] || ''}
                               onChange={(event) => updateConfigValue(field.key, event.target.value)}
                               type={
                                 !visibleKeys[field.key] && (field.sensitive || revealedValues[field.key] !== undefined) ? 'password' : 'text'
