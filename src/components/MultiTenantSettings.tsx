@@ -610,9 +610,10 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
       {revealKey && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="reveal-title" className="w-full max-w-md bg-slate-900 text-white border border-slate-600 rounded-2xl p-5 space-y-4">
-            <h2 id="reveal-title" className="font-bold">Ver clave guardada</h2>
-            <p className="text-sm text-slate-300">Confirma tu contraseña de administrador para consultar <strong>{revealKey}</strong>. La consulta no modifica la clave.</p>
-            <label className="block text-sm">Contraseña de administrador
+            <h2 id="reveal-title" className="font-bold">Confirmar identidad de administrador</h2>
+            <p className="text-sm text-slate-300">Introduce la misma contraseña con la que inicias sesión en el CRM como administrador.</p>
+            <p className="text-xs text-slate-400">Clave que se mostrará después de confirmar: <strong>{revealKey}</strong></p>
+            <label className="block text-sm">Contraseña de acceso del administrador del CRM
               <input autoFocus type="password" autoComplete="current-password" value={revealPassword} onChange={e => setRevealPassword(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && revealPassword && !revealing) { e.preventDefault(); void toggleKey(revealKey, revealPassword); } }} className="mt-2 w-full bg-slate-950 border border-slate-600 rounded-lg p-2" />
             </label>
             {revealError && <p role="alert" className="text-sm text-rose-300">{revealError}</p>}
@@ -963,11 +964,13 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                             />
                             <button
                               type="button"
+                              disabled={isMissing && !configValues[field.key]}
+                              title={isMissing && !configValues[field.key] ? 'No hay una clave guardada. Introduce la credencial del proveedor para configurarla.' : undefined}
                               aria-label={`${visibleKeys[field.key] ? 'Ocultar' : 'Mostrar'} ${field.label}`}
                               onClick={() => void toggleKey(field.key)}
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-blue-400"
                             >
-                              {visibleKeys[field.key] ? 'Ocultar' : 'Ver'}
+                              {isMissing && !configValues[field.key] ? 'Sin clave' : visibleKeys[field.key] ? 'Ocultar' : 'Ver'}
                             </button>
                           </div>
                           <p className="text-[10px] text-slate-400 font-mono mt-1">{field.key}</p>
