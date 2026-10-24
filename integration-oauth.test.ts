@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { createIntegrationOAuth } from './integration-oauth.ts';
 
-type HarnessOptions = { mismatch?: boolean; saveFailure?: boolean; missingScope?: boolean };
+type HarnessOptions = { mismatch?: boolean; saveFailure?: boolean; missingScope?: boolean; apiProjectPending?: boolean };
 async function harness(options: HarnessOptions = {}) {
   let time = Date.now();
   const env: NodeJS.ProcessEnv = {
@@ -27,6 +27,7 @@ async function harness(options: HarnessOptions = {}) {
       return out({ access_token: 'private-access' });
     }
     if (url.includes('/youtube/v3/channels')) return out({ items: [{ id: options.mismatch ? 'different-channel' : 'channel-1', snippet: { title: 'Channel' } }] });
+    if (url.includes('googleads.googleapis.com') && options.apiProjectPending) return Response.json({error:{code:403,details:[{errors:[{errorCode:{authorizationError:'CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION'}}]}]}},{status:403});
     if (url.includes('googleads.googleapis.com')) return out({ results: [{ customer: { id: '444', currencyCode: 'DOP' } }] });
     if (url.includes('/oauth/access_token')) return out({ access_token: 'private-user-token' });
     if (url.includes('fields=id,access_token')) return out({ id: '111', access_token: 'private-page-token', instagram_business_account: { id: '222' } });
@@ -122,5 +123,19 @@ test('cross-site callback captures no credentials and exchanges code only on the
     assert.equal(wrong.status,409);assert.equal(h.calls(),0);
     const valid = await fetch(h.base+'/youtube/complete',{method:'POST',headers:{'Content-Type':'application/json',Cookie:flow.cookie},body:JSON.stringify({state:flow.state})});
     assert.equal(valid.status,200);assert.ok(h.saved());
+  } finally { await h.close(); }
+});
+
+test('Google OAuth credentials can be saved while Cloud production approval stays explicitly blocked', async () => {
+  const h=await harness({apiProjectPending:true});
+  try {
+    const flow=await h.start('google_ads');
+    const response=await h.callback('google_ads',flow.state,flow.cookie);
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.equal(result.success,true);assert.equal(result.apiReady,false);
+    assert.match(result.message,/Google Cloud/);
+    assert.equal(h.saved()?.GOOGLE_ADS_REFRESH_TOKEN,'new-private-refresh');
+    assert.equal(JSON.stringify(result).includes('new-private-refresh'),false);
   } finally { await h.close(); }
 });

@@ -5,7 +5,7 @@ import type { CatalogStore } from './whatsapp-catalog.ts';
 
 export const CHANNELS = ['facebook', 'instagram', 'meta_ads', 'google_ads', 'youtube'] as const;
 export type AdChannel = (typeof CHANNELS)[number];
-const SAFE_PROVIDER_REASONS = new Set(['invalid_grant', 'invalid_client', 'unauthorized_client', 'invalid_scope', 'access_denied', 'USER_PERMISSION_DENIED', 'DEVELOPER_TOKEN_NOT_APPROVED', 'DEVELOPER_TOKEN_INVALID', 'DEVELOPER_TOKEN_PROHIBITED', 'CUSTOMER_NOT_ENABLED', 'CLIENT_CUSTOMER_ID_INVALID', 'NOT_ADS_USER', 'PROJECT_DISABLED', 'ORG_RESTRICTION_VIOLATION', 'SERVICE_DISABLED', 'ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'BILLING_DISABLED', 'CONSUMER_INVALID']);
+const SAFE_PROVIDER_REASONS = new Set(['invalid_grant', 'invalid_client', 'unauthorized_client', 'invalid_scope', 'access_denied', 'USER_PERMISSION_DENIED', 'DEVELOPER_TOKEN_NOT_APPROVED', 'DEVELOPER_TOKEN_INVALID', 'DEVELOPER_TOKEN_PROHIBITED', 'CUSTOMER_NOT_ENABLED', 'CLIENT_CUSTOMER_ID_INVALID', 'NOT_ADS_USER', 'PROJECT_DISABLED', 'ORG_RESTRICTION_VIOLATION', 'SERVICE_DISABLED', 'ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'BILLING_DISABLED', 'CONSUMER_INVALID', 'CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION', 'CLOUD_PROJECT_NOT_ENABLED', 'ACTION_NOT_PERMITTED', 'MISSING_TOS', 'CLOUD_PROJECT_NOT_UNDER_ORGANIZATION', 'SERVICE_ACCESS_DENIED', 'AUTHORIZATION_ERROR', 'INCOMPLETE_SIGNUP', 'INVALID_LOGIN_CUSTOMER_ID_SERVING_CUSTOMER_ID_COMBINATION', 'DEVELOPER_TOKEN_NOT_ON_ALLOWLIST', 'ACCESS_DENIED_FOR_ACCOUNT_TYPE', 'ACTION_NOT_PERMITTED_FOR_SUSPENDED_ACCOUNT', 'METRIC_ACCESS_DENIED']);
 export class ProviderAccessError extends Error {
   readonly httpStatus: number;
   readonly providerCode: number | null;
@@ -19,6 +19,18 @@ export class ProviderAccessError extends Error {
       : httpStatus === 403 || providerCode === 10 || providerCode === 200 ? 'permissions_or_account'
       : httpStatus >= 500 ? 'provider_unavailable' : 'request_or_api';
   }
+}
+export const GOOGLE_ADS_CLOUD_CONSOLE = 'https://console.cloud.google.com/google/ads-apis/overview';
+export function googleAdsAccessHelp(error: unknown) {
+  if (!(error instanceof ProviderAccessError)) return null;
+  if (error.providerReason === 'CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION') return 'El proyecto de Google Cloud del cliente OAuth no tiene acceso aprobado a cuentas de producción. Abre Google Ads API en Google Cloud y solicita acceso Explorer o superior en ese mismo proyecto. El nivel mostrado en el antiguo Centro de API de Google Ads no confirma la aprobación del proyecto.';
+  if (['SERVICE_DISABLED', 'CLOUD_PROJECT_NOT_ENABLED', 'PROJECT_DISABLED'].includes(error.providerReason || '')) return 'Habilita Google Ads API en el proyecto de Google Cloud que contiene el cliente OAuth del CRM.';
+  if (error.providerReason === 'MISSING_TOS') return 'Google exige que el propietario revise y acepte los términos de Google Ads API en la página de acceso de Google Cloud. La autorización OAuth no acepta esos términos ni habilita la API automáticamente.';
+  if (error.providerReason === 'CLOUD_PROJECT_NOT_UNDER_ORGANIZATION') return 'El proyecto de Google Cloud no pertenece a la organización requerida por Google. Revisa la organización del proyecto en Google Cloud.';
+  if (error.providerReason === 'SERVICE_ACCESS_DENIED') return 'El proyecto no tiene acceso al servicio solicitado. Revisa el acceso a Google Ads API en Google Cloud.';
+  if (error.providerReason === 'USER_PERMISSION_DENIED') return 'El usuario no tiene acceso al ID publicitario configurado mediante los contextos consultados. Comprueba la cuenta cliente y su relación con la administradora; el ID de una administradora no sustituye al de la cuenta donde se publicarán los anuncios.';
+  if (error.providerReason === 'ACTION_NOT_PERMITTED') return 'Google no autoriza esta operación. Revisa el nivel y el uso permitido del proyecto en Google Cloud, además del acceso a la cuenta publicitaria.';
+  return null;
 }
 export const AD_RULES = 'Ningún descuento, rebaja, beca, bonificación, gratuidad o precio especial está autorizado por un prompt. Solo el dueño puede aprobar una propuesta concreta en Publicidad. Usa los precios del catálogo vigente. No presentes propuestas como ofertas autorizadas.';
 export function hasDiscount(value: unknown): boolean {
@@ -54,7 +66,7 @@ const required: Record<AdChannel, string[]> = {
   facebook: ['META_PAGE_ID', 'META_PAGE_ACCESS_TOKEN'],
   instagram: ['INSTAGRAM_BUSINESS_ACCOUNT_ID', 'META_PAGE_ACCESS_TOKEN'],
   meta_ads: ['META_AD_ACCOUNT_ID', 'META_ADS_ACCESS_TOKEN'],
-  google_ads: ['GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET', 'GOOGLE_ADS_REFRESH_TOKEN', 'GOOGLE_ADS_CUSTOMER_ID'],
+  google_ads: ['GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET', 'GOOGLE_ADS_REFRESH_TOKEN', 'GOOGLE_ADS_CUSTOMER_ID'],
   youtube: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN', 'YOUTUBE_CHANNEL_ID'],
 };
 export const AD_ERRORS: Record<string, string> = {
@@ -147,7 +159,7 @@ export class AdvertisingAgent {
     this.configured('google_ads');
     const token = await this.googleToken('GOOGLE_ADS');
     const version = /^v\d+$/.test(this.env.GOOGLE_ADS_API_VERSION || '') ? this.env.GOOGLE_ADS_API_VERSION : 'v26';
-    const result = await this.json(`https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`, { headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN! } });
+    const result = await this.json(`https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`, { headers: { Authorization: `Bearer ${token}` } });
     const ids = (Array.isArray(result.resourceNames) ? result.resourceNames : []).filter((value: unknown): value is string => typeof value === 'string' && /^customers\/\d+$/.test(value)).map((value: string) => value.slice(10));
     return { configuredCustomerId: this.id('GOOGLE_ADS_CUSTOMER_ID'), directlyAccessibleCustomerIds: ids, note: 'Solo cuentas de acceso directo; una administradora puede dar acceso a cuentas cliente adicionales.' };
   }
@@ -155,18 +167,18 @@ export class AdvertisingAgent {
     const token = await this.googleToken('GOOGLE_ADS');
     const version = /^v\d+$/.test(this.env.GOOGLE_ADS_API_VERSION || '') ? this.env.GOOGLE_ADS_API_VERSION : 'v26';
     const target = this.id('GOOGLE_ADS_CUSTOMER_ID');
-    const fingerprint = hash([this.env.GOOGLE_ADS_REFRESH_TOKEN, this.env.GOOGLE_ADS_CLIENT_ID, this.env.GOOGLE_ADS_CLIENT_SECRET, this.env.GOOGLE_ADS_DEVELOPER_TOKEN, target, this.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID, version]);
+    const fingerprint = hash([this.env.GOOGLE_ADS_REFRESH_TOKEN, this.env.GOOGLE_ADS_CLIENT_ID, this.env.GOOGLE_ADS_CLIENT_SECRET, target, this.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID, version]);
     const configuredLogin = this.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID ? this.id('GOOGLE_ADS_LOGIN_CUSTOMER_ID') : null;
     const cached = this.googleLoginContext?.fingerprint === fingerprint;
     const login = cached ? this.googleLoginContext!.loginId : configuredLogin;
     const request = (customerId: string, loginId: string | null, requestBody: unknown = body) => this.json(`https://googleads.googleapis.com/${version}/customers/${customerId}/${resource}`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN!, 'Content-Type': 'application/json', ...(loginId ? { 'login-customer-id': loginId } : {}) }, body: JSON.stringify(requestBody),
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(loginId ? { 'login-customer-id': loginId } : {}) }, body: JSON.stringify(requestBody),
     });
     try { return await request(target, login); }
     catch (original) {
       // Retry only read-only GAQL searches. Never retry a campaign mutation or change its destination.
       if (resource !== 'googleAds:search' || !(original instanceof ProviderAccessError) || original.providerReason !== 'USER_PERMISSION_DENIED') throw original;
-      const accessible = await this.json(`https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`, { headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN! } });
+      const accessible = await this.json(`https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`, { headers: { Authorization: `Bearer ${token}` } });
       const ids: string[] = (Array.isArray(accessible.resourceNames) ? accessible.resourceNames : []).filter((value: unknown): value is string => typeof value === 'string' && /^customers\/\d+$/.test(value)).map((value: string) => value.slice(10));
       // Prefer direct access if available; otherwise test manager contexts returned by Google.
       const candidates: Array<string | null> = [...(ids.includes(target) ? [null] : []), ...ids.filter(id => id !== target).slice(0, 10)];

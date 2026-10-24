@@ -116,3 +116,14 @@ test('Google Ads preserves denial when no manager can access the configured targ
   await assert.rejects(agent.verify('google_ads'),error => (error as {providerReason?:string}).providerReason === 'USER_PERMISSION_DENIED');
   assert.equal(agent.googleAdsResolvedLoginId(),undefined);
 });
+
+test('Google Ads uses Cloud-managed OAuth access without requiring or sending the retired developer token', async () => {
+  const env={GOOGLE_ADS_CLIENT_ID:'client',GOOGLE_ADS_CLIENT_SECRET:'secret',GOOGLE_ADS_REFRESH_TOKEN:'refresh',GOOGLE_ADS_CUSTOMER_ID:'444'};
+  const agent=new AdvertisingAgent({request:async()=>[]},{get:async()=>null},env,async(input,init)=>{
+    if(String(input).includes('oauth2.googleapis.com'))return Response.json({access_token:'token'});
+    assert.equal(new Headers(init?.headers).has('developer-token'),false);
+    return Response.json({results:[{customer:{id:'444',currencyCode:'DOP'}}]});
+  });
+  assert.equal(agent.configuration().find(row=>row.channel==='google_ads')?.configured,true);
+  assert.equal((await agent.verify('google_ads')).readVerified,true);
+});

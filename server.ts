@@ -24,7 +24,7 @@ import { CatalogStore, catalogReply, catalogPaymentReply, catalogFallback, catal
 
 import { EnrollmentAgent, ENROLLMENT_ERRORS, enrollmentError, welcomeText } from './enrollment-agent';
 import { adPlanSchema } from './advertising-plans';
-import { AdvertisingAgent, AD_RULES, AD_ERRORS, CHANNELS, campaignSchema, hasDiscount, hasUnlistedPrice, adError } from './advertising-agent';
+import { AdvertisingAgent, ProviderAccessError, googleAdsAccessHelp, GOOGLE_ADS_CLOUD_CONSOLE, AD_RULES, AD_ERRORS, CHANNELS, campaignSchema, hasDiscount, hasUnlistedPrice, adError } from './advertising-agent';
 
 dotenv.config();
 const whatsAppCatalog = new CatalogStore();
@@ -934,7 +934,6 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     name: 'Google Ads Search, Display y Performance Max',
     category: 'Buscadores',
     requiredEnvVars: [
-      'GOOGLE_ADS_DEVELOPER_TOKEN',
       'GOOGLE_ADS_CLIENT_ID',
       'GOOGLE_ADS_CLIENT_SECRET',
       'GOOGLE_ADS_REFRESH_TOKEN',
@@ -1150,6 +1149,7 @@ const AGENT_RUNTIME_REGISTRY = [
 ];
 
 const CONFIGURATION_EXTRA_ENV_VARS = [
+  'GOOGLE_ADS_DEVELOPER_TOKEN', // Legacy compatibility only; no longer required or sent.
   'GOOGLE_ADS_LOGIN_CUSTOMER_ID',
   'GOOGLE_ADS_API_VERSION',
   'ADMIN_EMAIL',
@@ -1339,7 +1339,7 @@ app.use('/api/advertising', (req, res, next) => {
   if (req.method !== 'GET' && req.get('X-CRM-Action') !== 'advertising') return res.status(403).json({ error: 'Solicitud no autorizada.' });
   next();
 });
-const adFail = (res: express.Response, error: unknown) => { const code = adError(error); return res.status(code === 'AD_STORAGE' ? 503 : 409).json({ error: AD_ERRORS[code], code }); };
+const adFail = (res: express.Response, error: unknown) => { const code = adError(error); const help = googleAdsAccessHelp(error); return res.status(code === 'AD_STORAGE' ? 503 : 409).json({ error: help || AD_ERRORS[code], code, ...(error instanceof ProviderAccessError ? { providerReason: error.providerReason, httpStatus: error.httpStatus } : {}), ...(help ? { cloudConsoleUrl: GOOGLE_ADS_CLOUD_CONSOLE } : {}) }); };
 app.use('/api/advertising/oauth', createIntegrationOAuth({
   persist: async variables => {
     if (!process.env.RENDER_API_KEY || !process.env.RENDER_SERVICE_ID) throw Error('OAUTH_SAVE');
@@ -1594,7 +1594,7 @@ app.get('/api/health', (req, res) => {
       ),
       metaConfigured: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),
       googleAdsConfigured: Boolean(
-        process.env.GOOGLE_ADS_DEVELOPER_TOKEN && process.env.GOOGLE_ADS_REFRESH_TOKEN,
+        isIntegrationConfigured('int_google_ads'),
       ),
       paymentsConfigured: Boolean(
         process.env.PAYMENT_PROVIDER && process.env.PAYMENT_WEBHOOK_SECRET,

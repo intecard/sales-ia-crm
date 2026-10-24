@@ -92,7 +92,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
-            Acceso real para operar INTECA y clientes con agentes IA 24/7.
+            Acceso para operar empresas y clientes con agentes IA 24/7.
           </h2>
           <p className="text-sm text-slate-400 mt-3 max-w-xl">
             La plataforma abre únicamente con usuario y contraseña reales. No hay acceso de prueba
@@ -119,7 +119,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="flex items-center gap-2 text-white mb-5">
             <LockKeyhole className="w-5 h-5 text-cyan-300" />
-            <h2 className="text-lg font-black">Iniciar sesión real</h2>
+            <h2 className="text-lg font-black">Iniciar sesión</h2>
           </div>
 
           <form onSubmit={handleRealLogin} className="space-y-4">

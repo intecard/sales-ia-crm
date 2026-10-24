@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { CHANNELS, ProviderAccessError, type AdChannel } from './advertising-agent.ts';
+import { CHANNELS, ProviderAccessError, googleAdsAccessHelp, type AdChannel } from './advertising-agent.ts';
 
 type Connector = {
   configuration(): Array<{ channel: AdChannel; configured: boolean; missing: string[] }>;
@@ -53,9 +53,11 @@ export class AgentConnections {
       if (!configured) return;
       let readVerified = false;
       let invalidConfiguration = false;
+      let providerHelp: string | null = null;
       let diagnostic: Pick<ConnectionEvidence, 'failureReason' | 'httpStatus' | 'providerCode' | 'providerReason'> = {};
       try { readVerified = (await this.connector.verify(channel)).readVerified === true; }
       catch (error) {
+        if (channel === 'google_ads') providerHelp = googleAdsAccessHelp(error);
         invalidConfiguration = error instanceof Error && error.message === 'AD_MISSING';
         if (error instanceof ProviderAccessError) diagnostic = { failureReason: error.reason, httpStatus: error.httpStatus, providerCode: error.providerCode, providerReason: error.providerReason };
         // Unknown exception text is deliberately discarded.
@@ -63,7 +65,7 @@ export class AgentConnections {
       this.results.set(channel, {
         channel, configured, state: readVerified ? 'verified_read' : invalidConfiguration ? 'invalid_configuration' : 'provider_rejected',
         checkedAt: new Date(this.now()).toISOString(), readVerified, writeVerified: false,
-        message: readVerified ? 'Acceso de lectura confirmado por el proveedor.' : invalidConfiguration ? 'El identificador de la cuenta no tiene el formato requerido.' : 'El proveedor no confirmó el acceso. Revisa token, cuenta y permisos en Conexiones.',
+        message: readVerified ? 'Acceso de lectura confirmado por el proveedor.' : invalidConfiguration ? 'El identificador de la cuenta no tiene el formato requerido.' : providerHelp || 'El proveedor no confirmó el acceso. Revisa token, cuenta y permisos en Conexiones.',
         ...diagnostic,
       });
     })).then(() => {

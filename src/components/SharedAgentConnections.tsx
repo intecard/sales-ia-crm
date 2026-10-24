@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 type Connection = { channel: string; state: string; message: string; checkedAt: string | null; readVerified: boolean; providerReason?: string; httpStatus?: number };
-type OAuthProvider = { provider: string; ready: boolean; redirectUri: string | null; scopes: string[] };
+type OAuthProvider = { provider: string; ready: boolean; redirectUri: string | null; scopes: string[]; clientId?: string; cloudConsoleUrl?: string };
 const names: Record<string, string> = { facebook: 'Facebook', instagram: 'Instagram', meta_ads: 'Meta Ads', google_ads: 'Google Ads', youtube: 'YouTube' };
 
 export function SharedAgentConnections({ agentName }: { agentName: string }) {
@@ -68,6 +68,10 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
       <p>Autoriza tu cuenta en el proveedor. El servidor comprobará las cuentas ya configuradas y guardará los nuevos accesos en Render. Esta acción sustituye los tokens anteriores; los agentes usarán los nuevos permisos concedidos.</p>
       <label className="block">Plataforma<select value={selectedProvider} onChange={event => { setSelectedProvider(event.target.value); setRedirectRegistered(false); setReviewedPermissions(false); }} className="ml-2 rounded bg-slate-800 p-2"><option value="meta">Meta: Facebook, Instagram y anuncios</option><option value="google_ads">Google Ads</option><option value="youtube">YouTube</option></select></label>
       {selectedProvider === 'google_ads' && <div className="space-y-2">
+        <p>El acceso a Google Ads API se administra en Google Cloud, en el proyecto que contiene el cliente OAuth del CRM. No se necesita un token de desarrollador.</p>
+        {selected?.clientId && <p className="break-all text-xs">Cliente OAuth configurado: {selected.clientId}</p>}
+        {selected?.cloudConsoleUrl && <a href={selected.cloudConsoleUrl} target="_blank" rel="noreferrer" className="block text-blue-300 underline">Abrir acceso a Google Ads API en Google Cloud</a>}
+        <p className="text-xs">Verifica el proyecto seleccionado y su nivel de acceso. Si figura Test, solicita Explorer para operar con cuentas publicitarias de producción. La cuenta administradora y la cuenta donde se publicarán los anuncios tienen IDs diferentes.</p>
         <button type="button" disabled={busy} onClick={() => void readGoogleAccounts()} className="text-blue-300 underline">Consultar cuentas de Google Ads accesibles</button>
         {googleAccounts && <div className="rounded bg-slate-800 p-2"><p>ID configurado: {googleAccounts.configuredCustomerId}</p><p>IDs con acceso directo: {googleAccounts.directlyAccessibleCustomerIds.join(', ') || 'Ninguno'}</p><p className="text-xs">{googleAccounts.note}</p><p className="text-xs">Compara el ID con la cuenta publicitaria de INTECA. Si corresponde a otra cuenta, corrígelo en Conexiones. El CRM no cambia el destino de tus anuncios automáticamente.</p></div>}
       </div>}

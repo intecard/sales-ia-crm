@@ -1644,7 +1644,6 @@ export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
     outboundCapability:
       'Recibir conversiones, leads de formularios, UTMs y datos de campaña para optimizar inversión.',
     requiredEnvVars: [
-      'GOOGLE_ADS_DEVELOPER_TOKEN',
       'GOOGLE_ADS_CLIENT_ID',
       'GOOGLE_ADS_CLIENT_SECRET',
       'GOOGLE_ADS_REFRESH_TOKEN',

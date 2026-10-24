@@ -234,12 +234,6 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
         label: 'Instagram Business ID',
         placeholder: '1784...',
       },
-      {
-        key: 'GOOGLE_ADS_DEVELOPER_TOKEN',
-        label: 'Google Ads Developer Token',
-        placeholder: 'developer token',
-        sensitive: true,
-      },
       { key: 'GOOGLE_ADS_CLIENT_ID', label: 'Google Client ID', placeholder: 'client id' },
       {
         key: 'GOOGLE_ADS_CLIENT_SECRET',
