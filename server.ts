@@ -922,7 +922,7 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     category: 'Social Ads',
     requiredEnvVars: [
       'META_APP_ID',
-      'META_APP_SECRET',
+      'DS_META_APP_SECRET',
       'META_PAGE_ACCESS_TOKEN',
       'META_PAGE_ID',
       'META_ADS_ACCESS_TOKEN',
@@ -1572,7 +1572,7 @@ app.get('/api/health', (req, res) => {
       whatsappConfigured: Boolean(
         process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID,
       ),
-      metaConfigured: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),
+      metaConfigured: Boolean(process.env.META_APP_ID && process.env.DS_META_APP_SECRET),
       googleAdsConfigured: Boolean(
         isIntegrationConfigured('int_google_ads'),
       ),

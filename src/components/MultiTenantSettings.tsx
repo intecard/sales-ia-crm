@@ -142,6 +142,7 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     title: 'WhatsApp Cloud API',
     description: 'Credenciales para responder mensajes reales por WhatsApp.',
     fields: [
+      { key: 'META_APP_SECRET', label: 'App Secret · Solo WhatsApp', placeholder: 'Secreto de la aplicación de WhatsApp', sensitive: true },
       {
         key: 'WHATSAPP_ACCESS_TOKEN',
         label: 'Token permanente WhatsApp',
@@ -211,8 +212,8 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     fields: [
       { key: 'META_APP_ID', label: 'Meta App ID', placeholder: 'ID de tu aplicación Meta' },
       {
-        key: 'META_APP_SECRET',
-        label: 'Meta App Secret',
+        key: 'DS_META_APP_SECRET',
+        label: 'Meta App Secret · Publicidad y redes',
         placeholder: 'app secret',
         sensitive: true,
       },

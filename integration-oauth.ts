@@ -21,7 +21,7 @@ const scopes: Record<Provider, string[]> = {
   youtube: ['https://www.googleapis.com/auth/youtube.readonly', 'https://www.googleapis.com/auth/youtube.upload'],
 };
 const messages: Record<string, string> = {
-  OAUTH_META_SECRET: 'Meta rechazó el secreto de INTECA Publicidad IA. Revisa META_APP_SECRET de esa aplicación en Render; el secreto de WhatsApp pertenece a otra aplicación.',
+  OAUTH_META_SECRET: 'Meta rechazó el secreto de INTECA Publicidad IA. Revisa DS_META_APP_SECRET de esa aplicación en Render; el secreto de WhatsApp pertenece a otra aplicación.',
   OAUTH_META_REDIRECT: 'Meta rechazó la URL de retorno. Debe coincidir exactamente con la registrada para esta aplicación.',
   OAUTH_META_CODE: 'Meta rechazó el código de autorización. Inicia un flujo nuevo desde el CRM y complétalo una sola vez.',
   OAUTH_META_PAGE: 'Meta no permitió obtener el acceso de la página configurada. Revisa los permisos concedidos y que esa página esté seleccionada.',
@@ -66,7 +66,7 @@ export function createIntegrationOAuth(options: Options) {
     if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw Error('OAUTH_CONFIG');
     const prefix = p === 'google_ads' ? 'GOOGLE_ADS' : 'YOUTUBE';
     const clientId = p === 'meta' ? env.META_APP_ID?.trim() : env[`${prefix}_CLIENT_ID`]?.trim();
-    const clientSecret = p === 'meta' ? env.META_APP_SECRET?.trim() : env[`${prefix}_CLIENT_SECRET`]?.trim();
+    const clientSecret = p === 'meta' ? env.DS_META_APP_SECRET?.trim() : env[`${prefix}_CLIENT_SECRET`]?.trim();
     if (!clientId?.trim() || !clientSecret?.trim() || !env.RENDER_API_KEY || !env.RENDER_SERVICE_ID) throw Error('OAUTH_CONFIG');
     const redirectUri = `${origin.origin}/api/advertising/oauth/${p}/callback`;
     const configHash = hash(JSON.stringify([clientId, clientSecret, redirectUri, version(), env.META_PAGE_ID, env.INSTAGRAM_BUSINESS_ACCOUNT_ID, env.META_AD_ACCOUNT_ID, env.GOOGLE_ADS_CUSTOMER_ID, env.GOOGLE_ADS_LOGIN_CUSTOMER_ID, env.YOUTUBE_CHANNEL_ID, env.RENDER_SERVICE_ID]));

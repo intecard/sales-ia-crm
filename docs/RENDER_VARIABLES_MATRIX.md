@@ -34,7 +34,7 @@ Regla de precedencia:
 | `WHATSAPP_BUSINESS_ACCOUNT_ID` | WABA | WhatsApp Cloud | Business Manager | Web Service | Pública sensible | Webhook asociado a WABA |
 | `WHATSAPP_AUTO_REPLY_ENABLED` | Auto respuesta | WhatsApp IA | `true`/`false` | Web Service | Pública | Mensaje entrante dispara respuesta |
 | `META_APP_ID` | App Meta | Facebook/Instagram/Ads | Meta Developers | Web Service | Pública | App existe y permisos listos |
-| `META_APP_SECRET` | Firma/seguridad app | Meta | Meta Developers | Web Service | Secreta | Validar app secret proof |
+| `DS_META_APP_SECRET` | Firma/seguridad app | Meta | Meta Developers | Web Service | Secreta | Validar app secret proof |
 | `META_PAGE_ACCESS_TOKEN` | Página FB/IG | Publicación/mensajes | Meta Graph API | Web Service | Secreta | Leer página autorizada |
 | `META_AD_ACCOUNT_ID` | Cuenta anuncios | Meta Ads | Ads Manager | Web Service | Pública sensible | Leer cuenta publicitaria |
 | `INSTAGRAM_BUSINESS_ACCOUNT_ID` | IG business | Instagram | Meta Graph API | Web Service | Pública sensible | Leer perfil business |
@@ -82,3 +82,5 @@ Después de guardar variables en Render:
 
 No marques una integración como operativa solo porque exista una clave. Debe superar
 una prueba de lectura o escritura autorizada según la operación.
+
+El secreto `DS_META_APP_SECRET` pertenece a la aplicación de publicidad y redes asociada a `META_APP_ID`. `META_APP_SECRET` queda reservado a la aplicación de WhatsApp; no usarlo como respaldo para publicidad.

@@ -1623,7 +1623,7 @@ export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
       'Capturar formularios, mensajes y comentarios para crear leads, responder y activar embudos.',
     requiredEnvVars: [
       'META_APP_ID',
-      'META_APP_SECRET',
+      'DS_META_APP_SECRET',
       'META_PAGE_ACCESS_TOKEN',
       'META_AD_ACCOUNT_ID',
       'INSTAGRAM_BUSINESS_ACCOUNT_ID',

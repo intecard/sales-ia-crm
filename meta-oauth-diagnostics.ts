@@ -21,7 +21,7 @@ export async function metaOAuthJson(url: string, init: RequestInit, stage: strin
   return data;
 }
 export async function probeMetaClient(env: NodeJS.ProcessEnv, fetcher: typeof fetch = fetch) {
-  const clientId = env.META_APP_ID?.trim(), secret = env.META_APP_SECRET?.trim();
+  const clientId = env.META_APP_ID?.trim(), secret = env.DS_META_APP_SECRET?.trim();
   if (!clientId || !secret) return { clientVerified: false, code: 'OAUTH_CONFIG' };
   try {
     const data = await metaOAuthJson('https://graph.facebook.com/v26.0/oauth/access_token', {

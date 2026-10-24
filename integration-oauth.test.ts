@@ -9,7 +9,7 @@ async function harness(options: HarnessOptions = {}) {
   let time = Date.now();
   const env: NodeJS.ProcessEnv = {
     APP_URL: 'https://crm.example.test', RENDER_API_KEY: 'private-render', RENDER_SERVICE_ID: 'service',
-    META_APP_ID: '123', META_APP_SECRET: 'private-meta', META_PAGE_ID: '111', INSTAGRAM_BUSINESS_ACCOUNT_ID: '222', META_AD_ACCOUNT_ID: '333',
+    META_APP_ID: '123', DS_META_APP_SECRET: 'private-meta', META_APP_SECRET: 'private-whatsapp-only', META_PAGE_ID: '111', INSTAGRAM_BUSINESS_ACCOUNT_ID: '222', META_AD_ACCOUNT_ID: '333',
     GOOGLE_ADS_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_ADS_CLIENT_SECRET: 'private-google', GOOGLE_ADS_CUSTOMER_ID: '444', GOOGLE_ADS_DEVELOPER_TOKEN: 'private-developer',
     YOUTUBE_CLIENT_ID: 'youtube.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'private-youtube', YOUTUBE_CHANNEL_ID: 'channel-1',
     YOUTUBE_REFRESH_TOKEN: 'previous-refresh',
@@ -30,7 +30,7 @@ async function harness(options: HarnessOptions = {}) {
     if (url.includes('/youtube/v3/channels')) return out({ items: [{ id: options.mismatch ? 'different-channel' : 'channel-1', snippet: { title: 'Channel' } }] });
     if (url.includes('googleads.googleapis.com') && options.apiProjectPending) return Response.json({error:{code:403,details:[{errors:[{errorCode:{authorizationError:'CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION'}}]}]}},{status:403});
     if (url.includes('googleads.googleapis.com')) return out({ results: [{ customer: { id: '444', currencyCode: 'DOP' } }] });
-    if (url.includes('/oauth/access_token')) return out({ access_token: 'private-user-token' });
+    if (url.includes('/oauth/access_token')) { assert.equal(init?.method, 'POST'); assert.equal(form.get('client_secret'), 'private-meta'); assert.equal(url.includes('private-'), false); return out({ access_token: 'private-user-token' }); }
     if (url.includes('fields=id,access_token')) return out({ id: '111', access_token: 'private-page-token', instagram_business_account: { id: '222' } });
     if (url.includes('/111?')) return out({ id: '111', name: 'Page' });
     if (url.includes('/222?')) return out({ id: '222', username: 'Instagram' });
@@ -152,4 +152,12 @@ test('Google OAuth credentials can be saved while Cloud production approval stay
     assert.equal(h.calls(), 0);
     assert.equal(h.saved(), null);
   } finally { await h.close(); }
+});
+
+test('advertising refuses to fall back to the WhatsApp application secret', async () => {
+  const h=await harness();
+  try { delete h.env.DS_META_APP_SECRET;
+    const response=await fetch(h.base+'/meta/start',{method:'POST',headers:{'Content-Type':'application/json',Cookie:'crm_sales_session=session-a'},body:JSON.stringify({redirectRegistered:true,reviewedPermissions:true})});
+    assert.equal(response.status,409);assert.equal(h.calls(),0);assert.equal(h.env.META_APP_SECRET,'private-whatsapp-only');
+  } finally {await h.close();}
 });

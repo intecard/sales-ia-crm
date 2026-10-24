@@ -110,7 +110,7 @@ Variables:
 
 ```env
 META_APP_ID=
-META_APP_SECRET=
+DS_META_APP_SECRET=
 META_PAGE_ACCESS_TOKEN=
 META_AD_ACCOUNT_ID=
 INSTAGRAM_BUSINESS_ACCOUNT_ID=
@@ -251,3 +251,5 @@ VITE_DEPLOYMENT_MODE=trial
 ```
 
 Despues vuelve a `production`.
+
+El secreto `DS_META_APP_SECRET` pertenece a la aplicación de publicidad y redes asociada a `META_APP_ID`. `META_APP_SECRET` queda reservado a la aplicación de WhatsApp; no usarlo como respaldo para publicidad.
