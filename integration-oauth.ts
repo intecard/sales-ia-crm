@@ -30,6 +30,7 @@ const messages: Record<string, string> = {
   OAUTH_GOOGLE_API_DISABLED: 'Habilita Google Ads API en el proyecto de Google Cloud del cliente OAuth y verifica nuevamente.',
   OAUTH_ACCOUNT: 'La cuenta autorizada no permite acceder a los destinos configurados. Revisa el ID publicitario, sus permisos y el acceso del proyecto de Google Cloud.',
   OAUTH_SAVE: 'Render rechazó el guardado. La conexión no se marca como completada; revisa la configuración de persistencia antes de autorizar de nuevo.',
+  OAUTH_RENDER_REQUEST: 'Render rechazó los datos de una variable (HTTP 400). La conexión no se marca como completada. Revisa el diagnóstico de persistencia del servicio.',
   OAUTH_RENDER_CONFIG: 'Falta RENDER_API_KEY o RENDER_SERVICE_ID en el servicio del CRM.',
   OAUTH_RENDER_AUTH: 'Render rechazó RENDER_API_KEY (HTTP 401). Reemplaza la clave inválida o revocada en Environment y despliega el servicio antes de autorizar de nuevo.',
   OAUTH_RENDER_PERMISSION: 'RENDER_API_KEY no tiene permiso sobre este servicio (HTTP 403). Usa una clave del propietario autorizado del workspace del CRM.',

@@ -1,7 +1,7 @@
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
 import { AgentConnections } from './agent-connections';
 import { createIntegrationOAuth } from './integration-oauth';
-import { renderRequest, RenderPersistenceError } from './render-persistence';
+import { renderRequest, probeRenderPersistence, RenderPersistenceError } from './render-persistence';
 import { createFiscalRouter } from './fiscal/routes';
 import express from 'express';
 import path from 'path';
@@ -2840,6 +2840,11 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sales AI CRM listening on http://0.0.0.0:${PORT}`);
+    if (process.env.CRM_RENDER_PERSISTENCE_DIAGNOSTIC === 'true') {
+      void probeRenderPersistence(process.env.RENDER_SERVICE_ID || '', process.env.RENDER_API_KEY || '')
+        .then(result => console.log('OAUTH_RENDER_WRITE_CHECK', JSON.stringify(result)))
+        .catch(error => console.warn('OAUTH_RENDER_WRITE_CHECK', JSON.stringify({ writeVerified: false, code: error instanceof RenderPersistenceError ? error.code : 'NETWORK', httpStatus: error instanceof RenderPersistenceError ? error.httpStatus : undefined })));
+    }
     void renderRequest(process.env.RENDER_SERVICE_ID || '', process.env.RENDER_API_KEY || '')
       .then(() => console.log('OAUTH_RENDER_CHECK', JSON.stringify({ readVerified: true })))
       .catch(error => console.warn('OAUTH_RENDER_CHECK', JSON.stringify({ readVerified: false, code: error instanceof RenderPersistenceError ? error.code : 'OAUTH_RENDER_UNAVAILABLE', httpStatus: error instanceof RenderPersistenceError ? error.httpStatus : undefined })));
