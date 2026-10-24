@@ -1333,6 +1333,7 @@ function buildAgentRuntimeManifest() {
 // Advertising approval is exclusively authenticated server-side; prompts cannot approve anything.
 app.use('/api/advertising', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
+  if (req.method === 'GET' && /^\/oauth\/(meta|google_ads|youtube)\/callback$/.test(req.path)) return next();
   const admin = getConfiguredAdminCredentials();
   if (!verifySalesSession(req.headers.cookie || '', admin.password || '', admin.email || '')) return res.status(401).json({ error: AD_ERRORS.AD_AUTH });
   if (req.method !== 'GET' && req.get('X-CRM-Action') !== 'advertising') return res.status(403).json({ error: 'Solicitud no autorizada.' });
@@ -1346,6 +1347,7 @@ app.use('/api/advertising/oauth', createIntegrationOAuth({
   },
   verified: () => agentConnections.refresh(),
 }));
+app.get('/api/advertising/google-ads/accounts', async (_req, res) => { try { res.json(await advertisingAgent.accessibleGoogleAdsAccounts()); } catch (error) { adFail(res, error); } });
 app.get('/api/advertising', async (_req, res) => { try { res.json(await advertisingAgent.snapshot()); } catch (error) { adFail(res, error); } });
 app.post('/api/advertising/plans', async (req, res) => {
   const parsed = adPlanSchema.safeParse(req.body);

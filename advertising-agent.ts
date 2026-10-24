@@ -141,13 +141,47 @@ export class AdvertisingAgent {
     if (!data.access_token) throw new Error('AD_PROVIDER');
     return String(data.access_token);
   }
+  private googleLoginContext: { fingerprint: string; loginId: string | null } | null = null;
+  googleAdsResolvedLoginId() { return this.googleLoginContext?.loginId; }
+  async accessibleGoogleAdsAccounts() {
+    this.configured('google_ads');
+    const token = await this.googleToken('GOOGLE_ADS');
+    const version = /^v\d+$/.test(this.env.GOOGLE_ADS_API_VERSION || '') ? this.env.GOOGLE_ADS_API_VERSION : 'v26';
+    const result = await this.json(`https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`, { headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN! } });
+    const ids = (Array.isArray(result.resourceNames) ? result.resourceNames : []).filter((value: unknown): value is string => typeof value === 'string' && /^customers\/\d+$/.test(value)).map((value: string) => value.slice(10));
+    return { configuredCustomerId: this.id('GOOGLE_ADS_CUSTOMER_ID'), directlyAccessibleCustomerIds: ids, note: 'Solo cuentas de acceso directo; una administradora puede dar acceso a cuentas cliente adicionales.' };
+  }
   private async googleAds(resource: string, body: unknown) {
     const token = await this.googleToken('GOOGLE_ADS');
     const version = /^v\d+$/.test(this.env.GOOGLE_ADS_API_VERSION || '') ? this.env.GOOGLE_ADS_API_VERSION : 'v26';
-    return this.json(`https://googleads.googleapis.com/${version}/customers/${this.id('GOOGLE_ADS_CUSTOMER_ID')}/${resource}`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
-        'Content-Type': 'application/json', ...(this.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID ? { 'login-customer-id': this.id('GOOGLE_ADS_LOGIN_CUSTOMER_ID') } : {}) }, body: JSON.stringify(body),
+    const target = this.id('GOOGLE_ADS_CUSTOMER_ID');
+    const fingerprint = hash([this.env.GOOGLE_ADS_REFRESH_TOKEN, this.env.GOOGLE_ADS_CLIENT_ID, this.env.GOOGLE_ADS_CLIENT_SECRET, this.env.GOOGLE_ADS_DEVELOPER_TOKEN, target, this.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID, version]);
+    const configuredLogin = this.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID ? this.id('GOOGLE_ADS_LOGIN_CUSTOMER_ID') : null;
+    const cached = this.googleLoginContext?.fingerprint === fingerprint;
+    const login = cached ? this.googleLoginContext!.loginId : configuredLogin;
+    const request = (customerId: string, loginId: string | null, requestBody: unknown = body) => this.json(`https://googleads.googleapis.com/${version}/customers/${customerId}/${resource}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN!, 'Content-Type': 'application/json', ...(loginId ? { 'login-customer-id': loginId } : {}) }, body: JSON.stringify(requestBody),
     });
+    try { return await request(target, login); }
+    catch (original) {
+      // Retry only read-only GAQL searches. Never retry a campaign mutation or change its destination.
+      if (resource !== 'googleAds:search' || !(original instanceof ProviderAccessError) || original.providerReason !== 'USER_PERMISSION_DENIED') throw original;
+      const accessible = await this.json(`https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`, { headers: { Authorization: `Bearer ${token}`, 'developer-token': this.env.GOOGLE_ADS_DEVELOPER_TOKEN! } });
+      const ids: string[] = (Array.isArray(accessible.resourceNames) ? accessible.resourceNames : []).filter((value: unknown): value is string => typeof value === 'string' && /^customers\/\d+$/.test(value)).map((value: string) => value.slice(10));
+      // Prefer direct access if available; otherwise test manager contexts returned by Google.
+      const candidates: Array<string | null> = [...(ids.includes(target) ? [null] : []), ...ids.filter(id => id !== target).slice(0, 10)];
+      for (const candidate of candidates) {
+        if (candidate === login) continue;
+        try {
+          const result = await request(target, candidate);
+          this.googleLoginContext = { fingerprint, loginId: candidate };
+          return result;
+        } catch (error) {
+          if (!(error instanceof ProviderAccessError) || error.providerReason !== 'USER_PERMISSION_DENIED') throw error;
+        }
+      }
+      throw original;
+    }
   }
   async verify(channel: AdChannel) {
     this.configured(channel);
@@ -164,7 +198,7 @@ export class AdvertisingAgent {
     if (channel === 'google_ads') {
       const result = await this.googleAds('googleAds:search', { query: 'SELECT customer.id, customer.descriptive_name, customer.currency_code FROM customer LIMIT 1' });
       const customer = result.results?.[0]?.customer;
-      if (!customer?.id) throw new Error('AD_PROVIDER');
+      if (!customer?.id || String(customer.id) !== this.id('GOOGLE_ADS_CUSTOMER_ID')) throw new Error('AD_PROVIDER');
       return { channel, id: customer.id, name: customer.descriptiveName, currency: customer.currencyCode, readVerified: true, writeVerified: false };
     }
     const token = await this.googleToken('YOUTUBE');

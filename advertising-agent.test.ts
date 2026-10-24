@@ -86,3 +86,33 @@ test('rechaza URLs de medios arbitrarias o internas', async () => {
   const f = fixture(); for (const mediaUrl of ['https://127.0.0.1/a', 'https://evil.test/a.mp4', 'https://project.supabase.co/rest/v1/secrets']) await assert.rejects(f.agent.create({ ...f.input, mediaUrl }), /AD_MEDIA/);
   assert.equal(f.rows.length, 0);
 });
+
+test('Google Ads finds a valid manager context without changing the configured campaign destination', async () => {
+  const calls: Array<{ url: string; login: string | null }> = [];
+  const env = { GOOGLE_ADS_CLIENT_ID:'client',GOOGLE_ADS_CLIENT_SECRET:'secret',GOOGLE_ADS_REFRESH_TOKEN:'refresh',GOOGLE_ADS_DEVELOPER_TOKEN:'developer',GOOGLE_ADS_CUSTOMER_ID:'444' };
+  const agent = new AdvertisingAgent({ request: async () => [] }, { get: async () => null }, env, async (input, init) => {
+    const url = String(input), headers = new Headers(init?.headers); calls.push({ url, login: headers.get('login-customer-id') });
+    if (url.includes('oauth2.googleapis.com')) return Response.json({access_token:'token'});
+    if (url.endsWith('customers:listAccessibleCustomers')) return Response.json({resourceNames:['customers/999']});
+    assert.ok(url.includes('/customers/444/'));
+    if (headers.get('login-customer-id') === '999') return Response.json({results:[{customer:{id:'444',currencyCode:'DOP'}}]});
+    return Response.json({error:{code:403,details:[{errors:[{errorCode:{authorizationError:'USER_PERMISSION_DENIED'}}]}]}},{status:403});
+  });
+  assert.equal((await agent.verify('google_ads')).readVerified,true);
+  assert.equal(agent.googleAdsResolvedLoginId(),'999');
+  assert.equal(env.GOOGLE_ADS_CUSTOMER_ID,'444');
+  await agent.metrics('google_ads');
+  assert.equal(calls.filter(call => call.url.endsWith('customers:listAccessibleCustomers')).length,1);
+});
+
+test('Google Ads preserves denial when no manager can access the configured target', async () => {
+  const env = { GOOGLE_ADS_CLIENT_ID:'client',GOOGLE_ADS_CLIENT_SECRET:'secret',GOOGLE_ADS_REFRESH_TOKEN:'refresh',GOOGLE_ADS_DEVELOPER_TOKEN:'developer',GOOGLE_ADS_CUSTOMER_ID:'444' };
+  const agent = new AdvertisingAgent({ request: async () => [] }, { get: async () => null }, env, async input => {
+    const url = String(input);
+    if (url.includes('oauth2.googleapis.com')) return Response.json({access_token:'token'});
+    if (url.endsWith('customers:listAccessibleCustomers')) return Response.json({resourceNames:['customers/999']});
+    return Response.json({error:{code:403,details:[{errors:[{errorCode:{authorizationError:'USER_PERMISSION_DENIED'}}]}]}},{status:403});
+  });
+  await assert.rejects(agent.verify('google_ads'),error => (error as {providerReason?:string}).providerReason === 'USER_PERMISSION_DENIED');
+  assert.equal(agent.googleAdsResolvedLoginId(),undefined);
+});

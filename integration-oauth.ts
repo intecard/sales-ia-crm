@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
 import express from 'express';
-import { AdvertisingAgent } from './advertising-agent.ts';
+import { AdvertisingAgent, ProviderAccessError } from './advertising-agent.ts';
 
 export const OAUTH_PROVIDERS = ['meta', 'google_ads', 'youtube'] as const;
 type Provider = (typeof OAUTH_PROVIDERS)[number];
-type Pending = { provider: Provider; sessionHash: string; verifier: string; expires: number; configHash: string };
+type Pending = { provider: Provider; sessionHash: string; verifier: string; expires: number; configHash: string; callbackCode?: string; callbackError?: boolean };
 type Options = {
   env?: NodeJS.ProcessEnv;
   fetcher?: typeof fetch;
@@ -24,6 +24,8 @@ const messages: Record<string, string> = {
   OAUTH_PROVIDER: 'El proveedor rechazó el intercambio. Revisa el cliente OAuth, el secreto y la URL de retorno registrada.',
   OAUTH_REFRESH: 'Google no devolvió un token de renovación. Repite la autorización con consentimiento.',
   OAUTH_SCOPE: 'No se concedieron todos los permisos solicitados. No se sustituyeron los accesos anteriores.',
+  OAUTH_GOOGLE_ACCESS: 'Google autorizó el acceso OAuth, pero el usuario no tiene acceso al ID de Google Ads configurado, ni directamente ni mediante las administradoras consultadas. Consulta las cuentas accesibles en Plataformas compartidas y revisa el ID de la cuenta publicitaria y los permisos del usuario autorizado. Repetir el consentimiento no corrige este permiso.',
+  OAUTH_GOOGLE_API_DISABLED: 'Habilita Google Ads API en el proyecto de Google Cloud del cliente OAuth y verifica nuevamente.',
   OAUTH_ACCOUNT: 'La cuenta autorizada no permite acceder a los destinos configurados. Revisa cuenta, permisos, APIs y acceso del developer token.',
   OAUTH_SAVE: 'No se pudieron guardar todos los accesos en Render. La conexión no se marca como completada; revisa Conexiones y repite la autorización.',
 };
@@ -51,7 +53,7 @@ export function createIntegrationOAuth(options: Options) {
     const clientSecret = p === 'meta' ? env.META_APP_SECRET : env[`${prefix}_CLIENT_SECRET`];
     if (!clientId?.trim() || !clientSecret?.trim() || !env.RENDER_API_KEY || !env.RENDER_SERVICE_ID) throw Error('OAUTH_CONFIG');
     const redirectUri = `${origin.origin}/api/advertising/oauth/${p}/callback`;
-    const configHash = hash(JSON.stringify([clientId, clientSecret, redirectUri, version(), env.META_PAGE_ID, env.INSTAGRAM_BUSINESS_ACCOUNT_ID, env.META_AD_ACCOUNT_ID, env.GOOGLE_ADS_CUSTOMER_ID, env.YOUTUBE_CHANNEL_ID]));
+    const configHash = hash(JSON.stringify([clientId, clientSecret, redirectUri, version(), env.META_PAGE_ID, env.INSTAGRAM_BUSINESS_ACCOUNT_ID, env.META_AD_ACCOUNT_ID, env.GOOGLE_ADS_CUSTOMER_ID, env.GOOGLE_ADS_LOGIN_CUSTOMER_ID, env.GOOGLE_ADS_DEVELOPER_TOKEN, env.YOUTUBE_CHANNEL_ID, env.RENDER_SERVICE_ID]));
     return { clientId, clientSecret, redirectUri, configHash };
   }
   async function json(url: string, init: RequestInit) {
@@ -83,18 +85,37 @@ export function createIntegrationOAuth(options: Options) {
       return res.json({ authorizationUrl: url.toString() });
     } catch { return res.status(409).json({ error: messages.OAUTH_CONFIG }); }
   });
-  router.get('/:provider/callback', async (req, res) => {
-    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'" });
+  // A cross-site callback does not receive the Strict owner-session cookie.
+  // Capture only the one-time provider response under the Lax OAuth nonce, then
+  // finish through a same-origin authenticated POST. Never relax the owner cookie.
+  router.get('/:provider/callback', (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     try {
       const p = provider(String(req.params.provider));
       const state = typeof req.query.state === 'string' ? req.query.state : '';
+      const cookieState = (req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith(`crm_oauth_${p}=`))?.slice(`crm_oauth_${p}=`.length);
+      const entry = pending.get(state);
+      if (!entry || entry.provider !== p || entry.expires <= now() || state !== cookieState || entry.callbackCode !== undefined || entry.callbackError !== undefined || entry.configHash !== config(p).configHash) throw Error('OAUTH_STATE');
+      const code = typeof req.query.code === 'string' ? req.query.code : '';
+      if (!req.query.error && (!code || code.length > 4096)) throw Error('OAUTH_PROVIDER');
+      entry.callbackCode = code; entry.callbackError = !!req.query.error;
+      const nonce = randomBytes(24).toString('base64url');
+      res.set('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'`);
+      return res.type('html').send(`<!doctype html><html lang="es"><meta charset="utf-8"><title>Conectando con el CRM</title><p id="status">Completando la conexión…</p><a href="/">Volver al CRM</a><script nonce="${nonce}">history.replaceState(null,'',location.pathname);fetch(${JSON.stringify(`/api/advertising/oauth/${p}/complete`)},{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:JSON.stringify({state:${JSON.stringify(state)}})}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo completar la conexión.');location.replace(d.redirect)}).catch(e=>{document.getElementById('status').textContent=e.message});</script></html>`);
+    } catch { return res.status(409).type('text/plain').send(messages.OAUTH_STATE); }
+  });
+  router.post('/:provider/complete', async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'" });
+    try {
+      const p = provider(String(req.params.provider));
+      const state = typeof req.body?.state === 'string' ? req.body.state : '';
       const cookieState = (req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith(`crm_oauth_${p}=`))?.slice(`crm_oauth_${p}=`.length);
       const entry = pending.get(state), c = config(p);
       if (!entry || entry.provider !== p || entry.expires <= now() || state !== cookieState || entry.sessionHash !== sessionHash(req.headers.cookie || '') || entry.configHash !== c.configHash) throw Error('OAUTH_STATE');
       pending.delete(state);
       res.clearCookie(`crm_oauth_${p}`, { secure: true, sameSite: 'lax', path: `/api/advertising/oauth/${p}` });
-      if (req.query.error) throw Error('OAUTH_DENIED');
-      const code = typeof req.query.code === 'string' ? req.query.code : '';
+      if (entry.callbackError) throw Error('OAUTH_DENIED');
+      const code = entry.callbackCode || '';
       if (!code || code.length > 4096) throw Error('OAUTH_PROVIDER');
       let variables: Record<string, string>;
       if (p === 'meta') {
@@ -116,15 +137,19 @@ export function createIntegrationOAuth(options: Options) {
       // Validate the intended existing accounts with temporary credentials, before saving.
       const temporary = new AdvertisingAgent({ request: async () => [] }, { get: async () => null }, { ...env, ...variables }, fetcher);
       try { for (const channel of p === 'meta' ? ['facebook', 'instagram', 'meta_ads'] as const : [p]) await temporary.verify(channel); }
-      catch { throw Error('OAUTH_ACCOUNT'); }
+      catch (error) {
+        if (error instanceof ProviderAccessError) throw Error(error.providerReason === 'USER_PERMISSION_DENIED' ? 'OAUTH_GOOGLE_ACCESS' : error.providerReason === 'SERVICE_DISABLED' ? 'OAUTH_GOOGLE_API_DISABLED' : 'OAUTH_ACCOUNT', { cause: error });
+        throw Error('OAUTH_ACCOUNT', { cause: error });
+      }
+      if (p === 'google_ads' && temporary.googleAdsResolvedLoginId() !== undefined) variables.GOOGLE_ADS_LOGIN_CUSTOMER_ID = temporary.googleAdsResolvedLoginId() || '';
       try { await options.persist(variables); } catch { throw Error('OAUTH_SAVE'); }
       Object.assign(env, variables);
       await options.verified();
-      return res.redirect(303, '/?integration_reconnected=' + p);
+      return res.json({ success: true, redirect: '/?integration_reconnected=' + p });
     } catch (error) {
       const key = error instanceof Error && messages[error.message] ? error.message : 'OAUTH_PROVIDER';
       // Fixed public text only; no code, state, token, client secret, provider payload or stack.
-      return res.status(409).type('text/plain').send(`${messages[key]}\n\nVuelve al CRM → Agentes IA → Plataformas compartidas.`);
+      return res.status(409).json({ error: messages[key], code: key });
     }
   });
   return router;

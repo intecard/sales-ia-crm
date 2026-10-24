@@ -47,7 +47,13 @@ async function harness(options: HarnessOptions = {}) {
     return { response, data, state, cookie: `crm_sales_session=session-a; crm_oauth_${p}=${state}` };
   }
   async function callback(p: string, state: string, cookie: string, suffix = '&code=one-time-code') {
-    return fetch(`${base}/${p}/callback?state=${state}${suffix}`, { headers: { Cookie: cookie }, redirect: 'manual' });
+    const bridge = await fetch(`${base}/${p}/callback?state=${state}${suffix}`, { headers: { Cookie: cookie.split(';').find(value => value.trim().startsWith('crm_oauth_'))?.trim() || '' }, redirect: 'manual' });
+    if (!bridge.ok) return bridge;
+    assert.equal(bridge.status, 200);
+    const html = await bridge.text();
+    assert.equal(html.includes('one-time-code'), false);
+    assert.ok(html.includes('history.replaceState'));
+    return fetch(`${base}/${p}/complete`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({state}), redirect: 'manual' });
   }
   return { env, base, start, callback, saved: () => saved, calls: () => calls, verified: () => verified, expire: () => { time += 600_001; }, close: () => new Promise<void>(resolve => server.close(() => resolve())) };
 }
@@ -64,8 +70,8 @@ test('OAuth renews all three providers server-side; secrets stay out of URLs and
       assert.equal(auth.searchParams.get('redirect_uri'), `https://crm.example.test/api/advertising/oauth/${provider}/callback`);
       if (provider !== 'meta') assert.equal(auth.searchParams.get('code_challenge_method'), 'S256');
       const response = await h.callback(provider, flow.state, flow.cookie);
-      assert.equal(response.status, 303, await response.text());
-      assert.equal(response.headers.get('location'), '/?integration_reconnected=' + provider);
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).redirect, '/?integration_reconnected=' + provider);
       assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
       assert.ok(h.saved());
       assert.equal((await h.callback(provider, flow.state, flow.cookie)).status, 409);
@@ -101,4 +107,20 @@ test('denial, changed destinations, missing scopes and persistence failure do no
       assert.equal(h.verified(), 0);
     } finally { await h.close(); }
   }
+});
+
+test('cross-site callback captures no credentials and exchanges code only on the same-origin owner completion', async () => {
+  const h = await harness();
+  try {
+    const flow = await h.start();
+    const oauthCookie = flow.cookie.split(';')[1].trim();
+    const bridge = await fetch(h.base + '/youtube/callback?state=' + flow.state + '&code=one-time-code', { headers: { Cookie: oauthCookie } });
+    assert.equal(bridge.status,200);
+    assert.equal(h.calls(),0);
+    assert.equal(h.saved(),null);
+    const wrong = await fetch(h.base+'/youtube/complete',{method:'POST',headers:{'Content-Type':'application/json',Cookie:oauthCookie},body:JSON.stringify({state:flow.state})});
+    assert.equal(wrong.status,409);assert.equal(h.calls(),0);
+    const valid = await fetch(h.base+'/youtube/complete',{method:'POST',headers:{'Content-Type':'application/json',Cookie:flow.cookie},body:JSON.stringify({state:flow.state})});
+    assert.equal(valid.status,200);assert.ok(h.saved());
+  } finally { await h.close(); }
 });

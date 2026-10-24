@@ -21,13 +21,15 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await fetch(base+'/api/advertising')).status, 401);
     assert.equal((await fetch(base+'/api/advertising/shared-connections')).status, 401);
     assert.equal((await fetch(base+'/api/advertising/oauth/configuration')).status, 401);
+    assert.equal((await fetch(base+'/api/advertising/google-ads/accounts')).status,401);
+    assert.equal((await post('/api/advertising/oauth/youtube/complete',{state:'untrusted'})).status,401);
     assert.equal((await post('/api/advertising/oauth/youtube/start', {})).status, 401);
     assert.equal((await post('/api/advertising/shared-connections/verify', {})).status, 401);
     assert.equal((await post('/api/advertising/campaigns', {})).status, 401);
-    const login = await post('/api/auth/login', { email: 'owner@example.test', password: 'test-only-password' }); assert.equal(login.status, 200);
+    const login = await post('/api/auth/login', { email: 'owner@example.test', password: 'test-only-password' }); assert.equal(login.status, 200); assert.ok(login.headers.get('set-cookie').includes('SameSite=Strict'));
     const cookie = login.headers.get('set-cookie').split(';')[0];
     assert.equal((await post('/api/advertising/oauth/youtube/start', {}, { Cookie: cookie })).status, 403);
-    assert.equal((await fetch(base+'/api/advertising/oauth/youtube/callback?state=untrusted&code=untrusted')).status, 401);
+    assert.equal((await fetch(base+'/api/advertising/oauth/youtube/callback?state=untrusted&code=untrusted')).status, 409);
     assert.equal((await post('/api/advertising/shared-connections/verify', {}, { Cookie: cookie })).status, 403);
     const shared = await post('/api/advertising/shared-connections/verify', {}, { Cookie: cookie, 'X-CRM-Action': 'advertising' });
     assert.equal(shared.status, 200);

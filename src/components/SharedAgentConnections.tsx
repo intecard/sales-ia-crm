@@ -13,6 +13,7 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
   const [redirectRegistered, setRedirectRegistered] = useState(false);
   const [reviewedPermissions, setReviewedPermissions] = useState(false);
   const [showReconnect, setShowReconnect] = useState(false);
+  const [googleAccounts, setGoogleAccounts] = useState<{configuredCustomerId: string; directlyAccessibleCustomerIds: string[]; note: string} | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     void fetch('/api/advertising/shared-connections', { signal: controller.signal, cache: 'no-store' })
@@ -31,6 +32,16 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
       if (!response.ok) throw Error('No se pudo comprobar el acceso. Inicia sesión como administrador.');
       const data = await response.json(); setConnections(data.connections);
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo comprobar el acceso.'); }
+    finally { setBusy(false); }
+  }
+  async function readGoogleAccounts() {
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/advertising/google-ads/accounts', { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error || 'No se pudieron consultar las cuentas de Google Ads.');
+      setGoogleAccounts(data);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron consultar las cuentas.'); }
     finally { setBusy(false); }
   }
   async function reconnect() {
@@ -56,6 +67,10 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
     {showReconnect && <div className="space-y-3 rounded-lg border border-blue-700 p-3 text-sm text-slate-200">
       <p>Autoriza tu cuenta en el proveedor. El servidor comprobará las cuentas ya configuradas y guardará los nuevos accesos en Render. Esta acción sustituye los tokens anteriores; los agentes usarán los nuevos permisos concedidos.</p>
       <label className="block">Plataforma<select value={selectedProvider} onChange={event => { setSelectedProvider(event.target.value); setRedirectRegistered(false); setReviewedPermissions(false); }} className="ml-2 rounded bg-slate-800 p-2"><option value="meta">Meta: Facebook, Instagram y anuncios</option><option value="google_ads">Google Ads</option><option value="youtube">YouTube</option></select></label>
+      {selectedProvider === 'google_ads' && <div className="space-y-2">
+        <button type="button" disabled={busy} onClick={() => void readGoogleAccounts()} className="text-blue-300 underline">Consultar cuentas de Google Ads accesibles</button>
+        {googleAccounts && <div className="rounded bg-slate-800 p-2"><p>ID configurado: {googleAccounts.configuredCustomerId}</p><p>IDs con acceso directo: {googleAccounts.directlyAccessibleCustomerIds.join(', ') || 'Ninguno'}</p><p className="text-xs">{googleAccounts.note}</p><p className="text-xs">Compara el ID con la cuenta publicitaria de INTECA. Si corresponde a otra cuenta, corrígelo en Conexiones. El CRM no cambia el destino de tus anuncios automáticamente.</p></div>}
+      </div>}
       {selected?.ready ? <>
         <p>Primero registra exactamente esta URL en los retornos OAuth autorizados del cliente correspondiente en Meta Developers o Google Cloud:</p>
         <code className="block break-all rounded bg-slate-950 p-2">{selected.redirectUri}</code>
