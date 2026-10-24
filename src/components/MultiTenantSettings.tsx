@@ -379,22 +379,24 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
     useState<OrganizationTenant['plan']>('Business');
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeIntegrationStatus | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
+  const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   async function toggleKey(key: string) {
     if (visibleKeys[key]) {
       setVisibleKeys((old) => ({ ...old, [key]: false }));
+      setRevealedValues(old => { const next = { ...old }; delete next[key]; return next; });
       return;
     }
     if (!configValues[key]) {
       try {
         const response = await fetch('/api/sales/integration-value', {
-          method: 'POST',
+          method: 'POST', cache: 'no-store',
           headers: { 'Content-Type': 'application/json', 'X-CRM-Action': 'sales' },
           body: JSON.stringify({ key, adminPassword }),
         });
         const data = await response.json();
         if (!response.ok) throw Error(data.error);
-        setConfigValues((old) => ({ ...old, [key]: data.value }));
+        setRevealedValues((old) => ({ ...old, [key]: data.value }));
       } catch (e) {
         setConfigurationMessage({ type: 'error', text: (e as Error).message });
         return;
@@ -486,6 +488,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
   }, [fetchIntegrationStatus]);
 
   const updateConfigValue = (key: string, value: string) => {
+    setRevealedValues(old => { const next = { ...old }; delete next[key]; return next; });
     setConfigValues((previous) => ({
       ...previous,
       [key]: value,
@@ -571,6 +574,8 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
       });
       setAdminPassword('');
       setConfigValues({});
+      setRevealedValues({});
+      setVisibleKeys({});
       void fetchIntegrationStatus();
     } catch (error) {
       setConfigurationMessage({
@@ -895,6 +900,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                 </summary>
                 <div className="px-4 pb-4 space-y-3">
                   <p className="text-[11px] text-slate-400">{section.description}</p>
+                  <p className="text-[11px] text-slate-400">Para ver una clave guardada, confirma tu contraseña de administrador y pulsa Ver. Ocultar solo cierra su visualización. Los campos vacíos conservan las claves guardadas.</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {section.fields.map((field) => {
                       const group = runtimeStatus?.groups.find((item) =>
@@ -922,12 +928,12 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                           <div className="relative mt-1">
                             <input
                               id={`integration-field-${field.key}`}
-                              value={configValues[field.key] || ''}
+                              value={configValues[field.key] ?? revealedValues[field.key] ?? ''}
                               onChange={(event) => updateConfigValue(field.key, event.target.value)}
                               type={
-                                field.sensitive && !visibleKeys[field.key] ? 'password' : 'text'
+                                !visibleKeys[field.key] && (field.sensitive || revealedValues[field.key] !== undefined) ? 'password' : 'text'
                               }
-                              placeholder={field.placeholder || field.key}
+                              placeholder={isConfigured ? '•••••••• · Guardada. Pulsa Ver' : field.placeholder || field.key}
                               autoComplete="off"
                               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 pr-9 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                             />
