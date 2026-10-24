@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { createIntegrationOAuth } from './integration-oauth.ts';
+import { RenderPersistenceError } from './render-persistence.ts';
 
-type HarnessOptions = { mismatch?: boolean; saveFailure?: boolean; missingScope?: boolean; apiProjectPending?: boolean };
+type HarnessOptions = { mismatch?: boolean; saveFailure?: boolean; missingScope?: boolean; apiProjectPending?: boolean; renderUnauthorized?: boolean };
 async function harness(options: HarnessOptions = {}) {
   let time = Date.now();
   const env: NodeJS.ProcessEnv = {
@@ -37,7 +38,7 @@ async function harness(options: HarnessOptions = {}) {
     throw Error('Unexpected outbound endpoint');
   };
   const app = express(); app.use(express.json());
-  app.use('/oauth', createIntegrationOAuth({ env, fetcher, now: () => time, persist: async values => { if (options.saveFailure) throw Error('private-provider-error'); saved = values; }, verified: async () => { verified++; } }));
+  app.use('/oauth', createIntegrationOAuth({ env, fetcher, now: () => time, checkPersistence: async () => { if (options.renderUnauthorized) throw new RenderPersistenceError('OAUTH_RENDER_AUTH', 401); }, persist: async values => { if (options.saveFailure) throw Error('private-provider-error'); saved = values; }, verified: async () => { verified++; } }));
   const server = await new Promise<ReturnType<typeof app.listen>>(resolve => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   const base = `http://127.0.0.1:${address.port}/oauth`;
@@ -137,5 +138,18 @@ test('Google OAuth credentials can be saved while Cloud production approval stay
     assert.match(result.message,/Google Cloud/);
     assert.equal(h.saved()?.GOOGLE_ADS_REFRESH_TOKEN,'new-private-refresh');
     assert.equal(JSON.stringify(result).includes('new-private-refresh'),false);
+  } finally { await h.close(); }
+});
+
+ test('invalid Render access blocks OAuth before redirecting or exchanging credentials', async () => {
+  const h = await harness({ renderUnauthorized: true });
+  try {
+    const response = await fetch(h.base + '/google_ads/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ redirectRegistered: true, reviewedPermissions: true }) });
+    assert.equal(response.status, 409);
+    const body = await response.json();
+    assert.equal(body.code, 'OAUTH_RENDER_AUTH');
+    assert.equal(body.authorizationUrl, undefined);
+    assert.equal(h.calls(), 0);
+    assert.equal(h.saved(), null);
   } finally { await h.close(); }
 });

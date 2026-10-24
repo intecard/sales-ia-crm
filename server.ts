@@ -1,6 +1,7 @@
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
 import { AgentConnections } from './agent-connections';
 import { createIntegrationOAuth } from './integration-oauth';
+import { renderRequest, RenderPersistenceError } from './render-persistence';
 import { createFiscalRouter } from './fiscal/routes';
 import express from 'express';
 import path from 'path';
@@ -1223,31 +1224,8 @@ async function updateRenderEnvVar(
   key: string,
   value: string,
 ) {
-  const response = await fetch(
-    `https://api.render.com/v1/services/${encodeURIComponent(serviceId)}/env-vars/${encodeURIComponent(key)}`,
-    {
-      method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ value }),
-    },
-  );
-
-  const body = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const message =
-      typeof body === 'object' && body && 'message' in body
-        ? String((body as { message?: unknown }).message)
-        : `Render API HTTP ${response.status}`;
-
-    throw new Error(message);
-  }
-
-  return body;
+  await renderRequest(serviceId, apiKey, key, value);
+  return { saved: true };
 }
 
 async function triggerRenderDeploy(serviceId: string, apiKey: string) {
@@ -1341,6 +1319,7 @@ app.use('/api/advertising', (req, res, next) => {
 });
 const adFail = (res: express.Response, error: unknown) => { const code = adError(error); const help = googleAdsAccessHelp(error); return res.status(code === 'AD_STORAGE' ? 503 : 409).json({ error: help || AD_ERRORS[code], code, ...(error instanceof ProviderAccessError ? { providerReason: error.providerReason, httpStatus: error.httpStatus } : {}), ...(help ? { cloudConsoleUrl: GOOGLE_ADS_CLOUD_CONSOLE } : {}) }); };
 app.use('/api/advertising/oauth', createIntegrationOAuth({
+  checkPersistence: () => renderRequest(process.env.RENDER_SERVICE_ID || '', process.env.RENDER_API_KEY || ''),
   persist: async variables => {
     if (!process.env.RENDER_API_KEY || !process.env.RENDER_SERVICE_ID) throw Error('OAUTH_SAVE');
     for (const [key, value] of Object.entries(variables)) await updateRenderEnvVar(process.env.RENDER_SERVICE_ID, process.env.RENDER_API_KEY, key, value);
@@ -2846,6 +2825,9 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Sales AI CRM listening on http://0.0.0.0:${PORT}`);
+    void renderRequest(process.env.RENDER_SERVICE_ID || '', process.env.RENDER_API_KEY || '')
+      .then(() => console.log('OAUTH_RENDER_CHECK', JSON.stringify({ readVerified: true })))
+      .catch(error => console.warn('OAUTH_RENDER_CHECK', JSON.stringify({ readVerified: false, code: error instanceof RenderPersistenceError ? error.code : 'OAUTH_RENDER_UNAVAILABLE', httpStatus: error instanceof RenderPersistenceError ? error.httpStatus : undefined })));
     void agentConnections.refresh().then(connections => console.log('AGENT_CONNECTION_CHECK', JSON.stringify(connections.map(({channel,state,checkedAt,failureReason,httpStatus,providerCode,providerReason}) => ({channel,state,checkedAt,failureReason,httpStatus,providerCode,providerReason})))))
       .catch(() => console.warn('AGENT_CONNECTION_CHECK unavailable'));
   });

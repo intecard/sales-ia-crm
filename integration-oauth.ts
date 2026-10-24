@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import express from 'express';
+import { RenderPersistenceError } from './render-persistence.ts';
 import { AdvertisingAgent, ProviderAccessError, googleAdsAccessHelp, GOOGLE_ADS_CLOUD_CONSOLE } from './advertising-agent.ts';
 
 export const OAUTH_PROVIDERS = ['meta', 'google_ads', 'youtube'] as const;
@@ -9,6 +10,7 @@ type Options = {
   env?: NodeJS.ProcessEnv;
   fetcher?: typeof fetch;
   now?: () => number;
+  checkPersistence?: () => Promise<void>;
   persist: (variables: Record<string, string>) => Promise<void>;
   verified: () => Promise<unknown>;
 };
@@ -27,7 +29,13 @@ const messages: Record<string, string> = {
   OAUTH_GOOGLE_ACCESS: 'Google autorizó el acceso OAuth, pero el usuario no tiene acceso al ID de Google Ads configurado, ni directamente ni mediante las administradoras consultadas. Consulta las cuentas accesibles en Plataformas compartidas y revisa el ID de la cuenta publicitaria y los permisos del usuario autorizado. Repetir el consentimiento no corrige este permiso.',
   OAUTH_GOOGLE_API_DISABLED: 'Habilita Google Ads API en el proyecto de Google Cloud del cliente OAuth y verifica nuevamente.',
   OAUTH_ACCOUNT: 'La cuenta autorizada no permite acceder a los destinos configurados. Revisa el ID publicitario, sus permisos y el acceso del proyecto de Google Cloud.',
-  OAUTH_SAVE: 'No se pudieron guardar todos los accesos en Render. La conexión no se marca como completada; revisa Conexiones y repite la autorización.',
+  OAUTH_SAVE: 'Render rechazó el guardado. La conexión no se marca como completada; revisa la configuración de persistencia antes de autorizar de nuevo.',
+  OAUTH_RENDER_CONFIG: 'Falta RENDER_API_KEY o RENDER_SERVICE_ID en el servicio del CRM.',
+  OAUTH_RENDER_AUTH: 'Render rechazó RENDER_API_KEY (HTTP 401). Reemplaza la clave inválida o revocada en Environment y despliega el servicio antes de autorizar de nuevo.',
+  OAUTH_RENDER_PERMISSION: 'RENDER_API_KEY no tiene permiso sobre este servicio (HTTP 403). Usa una clave del propietario autorizado del workspace del CRM.',
+  OAUTH_RENDER_SERVICE: 'Render no encuentra el servicio configurado o la clave no puede verlo (HTTP 404). Revisa RENDER_SERVICE_ID y el acceso de la clave.',
+  OAUTH_RENDER_RATE: 'Render limitó temporalmente las solicitudes (HTTP 429). Espera antes de iniciar otra autorización.',
+  OAUTH_RENDER_UNAVAILABLE: 'No se pudo contactar con Render dentro del tiempo permitido. La autorización no se marca como completada.',
 };
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 function sessionHash(cookie: string) {
@@ -70,11 +78,12 @@ export function createIntegrationOAuth(options: Options) {
     });
     res.json({ providers, scope: 'platform_owner', requiresProviderRedirectRegistration: true });
   });
-  router.post('/:provider/start', (req, res) => {
+  router.post('/:provider/start', async (req, res) => {
     try {
       const p = provider(String(req.params.provider));
       if (req.body?.redirectRegistered !== true || req.body?.reviewedPermissions !== true) return res.status(400).json({ error: 'Confirma la URL de retorno y revisa los permisos antes de autorizar.' });
       const c = config(p);
+      await options.checkPersistence?.();
       for (const [state, entry] of pending) if (entry.expires <= now()) pending.delete(state);
       if (pending.size >= 20) return res.status(429).json({ error: 'Hay autorizaciones pendientes. Espera diez minutos antes de repetir.' });
       const state = randomBytes(32).toString('base64url'), verifier = randomBytes(48).toString('base64url');
@@ -83,7 +92,7 @@ export function createIntegrationOAuth(options: Options) {
       url.search = new URLSearchParams({ client_id: c.clientId!, redirect_uri: c.redirectUri, response_type: 'code', state, scope: scopes[p].join(p === 'meta' ? ',' : ' '), ...(p === 'meta' ? { auth_type: 'rerequest' } : { access_type: 'offline', prompt: 'consent select_account', code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' }) }).toString();
       res.cookie(`crm_oauth_${p}`, state, { httpOnly: true, secure: true, sameSite: 'lax', path: `/api/advertising/oauth/${p}`, maxAge: 600_000 });
       return res.json({ authorizationUrl: url.toString() });
-    } catch { return res.status(409).json({ error: messages.OAUTH_CONFIG }); }
+    } catch (error) { const code = error instanceof RenderPersistenceError ? error.code : 'OAUTH_CONFIG'; return res.status(409).json({ error: messages[code] || messages.OAUTH_SAVE, code }); }
   });
   // A cross-site callback does not receive the Strict owner-session cookie.
   // Capture only the one-time provider response under the Lax OAuth nonce, then
@@ -146,7 +155,7 @@ export function createIntegrationOAuth(options: Options) {
         }
       }
       if (p === 'google_ads' && temporary.googleAdsResolvedLoginId() !== undefined) variables.GOOGLE_ADS_LOGIN_CUSTOMER_ID = temporary.googleAdsResolvedLoginId() || '';
-      try { await options.persist(variables); } catch { throw Error('OAUTH_SAVE'); }
+      try { await options.persist(variables); } catch (error) { throw error instanceof RenderPersistenceError ? error : Error('OAUTH_SAVE'); }
       Object.assign(env, variables);
       await options.verified();
       return res.json({ success: true, apiReady: !apiPending, ...(apiPending ? { message: 'La autorización de Google se guardó, pero la API sigue pendiente: ' + apiPending, cloudConsoleUrl: GOOGLE_ADS_CLOUD_CONSOLE } : {}), redirect: '/?integration_reconnected=' + p });
