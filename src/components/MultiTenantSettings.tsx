@@ -429,11 +429,29 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
       ? 'text-emerald-400'
       : 'text-amber-300';
   const importantMissingVars = useMemo(() => {
-    if (!runtimeStatus) return [];
-    return runtimeStatus.groups.flatMap((group) =>
-      group.missingEnvVars.slice(0, 4).map((envVar) => `${group.name}: ${envVar}`),
-    );
+    const fields = new Map<string, { key: string; group: string }>();
+    runtimeStatus?.groups.forEach(group => group.missingEnvVars.forEach(key => {
+      if (!fields.has(key)) fields.set(key, { key, group: group.name });
+    }));
+    return [...fields.values()];
   }, [runtimeStatus]);
+  const configurationSections = useMemo(() => {
+    const missing = new Set(importantMissingVars.map(item => item.key));
+    const known = new Map(PRODUCTION_CONFIG_SECTIONS.flatMap(section => section.fields.map(field => [field.key, field] as const)));
+    const pendingFields: ProductionConfigField[] = importantMissingVars.map(({ key }) => known.get(key) || {
+      key, label: key, placeholder: key, sensitive: true,
+      helper: 'Credencial requerida por la integración. Introduce el valor proporcionado por el servicio.',
+    });
+    const rest = PRODUCTION_CONFIG_SECTIONS.map(section => ({ ...section, fields: section.fields.filter(field => !missing.has(field.key)) })).filter(section => section.fields.length);
+    return pendingFields.length ? [{ id: 'pending-credentials', title: 'Configurar credenciales pendientes', description: 'Completa los valores reales del proveedor y pulsa Guardar y activar conexiones. Los campos vacíos no sustituyen las claves existentes. Guardar una clave no confirma por sí solo el acceso al proveedor.', fields: pendingFields }, ...rest] : rest;
+  }, [importantMissingVars]);
+  const focusConfigurationField = (key: string) => {
+    const field = document.getElementById(`integration-field-${key}`);
+    const section = field?.closest('details');
+    if (section) section.open = true;
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field?.focus({ preventScroll: true });
+  };
 
   const fetchIntegrationStatus = useCallback(async () => {
     setIsCheckingIntegrations(true);
@@ -834,8 +852,12 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                   <AlertTriangle className="w-4 h-4" />
                   Faltantes principales
                 </h3>
-                {importantMissingVars.slice(0, 8).map((item) => (
-                  <p key={item}>{item}</p>
+                {importantMissingVars.map((item) => (
+                  <button key={item.key} type="button" onClick={() => focusConfigurationField(item.key)} className="block w-full text-left rounded-lg border border-amber-500/30 p-2 hover:bg-amber-500/10">
+                    <span className="block">{item.group}</span>
+                    <span className="font-mono font-bold">{item.key}</span>
+                    <span className="block underline">Configurar ahora</span>
+                  </button>
                 ))}
               </div>
             )}
@@ -856,10 +878,10 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
               </div>
             )}
 
-            {PRODUCTION_CONFIG_SECTIONS.map((section, index) => (
+            {configurationSections.map((section, index) => (
               <details
                 key={section.id}
-                open={index < 4}
+                open={section.id === 'pending-credentials' || index < 4}
                 className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden"
               >
                 <summary className="cursor-pointer select-none px-4 py-3 text-sm font-black text-white flex items-center justify-between gap-3">
@@ -899,6 +921,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                           </span>
                           <div className="relative mt-1">
                             <input
+                              id={`integration-field-${field.key}`}
                               value={configValues[field.key] || ''}
                               onChange={(event) => updateConfigValue(field.key, event.target.value)}
                               type={
@@ -917,6 +940,7 @@ export const MultiTenantSettings: React.FC<MultiTenantSettingsProps> = ({
                               {visibleKeys[field.key] ? 'Ocultar' : 'Ver'}
                             </button>
                           </div>
+                          <p className="text-[10px] text-slate-400 font-mono mt-1">{field.key}</p>
                           {field.helper && (
                             <p className="text-[10px] text-slate-500 mt-1">{field.helper}</p>
                           )}
