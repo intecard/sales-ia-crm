@@ -93,10 +93,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
           <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
             Acceso para operar empresas y clientes con agentes IA 24/7.
           </h2>
-          <p className="text-sm text-slate-400 mt-3 max-w-xl">
-            La plataforma abre únicamente con usuario y contraseña reales. No hay acceso de prueba
-            ni datos de muestra en esta versión.
-          </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
             {[
