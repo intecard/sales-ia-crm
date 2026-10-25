@@ -24,6 +24,11 @@ const messages: Record<string, string> = {
   OAUTH_META_SECRET: 'Meta rechazó el secreto de INTECA Publicidad IA. Revisa DS_META_APP_SECRET de esa aplicación en Render; el secreto de WhatsApp pertenece a otra aplicación.',
   OAUTH_META_REDIRECT: 'Meta rechazó la URL de retorno. Debe coincidir exactamente con la registrada para esta aplicación.',
   OAUTH_META_CODE: 'Meta rechazó el código de autorización. Inicia un flujo nuevo desde el CRM y complétalo una sola vez.',
+  OAUTH_META_INSTAGRAM_LINK: 'La página autorizada no tiene una cuenta profesional de Instagram vinculada. Vincúlala en Meta Business Suite antes de conectar Instagram.',
+  OAUTH_META_INSTAGRAM_ID: 'El ID de Instagram configurado no coincide con la cuenta profesional vinculada a la página de Facebook. Revisa INSTAGRAM_BUSINESS_ACCOUNT_ID.',
+  OAUTH_META_PAGE_ID: 'El ID de página configurado no es válido o no corresponde a la página autorizada. Revisa META_PAGE_ID y la página seleccionada en Meta.',
+  OAUTH_META_VERIFY_FACEBOOK: 'El nuevo acceso no permite leer la página de Facebook configurada. Revisa la selección de página y sus permisos.',
+  OAUTH_META_VERIFY_INSTAGRAM: 'El nuevo acceso no permite leer Instagram. Revisa la cuenta profesional vinculada y los permisos de Instagram.',
   OAUTH_META_PAGE: 'Meta no permitió obtener el acceso de la página configurada. Revisa los permisos concedidos y que esa página esté seleccionada.',
   OAUTH_META_NETWORK: 'El servidor no pudo contactar con Meta durante el intercambio OAuth.',
   OAUTH_META_EXCHANGE: 'Meta rechazó el intercambio OAuth. El registro OAUTH_META_FAILURE identifica la etapa y el código del proveedor sin mostrar secretos.',
@@ -140,9 +145,12 @@ export function createIntegrationOAuth(options: Options) {
         if (typeof token.access_token !== 'string' || !token.access_token) throw Error('OAUTH_PROVIDER');
         // Long-lived user token, followed by the access token for the existing Page.
         const long = await metaOAuthJson(`https://graph.facebook.com/${version()}/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: c.clientId!, client_secret: c.clientSecret!, fb_exchange_token: token.access_token }).toString() }, 'long_lived_exchange', fetcher);
-        if (typeof long.access_token !== 'string' || !long.access_token || !/^\d+$/.test(env.META_PAGE_ID || '')) throw Error('OAUTH_ACCOUNT');
-        const page = await metaOAuthJson(`https://graph.facebook.com/${version()}/${env.META_PAGE_ID}?fields=id,access_token,instagram_business_account`, { headers: { Authorization: `Bearer ${long.access_token}` } }, 'page_access', fetcher);
-        if (page.id !== env.META_PAGE_ID || typeof page.access_token !== 'string' || !page.access_token || page.instagram_business_account?.id !== env.INSTAGRAM_BUSINESS_ACCOUNT_ID) throw Error('OAUTH_ACCOUNT');
+        if (typeof long.access_token !== 'string' || !long.access_token || !/^\d+$/.test(env.META_PAGE_ID?.trim() || '')) throw Error('OAUTH_ACCOUNT');
+        const page = await metaOAuthJson(`https://graph.facebook.com/${version()}/${env.META_PAGE_ID?.trim()}?fields=id,access_token,instagram_business_account`, { headers: { Authorization: `Bearer ${long.access_token}` } }, 'page_access', fetcher);
+        if (String(page.id) !== env.META_PAGE_ID?.trim()) throw Error('OAUTH_META_PAGE_ID');
+        if (typeof page.access_token !== 'string' || !page.access_token) throw Error('OAUTH_META_PAGE');
+        if (!page.instagram_business_account?.id) throw Error('OAUTH_META_INSTAGRAM_LINK');
+        if (String(page.instagram_business_account.id) !== env.INSTAGRAM_BUSINESS_ACCOUNT_ID?.trim()) throw Error('OAUTH_META_INSTAGRAM_ID');
         variables = { META_PAGE_ACCESS_TOKEN: page.access_token, META_ADS_ACCESS_TOKEN: long.access_token };
       } else {
         const token = await json('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: c.clientId!, client_secret: c.clientSecret!, redirect_uri: c.redirectUri, code, code_verifier: entry.verifier, grant_type: 'authorization_code' }).toString() });
@@ -154,10 +162,21 @@ export function createIntegrationOAuth(options: Options) {
       // Validate the intended existing accounts with temporary credentials, before saving.
       const temporary = new AdvertisingAgent({ request: async () => [] }, { get: async () => null }, { ...env, ...variables }, fetcher);
       let apiPending: string | null = null;
-      try { for (const channel of p === 'meta' ? ['facebook', 'instagram', 'meta_ads'] as const : [p]) await temporary.verify(channel); }
+      try { for (const channel of p === 'meta' ? ['facebook', 'instagram', 'meta_ads'] as const : [p]) {
+        try { await temporary.verify(channel); }
+        catch(error) {
+          if(p==='meta') {
+            console.warn('OAUTH_META_ACCOUNT_CHECK',JSON.stringify({channel,httpStatus:error instanceof ProviderAccessError?error.httpStatus:undefined,providerCode:error instanceof ProviderAccessError?error.providerCode:undefined}));
+            if(channel==='meta_ads'){apiPending='Facebook e Instagram se autorizaron y sus accesos se guardaron. Meta Ads no pudo verificarse: revisa META_AD_ACCOUNT_ID, el acceso del usuario y el estado de la cuenta publicitaria. No se activó ningún anuncio.';continue;}
+            throw Error(channel==='facebook'?'OAUTH_META_VERIFY_FACEBOOK':'OAUTH_META_VERIFY_INSTAGRAM');
+          }
+          throw error;
+        }
+      } }
       catch (error) {
         if (p === 'google_ads' && error instanceof ProviderAccessError && ['CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION', 'MISSING_TOS', 'CLOUD_PROJECT_NOT_UNDER_ORGANIZATION', 'SERVICE_ACCESS_DENIED', 'SERVICE_DISABLED', 'CLOUD_PROJECT_NOT_ENABLED', 'PROJECT_DISABLED'].includes(error.providerReason || '')) apiPending = googleAdsAccessHelp(error);
         else {
+          if(error instanceof Error&&error.message.startsWith('OAUTH_META_'))throw error;
           if (error instanceof ProviderAccessError) throw Error(error.providerReason === 'USER_PERMISSION_DENIED' ? 'OAUTH_GOOGLE_ACCESS' : error.providerReason === 'SERVICE_DISABLED' ? 'OAUTH_GOOGLE_API_DISABLED' : 'OAUTH_ACCOUNT', { cause: error });
           throw Error('OAUTH_ACCOUNT', { cause: error });
         }
@@ -166,7 +185,7 @@ export function createIntegrationOAuth(options: Options) {
       try { await options.persist(variables); } catch (error) { throw error instanceof RenderPersistenceError ? error : Error('OAUTH_SAVE'); }
       Object.assign(env, variables);
       await options.verified();
-      return res.json({ success: true, apiReady: !apiPending, ...(apiPending ? { message: 'La autorización de Google se guardó, pero la API sigue pendiente: ' + apiPending, cloudConsoleUrl: GOOGLE_ADS_CLOUD_CONSOLE } : {}), redirect: '/?integration_reconnected=' + p });
+      return res.json({ success: true, apiReady: !apiPending, ...(apiPending ? { message: p==='meta'?apiPending:'La autorización de Google se guardó, pero la API sigue pendiente: ' + apiPending, ...(p==='google_ads'?{cloudConsoleUrl: GOOGLE_ADS_CLOUD_CONSOLE}:{}) } : {}), redirect: '/?integration_reconnected=' + p });
     } catch (error) {
       if (error instanceof MetaOAuthError) console.warn('OAUTH_META_FAILURE', JSON.stringify({ stage: error.stage, httpStatus: error.httpStatus, providerCode: error.providerCode, providerSubcode: error.providerSubcode, code: error.message }));
       const key = error instanceof Error && messages[error.message] ? error.message : 'OAUTH_PROVIDER';

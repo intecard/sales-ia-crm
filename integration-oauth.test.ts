@@ -4,7 +4,7 @@ import express from 'express';
 import { createIntegrationOAuth } from './integration-oauth.ts';
 import { RenderPersistenceError } from './render-persistence.ts';
 
-type HarnessOptions = { mismatch?: boolean; saveFailure?: boolean; missingScope?: boolean; apiProjectPending?: boolean; renderUnauthorized?: boolean };
+type HarnessOptions = { metaAdsBlocked?:boolean; instagramMismatch?:boolean; instagramMissing?:boolean; mismatch?: boolean; saveFailure?: boolean; missingScope?: boolean; apiProjectPending?: boolean; renderUnauthorized?: boolean };
 async function harness(options: HarnessOptions = {}) {
   let time = Date.now();
   const env: NodeJS.ProcessEnv = {
@@ -31,10 +31,10 @@ async function harness(options: HarnessOptions = {}) {
     if (url.includes('googleads.googleapis.com') && options.apiProjectPending) return Response.json({error:{code:403,details:[{errors:[{errorCode:{authorizationError:'CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION'}}]}]}},{status:403});
     if (url.includes('googleads.googleapis.com')) return out({ results: [{ customer: { id: '444', currencyCode: 'DOP' } }] });
     if (url.includes('/oauth/access_token')) { assert.equal(init?.method, 'POST'); assert.equal(form.get('client_secret'), 'private-meta'); assert.equal(url.includes('private-'), false); return out({ access_token: 'private-user-token' }); }
-    if (url.includes('fields=id,access_token')) return out({ id: '111', access_token: 'private-page-token', instagram_business_account: { id: '222' } });
+    if (url.includes('fields=id,access_token')) return out({ id: '111', access_token: 'private-page-token', instagram_business_account: options.instagramMissing?undefined:{ id: options.instagramMismatch?'999':'222' } });
     if (url.includes('/111?')) return out({ id: '111', name: 'Page' });
     if (url.includes('/222?')) return out({ id: '222', username: 'Instagram' });
-    if (url.includes('/act_333?')) return out({ id: 'act_333', account_status: 1, currency: 'DOP' });
+    if (url.includes('/act_333?')) return out({ id: 'act_333', account_status: options.metaAdsBlocked?2:1, currency: 'DOP' });
     throw Error('Unexpected outbound endpoint');
   };
   const app = express(); app.use(express.json());
@@ -160,4 +160,14 @@ test('advertising refuses to fall back to the WhatsApp application secret', asyn
     const response=await fetch(h.base+'/meta/start',{method:'POST',headers:{'Content-Type':'application/json',Cookie:'crm_sales_session=session-a'},body:JSON.stringify({redirectRegistered:true,reviewedPermissions:true})});
     assert.equal(response.status,409);assert.equal(h.calls(),0);assert.equal(h.env.META_APP_SECRET,'private-whatsapp-only');
   } finally {await h.close();}
+});
+
+
+test('Meta identifies wrong or unlinked Instagram and preserves previous credentials',async()=>{
+ for(const variant of [{instagramMismatch:true,code:'OAUTH_META_INSTAGRAM_ID'},{instagramMissing:true,code:'OAUTH_META_INSTAGRAM_LINK'}]){
+  const h=await harness(variant);try{const f=await h.start('meta');const r=await h.callback('meta',f.state,f.cookie);assert.equal(r.status,409);assert.equal((await r.json()).code,variant.code);assert.equal(h.saved(),null);}finally{await h.close();}
+ }
+});
+test('Ads account restrictions do not discard verified Facebook and Instagram renewal',async()=>{
+ const h=await harness({metaAdsBlocked:true});try{const f=await h.start('meta');const r=await h.callback('meta',f.state,f.cookie);assert.equal(r.status,200);const d=await r.json();assert.equal(d.apiReady,false);assert.match(d.message,/Meta Ads/);assert.equal(d.cloudConsoleUrl,undefined);assert.ok(h.saved()?.META_PAGE_ACCESS_TOKEN);assert.equal(h.saved()?.META_APP_SECRET,undefined);}finally{await h.close();}
 });
