@@ -165,7 +165,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
               ) : (
                 <ShieldCheck className="w-4 h-4" />
               )}
-              <span>{isLoading ? 'Validando acceso...' : 'Entrar a la versión real'}</span>
+              <span>{isLoading ? 'Validando acceso...' : 'Iniciar sesión'}</span>
             </button>
           </form>
 
