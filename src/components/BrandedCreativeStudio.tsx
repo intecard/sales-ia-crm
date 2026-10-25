@@ -37,6 +37,17 @@ function textBlock(
     .slice(0, Math.floor(height / (size * 1.3)))
     .forEach((line, i) => ctx.fillText(line, x, y + i * size * 1.3));
 }
+function courseVisual(title: string) {
+  const t = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/farmac|visita.*medic/.test(t)) return { image: '/creative/pharmacy.webp', hook: 'CONOCIMIENTO QUE FORTALECE TU PERFIL', benefit: 'Da el siguiente paso en tu formación en el sector salud.' };
+  if (/enfermer|promotor.*salud/.test(t)) return { image: '/creative/nursing.webp', hook: 'TRANSFORMA TU VOCACIÓN EN PREPARACIÓN', benefit: 'Aprende habilidades para una atención más humana y profesional.' };
+  return { image: '/creative/call-center.webp', hook: 'PREPÁRATE PARA TU PRÓXIMA OPORTUNIDAD', benefit: 'Fortalece tu perfil para los procesos administrativos del sector salud.' };
+}
+function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const sw = w / scale, sh = h / scale;
+  ctx.drawImage(img, (img.naturalWidth-sw)/2, (img.naturalHeight-sh)/2, sw, sh, x, y, w, h);
+}
 export function BrandedCreativeStudio() {
   const [courses, setCourses] = useState<CatalogCourse[]>([]),
     [selected, setSelected] = useState(''),
@@ -44,8 +55,10 @@ export function BrandedCreativeStudio() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [ready, setReady] = useState(false);
+  const [photoReady, setPhotoReady] = useState(false), [seats, setSeats] = useState(''), [deadline, setDeadline] = useState(''), [confirmedScarcity, setConfirmedScarcity] = useState(false), [customPhotos, setCustomPhotos] = useState<Record<string,string>>({});
   const canvas = useRef<HTMLCanvasElement>(null),
     logo = useRef<HTMLImageElement | null>(null),
+    photo = useRef<HTMLImageElement | null>(null),
     recorder = useRef<MediaRecorder | null>(null);
   const course = courses.find((c) => c.title === selected);
   useEffect(() => {
@@ -76,88 +89,54 @@ export function BrandedCreativeStudio() {
       if (recorder.current?.state === 'recording') recorder.current.stop();
     };
   }, []);
-  function draw(scene = -1, progress = 1) {
-    const el = canvas.current;
-    if (!el || !course || !logo.current) return;
-    const w = format === 'banner' ? 1600 : 1080,
-      h = format === 'banner' ? 900 : 1350;
-    if (el.width !== w) el.width = w;
-    if (el.height !== h) el.height = h;
-    const c = el.getContext('2d')!;
-    c.resetTransform();
-    const scale = w / 1080;
-    c.scale(scale, scale);
-    const H = h / scale;
-    const gradient = c.createLinearGradient(0, 0, 1080, H);
-    gradient.addColorStop(0, '#071b2b');
-    gradient.addColorStop(1, '#10465b');
-    c.fillStyle = gradient;
-    c.fillRect(0, 0, 1080, H);
-    c.globalAlpha = 0.12;
-    c.fillStyle = '#19cdd9';
-    c.beginPath();
-    c.arc(1100, 240, 420, 0, Math.PI * 2);
-    c.fill();
-    c.globalAlpha = 1;
-    c.drawImage(logo.current, 55, 35, 130, 130);
-    textBlock(c, 'INTECA', 215, 83, 650, 55, 42);
-    textBlock(c, 'FORMACIÓN PARA TU PRÓXIMO PASO', 215, 122, 760, 35, 19, '#62e5d1');
-    const compact = format === 'banner';
-    const titleY = compact ? 215 : 280;
-    const titleH = compact ? 135 : 230;
-    textBlock(c, course.title, 60, titleY, 960, titleH, compact ? 45 : 64);
-    const detailY = compact ? 350 : 560;
-    const detailH = compact ? 95 : 240;
-    const benefits = course.description || course.text;
-    const detail =
-      scene === 0
-        ? 'Tu próximo paso comienza con una habilidad nueva.'
-        : scene === 2
-          ? `${course.duration} · ${course.modality}. ${course.investment}`
-          : scene === 3
-            ? 'Solicita información y conoce el proceso de inscripción.'
-            : benefits;
-    textBlock(c, detail, 60, detailY, 950, detailH, compact ? 23 : 34, '#d7e7ef');
-    if (!compact) {
-      c.fillStyle = '#153e50';
-      c.fillRect(55, 850, 970, 235);
-      textBlock(c, `${course.duration} · ${course.modality}`, 80, 900, 910, 60, 28, '#71edce');
-      textBlock(c, course.investment, 80, 970, 910, 90, 28);
-      textBlock(
-        c,
-        course.schedule || 'Consulta la disponibilidad de grupos y horarios',
-        60,
-        1120,
-        950,
-        70,
-        24,
-        '#c3d7e4',
-      );
-    }
-    if (compact)
-      textBlock(c, `${course.duration} · ${course.investment}`, 60, 447, 950, 48, 19, '#71edce');
-    const cy = H - 130;
-    c.fillStyle = '#38e2b6';
-    c.fillRect(55, cy, 970, 65);
-    textBlock(
-      c,
-      'DA EL SIGUIENTE PASO · SOLICITA INFORMACIÓN',
-      80,
-      cy + 42,
-      920,
-      45,
-      27,
-      '#082c36',
-    );
-    textBlock(c, 'inteca.com.do  ·  intecaedu@gmail.com', 60, H - 28, 960, 35, 22, '#c3d7e4');
-    if (scene >= 0) {
-      c.fillStyle = '#38e2b6';
-      c.fillRect(0, H - 6, 1080 * progress, 6);
-    }
-  }
+  const visual = courseVisual(selected);
   useEffect(() => {
-    if (ready) draw();
-  }, [selected, format, ready, courses]);
+    if (!selected) return;
+    let active=true; setPhotoReady(false); photo.current=null;
+    const img=new Image();
+    img.onload=()=>{if(active){photo.current=img;setPhotoReady(true);}};
+    img.onerror=()=>{if(active)setError('No se pudo cargar la imagen del curso. Selecciona otra imagen antes de exportar.');};
+    img.src=customPhotos[selected] || visual.image;
+    return()=>{active=false;};
+  },[selected,customPhotos,visual.image]);
+  useEffect(()=>{setSeats('');setDeadline('');setConfirmedScarcity(false);},[selected]);
+  function draw(scene = -1, progress = 1) {
+    const el=canvas.current;
+    if(!el || !course || !logo.current || !photo.current || !photoReady)return;
+    const compact=format==='banner';const w=compact?1600:1080,h=compact?900:1350;
+    if(el.width!==w)el.width=w;if(el.height!==h)el.height=h;
+    const c=el.getContext('2d')!;c.resetTransform();c.fillStyle='#071e30';c.fillRect(0,0,w,h);
+    // Photograph remains a real raster asset, while all catalog data stays editable and exact.
+    if(compact){cover(c,photo.current,760,0,840,h);const fade=c.createLinearGradient(650,0,1200,0);fade.addColorStop(0,'#071e30');fade.addColorStop(1,'rgba(7,30,48,0)');c.fillStyle=fade;c.fillRect(650,0,550,h);}
+    else {cover(c,photo.current,0,320,1080,570);const fade=c.createLinearGradient(0,650,0,910);fade.addColorStop(0,'rgba(7,30,48,0)');fade.addColorStop(1,'#071e30');c.fillStyle=fade;c.fillRect(0,650,1080,260);}
+    c.drawImage(logo.current,40,24,108,108);
+    textBlock(c,'INTECA',168,70,550,44,38);
+    textBlock(c,'INSTITUTO TÉCNICO DEL CARIBE',168,103,620,28,18,'#70efcf');
+    const textW=compact?720:970;
+    textBlock(c,visual.hook,48,compact?175:164,textW,34,compact?22:23,'#ffd15c');
+    textBlock(c,course.title,48,compact?242:222,textW,compact?160:105,compact?52:48);
+    let opportunity='TU PRÓXIMO PASO PROFESIONAL EMPIEZA AQUÍ';
+    const count=Number(seats);
+    const validDeadline=deadline && deadline>=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    if(confirmedScarcity){const parts=[];if(Number.isInteger(count)&&count>0)parts.push(`${count} CUPOS DISPONIBLES`);if(validDeadline)parts.push('CIERRE '+deadline.split('-').reverse().join('/'));if(parts.length)opportunity=parts.join(' · ');}
+    const detail=scene===0?visual.benefit:scene===3?'Pregunta por el grupo disponible y conoce cómo iniciar tu inscripción.':course.description||course.text;
+    textBlock(c,detail,48,compact?427:887,textW,compact?100:96,compact?27:28,'#dcebf0');
+    c.fillStyle='#123c4f';c.fillRect(40,compact?542:1000,compact?710:1000,compact?176:177);
+    textBlock(c,`${course.duration} · ${course.modality}`,58,compact?580:1037,compact?675:960,40,compact?24:27,'#77f1d0');
+    textBlock(c,course.investment,58,compact?622:1080,compact?675:960,compact?84:72,compact?25:28);
+    if(!compact)textBlock(c,course.schedule||'Consulta los grupos y horarios disponibles',48,1196,970,42,19,'#c8dbe5');
+    const cy=compact?750:1240;c.fillStyle='#ffc94d';c.fillRect(40,cy,compact?710:1000,64);
+    textBlock(c,'ESCRÍBENOS HOY · QUIERO INSCRIBIRME',58,cy+41,compact?675:960,46,compact?25:28,'#082638');
+    textBlock(c,opportunity,48,compact?735:1223,textW,30,compact?17:19,'#ffda7b');
+    textBlock(c,'inteca.com.do · intecaedu@gmail.com',48,h-15,compact?710:970,26,compact?20:21,'#c9e3ea');
+    if(scene>=0){c.fillStyle='#38e2b6';c.fillRect(0,h-5,w*progress,5);}
+  }
+  useEffect(()=>{if(ready&&photoReady)draw();},[selected,format,ready,photoReady,courses,seats,deadline,confirmedScarcity]);
+  async function uploadPhoto(file?: File){
+    if(!file)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){setError('Usa una imagen JPG, PNG o WebP de hasta 8 MB.');return;}
+    const reader=new FileReader();reader.onload=()=>{setError('');setCustomPhotos(old=>({...old,[selected]:String(reader.result)}));};reader.readAsDataURL(file);
+  }
   async function imageDownload() {
     draw();
     canvas.current?.toBlob((blob) => {
@@ -212,7 +191,7 @@ export function BrandedCreativeStudio() {
     <section className="rounded-2xl border border-cyan-700 bg-slate-900 p-5 space-y-4 text-slate-200">
       <h2 className="text-xl font-bold">Estudio INTECA · Flyers, banners y videos</h2>
       <p className="text-sm">
-        Logo institucional, beneficios del catálogo y llamado a la acción. PNG de alta resolución y
+        Fotografía relacionada con el curso, logo institucional, gancho, datos del catálogo y llamado a la acción. PNG de alta resolución y
         video informativo WebM de 30 segundos con texto en pantalla, sin audio.
       </p>
       {error && (
@@ -243,17 +222,25 @@ export function BrandedCreativeStudio() {
           <option value="banner">Banner 1600 × 900</option>
         </select>
       </div>
+      <div className="grid md:grid-cols-3 gap-3 text-sm">
+        <label>Imagen propia para este curso<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e=>void uploadPhoto(e.target.files?.[0])} className="block mt-2 max-w-full" /></label>
+        <label>Cupos disponibles confirmados<input type="number" min="1" step="1" value={seats} disabled={busy} onChange={e=>setSeats(e.target.value)} placeholder="Sin cantidad confirmada" className="block bg-slate-800 rounded p-2 mt-2 w-full" /></label>
+        <label>Fecha real de cierre<input type="date" value={deadline} disabled={busy} onChange={e=>setDeadline(e.target.value)} className="block bg-slate-800 rounded p-2 mt-2 w-full" /></label>
+      </div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={confirmedScarcity} disabled={busy} onChange={e=>setConfirmedScarcity(e.target.checked)} />Confirmo que los cupos y la fecha indicados son reales para este curso y autorizo mostrarlos.</label>
+      <p className="text-xs text-slate-400">Las escenas predeterminadas son ilustraciones generadas con IA. No representan personal ni instalaciones reales de INTECA. Sin cupos o fecha confirmados se utiliza un mensaje de oportunidad, sin escasez inventada.</p>
+      {!photoReady && <p role="status">Cargando imagen del curso…</p>}
       <canvas ref={canvas} className="max-w-full max-h-[600px] rounded-xl" />
       <div className="flex gap-3">
         <button
-          disabled={!ready || !course || busy}
+          disabled={!ready || !photoReady || !course || busy}
           onClick={() => void imageDownload()}
           className="bg-cyan-700 rounded p-3 disabled:opacity-40"
         >
           Descargar {format === 'banner' ? 'banner' : 'flyer'} PNG
         </button>
         <button
-          disabled={!ready || !course || busy}
+          disabled={!ready || !photoReady || !course || busy}
           onClick={() => void videoDownload()}
           className="bg-blue-700 rounded p-3 disabled:opacity-40"
         >
