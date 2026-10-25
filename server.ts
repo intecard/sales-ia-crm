@@ -38,6 +38,7 @@ void salesStore.verify();
 const enrollmentAgent = new EnrollmentAgent(salesStore);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
+agentConnections.startMonitoring();
 const advertisingTimer = setInterval(() => void advertisingAgent.tick(), 60000);
 advertisingTimer.unref();
 const enrollmentTimer = setInterval(() => void enrollmentAgent.tick(), 60000);
@@ -1360,8 +1361,9 @@ app.post('/api/advertising/verify', async (req, res) => {
 
 // All agent workspaces use the same server-side adapters and sanitized evidence.
 // This check only reads provider identities; it cannot publish, charge or grant scopes.
-app.get('/api/advertising/shared-connections', (_req, res) => {
-  res.json({ scope: 'platform_owner', connections: agentConnections.snapshot(), billingVerified: false, conversionsVerified: false });
+app.get('/api/advertising/shared-connections', async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ scope: 'platform_owner', connections: await agentConnections.ensureFresh(), billingVerified: false, conversionsVerified: false });
 });
 app.post('/api/advertising/shared-connections/verify', async (_req, res) => {
   res.json({ scope: 'platform_owner', connections: await agentConnections.refresh(), billingVerified: false, conversionsVerified: false });

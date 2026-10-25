@@ -16,14 +16,26 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
   const [googleAccounts, setGoogleAccounts] = useState<{configuredCustomerId: string; directlyAccessibleCustomerIds: string[]; note: string} | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch('/api/advertising/shared-connections', { signal: controller.signal, cache: 'no-store' })
-      .then(async response => { if (!response.ok) throw Error('Inicia sesión como administrador para consultar las conexiones.'); return response.json(); })
-      .then(data => setConnections(data.connections))
-      .catch(reason => { if (!controller.signal.aborted) setError(reason.message); });
+    let loading = false;
+    async function loadConnections() {
+      if (loading || document.visibilityState === 'hidden') return;
+      loading = true;
+      try {
+        const response = await fetch('/api/advertising/shared-connections', { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) throw Error('No se pudieron consultar las conexiones. Comprueba tu sesión de administrador.');
+        const data = await response.json();
+        if (!controller.signal.aborted) { setConnections(data.connections); setError(''); }
+      } catch (reason) { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'No se pudieron consultar las conexiones.'); }
+      finally { loading = false; }
+    }
+    void loadConnections();
+    const timer = window.setInterval(() => void loadConnections(), 60_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void loadConnections(); };
+    document.addEventListener('visibilitychange', onVisible);
     void fetch('/api/advertising/oauth/configuration', { signal: controller.signal, cache: 'no-store' })
       .then(async response => { if (!response.ok) return; const data = await response.json(); setOauth(data.providers); })
       .catch(() => { /* The primary connection request reports authentication failures. */ });
-    return () => controller.abort();
+    return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, []);
   async function verify() {
     setBusy(true); setError('');
@@ -92,6 +104,7 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
       {connection.httpStatus && <p className="mt-1 break-all text-xs text-amber-200">HTTP {connection.httpStatus}{connection.providerReason ? ` · ${connection.providerReason}` : ''}</p>}
       {connection.checkedAt && <p className="mt-1 text-xs text-slate-500">{new Date(connection.checkedAt).toLocaleString()}</p>}
     </div>)}</div>
+    <p className="text-xs text-slate-400">Revisión automática cada 10 minutos mientras el servidor esté activo y al abrir este panel. Google Ads y YouTube renuevan su acceso automáticamente si su autorización sigue válida. Solo reconecta cuando el proveedor lo requiera.</p>
     <p className="text-xs text-slate-400">La comprobación confirma lectura de la cuenta. Publicación, campañas y descuentos siguen el flujo de aprobación de Publicidad. Facturación y conversiones publicitarias requieren comprobación aparte.</p>
   </section>;
 }

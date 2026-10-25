@@ -10,6 +10,7 @@ export type ConnectionEvidence = {
   configured: boolean;
   state: 'missing_credentials' | 'invalid_configuration' | 'not_checked' | 'verified_read' | 'provider_rejected' | 'expired';
   checkedAt: string | null;
+  diagnosticStale?: boolean;
   readVerified: boolean;
   writeVerified: false;
   message: string;
@@ -41,9 +42,21 @@ export class AgentConnections {
       const previous = changed ? undefined : this.results.get(channel);
       if (!configured) return { channel, configured, state: 'missing_credentials', checkedAt: null, readVerified: false, writeVerified: false, message: 'Faltan credenciales del canal.' };
       if (!previous) return { channel, configured, state: 'not_checked', checkedAt: null, readVerified: false, writeVerified: false, message: 'Credenciales guardadas; acceso pendiente de comprobación.' };
-      if (this.now() - Date.parse(previous.checkedAt!) >= 15 * 60_000) return { ...previous, state: 'expired', readVerified: false, message: 'La comprobación venció. Verifica nuevamente.' };
+      if (this.now() - Date.parse(previous.checkedAt!) >= 15 * 60_000) return { ...previous, diagnosticStale: true, readVerified: false, message: previous.state === 'verified_read' ? 'Última lectura correcta; comprobación automática pendiente. Esto no indica que la autorización haya vencido.' : previous.message };
       return previous;
     });
+  }
+  // Refresh successful and failed evidence alike, with a bounded ten-minute cadence.
+  // No interactive OAuth or external writes: Google adapters renew access tokens on demand.
+  ensureFresh(): Promise<ConnectionEvidence[]> {
+    const rows = this.snapshot();
+    const due = rows.some(row => row.configured && (!row.checkedAt || row.state === 'not_checked' || this.now() - Date.parse(row.checkedAt) >= 10 * 60_000));
+    return due ? this.refresh() : Promise.resolve(rows);
+  }
+  startMonitoring() {
+    const timer = setInterval(() => { void this.ensureFresh().catch(() => undefined); }, 60_000);
+    timer.unref();
+    return () => clearInterval(timer);
   }
   refresh(): Promise<ConnectionEvidence[]> {
     if (this.running) return this.running;

@@ -22,7 +22,9 @@ test('shared evidence verifies all configured channels once, expires and invalid
   assert.equal(results[0].writeVerified, false);
   assert.equal(JSON.stringify(results).includes('private-token'), false);
   now += 15 * 60_000;
-  assert.equal(pool.snapshot()[0].state, 'expired');
+  assert.equal(pool.snapshot()[0].state, 'verified_read');
+  assert.equal(pool.snapshot()[0].diagnosticStale, true);
+  assert.equal(pool.snapshot()[1].state, 'provider_rejected');
   assert.equal(pool.snapshot()[0].readVerified, false);
   env.META_PAGE_ACCESS_TOKEN = 'replacement';
   assert.equal(pool.snapshot()[0].state, 'not_checked');
@@ -57,4 +59,19 @@ test('provider reason allowlist discards arbitrary error text', () => {
   assert.equal(new ProviderAccessError(400, null, 'invalid_grant').reason, 'credentials');
   assert.equal(new ProviderAccessError(403, null, 'DEVELOPER_TOKEN_NOT_APPROVED').providerReason, 'DEVELOPER_TOKEN_NOT_APPROVED');
   assert.equal(new ProviderAccessError(400, null, 'private-token-should-not-leak').providerReason, null);
+});
+
+ test('automatic checks reuse evidence, coalesce requests and recheck failed channels after ten minutes', async () => {
+  let now = Date.parse('2026-10-25T12:00:00Z'); let calls = 0;
+  const pool = new AgentConnections({
+    configuration: () => CHANNELS.map(channel => ({channel, configured: true, missing: []})),
+    verify: async channel => { calls++; if(channel === 'meta_ads') throw new ProviderAccessError(401, 190); return {readVerified: true, writeVerified: false}; },
+  }, {}, () => now);
+  await Promise.all([pool.ensureFresh(), pool.ensureFresh()]);
+  assert.equal(calls, 5);
+  now += 9 * 60_000; await pool.ensureFresh(); assert.equal(calls, 5);
+  now += 60_000; const rows = await pool.ensureFresh(); assert.equal(calls, 10);
+  assert.equal(rows.find(row => row.channel === 'meta_ads')!.state, 'provider_rejected');
+  assert.equal(rows.find(row => row.channel === 'google_ads')!.readVerified, true);
+  assert.equal(rows.every(row => row.checkedAt === new Date(now).toISOString()), true);
 });
