@@ -1,3 +1,5 @@
+import { CommunityManager } from './community-manager';
+import { CommunityPublisher } from './community-publisher';
 import { createTeamStudio } from './team/routes';
 import { createAccountingRouter } from './accounting/routes';
 import { probeMetaClient } from './meta-oauth-diagnostics';
@@ -39,6 +41,10 @@ const enrollmentAgent = new EnrollmentAgent(salesStore);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
+const communityManager = new CommunityManager(salesStore, whatsAppCatalog, new CommunityPublisher(advertisingAgent));
+const communityTimer = setInterval(() => { void communityManager.tick().then(() => communityManager.observe()); }, 60000);
+communityTimer.unref();
+setTimeout(() => void communityManager.tick(), 20000).unref();
 const advertisingTimer = setInterval(() => void advertisingAgent.tick(), 60000);
 advertisingTimer.unref();
 const enrollmentTimer = setInterval(() => void enrollmentAgent.tick(), 60000);
@@ -1330,6 +1336,10 @@ app.use('/api/advertising/oauth', createIntegrationOAuth({
   },
   verified: () => agentConnections.refresh(),
 }));
+app.get('/api/advertising/community', async (_req,res)=>{try{res.json(await communityManager.snapshot());}catch{res.status(503).json({error:'No se pudo leer la memoria de Lisa en Supabase.'});}});
+app.post('/api/advertising/community/settings',async(req,res)=>{const b=z.object({enabled:z.boolean()}).strict().safeParse(req.body);if(!b.success)return res.status(400).json({error:'Revisa la configuración.'});try{await communityManager.setEnabled(b.data.enabled);res.json({success:true});}catch{res.status(503).json({error:'No se pudo guardar la configuración.'});}});
+app.post('/api/advertising/community/run',async(_req,res)=>{void communityManager.tick();res.json({accepted:true,message:'Procesamiento solicitado. Consulta el estado real en el calendario.'});});
+app.post('/api/advertising/community/jobs/:id/retry',async(req,res)=>{if(!z.string().uuid().safeParse(req.params.id).success)return res.status(400).json({error:'Identificador no válido.'});try{await communityManager.retry(String(req.params.id));res.json({success:true});}catch{res.status(409).json({error:'Solo se pueden reintentar piezas bloqueadas, con Lisa habilitada. Los resultados inciertos necesitan conciliación humana.'});}});
 app.get('/api/advertising/google-ads/accounts', async (_req, res) => { try { res.json(await advertisingAgent.accessibleGoogleAdsAccounts()); } catch (error) { adFail(res, error); } });
 app.get('/api/advertising', async (_req, res) => { try { res.json(await advertisingAgent.snapshot()); } catch (error) { adFail(res, error); } });
 app.post('/api/advertising/plans', async (req, res) => {
@@ -1412,7 +1422,7 @@ app.use('/api/accounting', (req,res,next) => {
   next();
 }, createAccountingRouter(salesStore,()=>getConfiguredAdminCredentials().email || ''));
 
-const teamStudio=createTeamStudio(salesStore,req=>{const c=getConfiguredAdminCredentials();return verifySalesSession(req.headers.cookie||'',c.password||'',c.email||'');},()=>getConfiguredAdminCredentials().email||'',async prompt=>{const r=await generateGeminiContentWithFallback(prompt,{temperature:0.4});return r.text||'';},async()=>buildAgentKnowledgePrompt('catálogo y planificación interna'));
+const teamStudio=createTeamStudio(salesStore,req=>{const c=getConfiguredAdminCredentials();return verifySalesSession(req.headers.cookie||'',c.password||'',c.email||'');},()=>getConfiguredAdminCredentials().email||'',async prompt=>{const r=await generateGeminiContentWithFallback(prompt,{temperature:0.4});return r.text||'';},async()=>buildAgentKnowledgePrompt('catálogo y planificación interna'),async()=>{const d=await communityManager.snapshot();return JSON.stringify({guiaOperativa:readAgentKnowledgeFile('docs/community-manager-source.md'),enabled:d.settings?.enabled,jobs:d.jobs.filter((j:any)=>['published','blocked','review_required'].includes(j.state)).slice(-20).map((j:any)=>({id:j.id,state:j.state,channel:j.channel,title:j.payload?.title,result:j.result,last_error:j.last_error}))});});
 app.use('/api/team',teamStudio.router);
 
 // Sales APIs require the real administrator's signed, HttpOnly session.

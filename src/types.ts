@@ -213,6 +213,7 @@ export interface AIAgentSpec {
   name: string;
   roleTitle: string;
   specialty:
+    | 'Community Manager'
     | 'Estrategia'
     | 'Cierre'
     | 'Marketing'

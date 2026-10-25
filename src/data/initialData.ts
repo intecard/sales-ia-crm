@@ -1,3 +1,4 @@
+import { LISA_MANDATE } from './lisa.ts';
 import {
   Lead,
   Course,
@@ -758,6 +759,7 @@ const withSharedAgentConversationGuide = (prompt: string) =>
   `${prompt.trim()}\n\n${SHARED_AGENT_CONVERSATION_GUIDE.trim()}`;
 
 const RAW_MULTI_AGENTS_SPEC = [
+  {id:'agent_community_manager',name:'Lisa Parkerd',roleTitle:'Community Manager IA de INTECA',specialty:'Community Manager',avatar:'/crm-logo.png',description:'Planifica, produce flyers y videos verticales, publica en canales verificados y registra resultados reales.',systemPrompt:LISA_MANDATE,autonomyLevel:'24/7 Autónomo',operatingMandate:'Ejecutar el calendario orgánico con catálogo vigente, memoria persistente y trazabilidad. El servidor gratuito puede suspenderse.',tacticalArsenal:['Catálogo de Supabase','Calendario de 30 días','Flyers con logo e imágenes','MP4 verticales y guiones','Publicación orgánica con auditoría','Coordinación con ventas y matrícula'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'Activo',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {
     id: 'agent_director',
     name: 'Don Fernando Vane',

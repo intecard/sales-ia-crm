@@ -12,6 +12,7 @@ export const AREAS = [
   'Soporte',
 ] as const;
 const areaById: Record<string, string> = {
+  agent_community_manager: 'Marketing',
   agent_director: 'Ventas',
   agent_closer: 'Ventas',
   agent_conversion: 'Docentes',
