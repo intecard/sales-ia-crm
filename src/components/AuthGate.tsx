@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Building2,
   Loader2,
   LockKeyhole,
   Mail,
@@ -170,13 +169,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
             </button>
           </form>
 
-          <div className="mt-5 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 flex gap-2">
-            <Building2 className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" />
-            <p>
-              Para producción en Render, configura `ADMIN_EMAIL` y `ADMIN_PASSWORD` en Environment.
-              Esta versión solo permite entrada real.
-            </p>
-          </div>
+
         </section>
       </div>
     </div>
