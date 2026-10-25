@@ -178,7 +178,12 @@ export function TeamChatStudio({
               ))}
             </aside>
             <section className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex flex-col min-h-[550px]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-bold">{selected?.name || 'Selecciona un agente'}</h2>
+              {data.identity.owner&&<button type="button" className="border border-rose-500 text-rose-300 rounded-lg px-3 py-2 text-sm" disabled={busy||!agent||!messages.length} onClick={()=>{
+                if(window.confirm(`¿Eliminar todos los mensajes de la conversación con ${selected?.name}? Se borrarán también de la memoria del chat para el equipo. Las fechas, métricas y solicitudes guardadas por separado se conservarán. Esta acción no se puede deshacer.`))void act(async()=>{await api('/messages/'+agent+'/clear',{confirmed:true});setMessages([]);setText('');retry.current=null;});
+              }}>Limpiar conversación</button>}
+              </div>
               <p className="text-xs text-slate-400">
                 Comparte objetivos, pide análisis o solicita un plan de trabajo. Las respuestas
                 preparan propuestas; no publican campañas ni ejecutan pagos.

@@ -221,6 +221,16 @@ export function createTeamStudio(
       res.json(rows.reverse());
     }),
   );
+  router.post('/:org/messages/:agent/clear', run(async(req,res,i,org)=>{
+    if(!i.owner)return void res.status(403).json({error:'Solo el administrador puede limpiar una conversación compartida.'});
+    z.object({confirmed:z.literal(true)}).parse(req.body);
+    const agent=String(req.params.agent);if(!agentCheck(i,agent,res))return;
+    const key=org+':'+agent;
+    if(inFlight.has(key))return void res.status(409).json({error:'Espera a que el agente termine de responder.'});
+    inFlight.add(key);
+    try {await store.request(`crm_team_messages?organization_id=eq.${org}&agent_id=eq.${enc(agent)}`,'DELETE');res.json({success:true});}
+    finally{inFlight.delete(key);}
+  }));
   router.post(
     '/:org/notes',
     run(async (req, res, i, org) => {

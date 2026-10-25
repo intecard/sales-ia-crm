@@ -46,6 +46,7 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
             (v.startsWith('in.') && v.slice(4, -1).split(',').includes(row[k])),
         ),
       );
+      if(method==='DELETE')tables[name]=rows.filter(row=>!matches.includes(row));
       if (method === 'PATCH') {
         matches.forEach((v) => Object.assign(v, body));
       }
@@ -145,6 +146,11 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
       ).status,
       409,
     );
+    assert.equal((await call('/api/team/org_inteca_main/messages/agent_media_buyer/clear',{confirmed:true},cookie)).status,403);
+    assert.equal((await call('/api/team/org_inteca_main/messages/agent_media_buyer/clear',{})).status,400);
+    tables.crm_team_messages.push({id:crypto.randomUUID(),organization_id:'org_other',agent_id:'agent_media_buyer',content:'Preservar'});
+    assert.equal((await call('/api/team/org_inteca_main/messages/agent_media_buyer/clear',{confirmed:true})).status,200);
+    assert.equal(tables.crm_team_messages.length,1);assert.equal(tables.crm_team_messages[0].organization_id,'org_other');
     const id = tables.crm_team_members[0].id;
     assert.equal((await call(`/api/team/org_inteca_main/members/${id}/disable`, {})).status, 200);
     assert.equal((await call('/api/team/org_inteca_main', undefined, cookie)).status, 401);
