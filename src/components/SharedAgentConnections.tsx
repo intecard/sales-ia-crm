@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Connection = { channel: string; state: string; message: string; checkedAt: string | null; readVerified: boolean; providerReason?: string; httpStatus?: number };
 type OAuthProvider = { provider: string; ready: boolean; redirectUri: string | null; scopes: string[]; clientId?: string; cloudConsoleUrl?: string };
 const names: Record<string, string> = { facebook: 'Facebook', instagram: 'Instagram', meta_ads: 'Meta Ads', google_ads: 'Google Ads', youtube: 'YouTube' };
 
 export function SharedAgentConnections({ agentName }: { agentName: string }) {
+  const reconnectPanel = useRef<HTMLDivElement>(null);
+  function openReconnect(provider: string) {
+    setSelectedProvider(provider); setRedirectRegistered(false); setReviewedPermissions(false); setShowReconnect(true);
+    window.setTimeout(() => reconnectPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
+  }
   const [connections, setConnections] = useState<Connection[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -76,9 +81,14 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
     </div>
     {error && <p role="alert" className="text-sm text-amber-300">{error}</p>}
     <button type="button" onClick={() => setShowReconnect(value => !value)} className="text-sm text-blue-300 underline">{showReconnect ? 'Cerrar reconexión' : 'Reconectar Meta, Google Ads o YouTube'}</button>
-    {showReconnect && <div className="space-y-3 rounded-lg border border-blue-700 p-3 text-sm text-slate-200">
+    {showReconnect && <div ref={reconnectPanel} tabIndex={-1} className="space-y-3 rounded-lg border border-blue-700 p-3 text-sm text-slate-200">
+      <h3 className="font-semibold text-white">Reconectar desde el CRM</h3>
+      <ol className="list-inside list-decimal space-y-1"><li>Selecciona la plataforma y revisa los permisos.</li><li>Pulsa Autorizar e inicia sesión directamente en Meta o Google.</li><li>Al terminar, vuelve al CRM: comprobaremos y guardaremos la conexión automáticamente.</li></ol>
+      <p>No copies contraseñas, códigos ni tokens al chat o a este panel.</p>
       <p>Autoriza tu cuenta en el proveedor. El servidor comprobará las cuentas ya configuradas y guardará los nuevos accesos en Render. Esta acción sustituye los tokens anteriores; los agentes usarán los nuevos permisos concedidos.</p>
       <label className="block">Plataforma<select value={selectedProvider} onChange={event => { setSelectedProvider(event.target.value); setRedirectRegistered(false); setReviewedPermissions(false); }} className="ml-2 rounded bg-slate-800 p-2"><option value="meta">Meta: Facebook, Instagram y anuncios</option><option value="google_ads">Google Ads</option><option value="youtube">YouTube</option></select></label>
+      {selectedProvider === 'meta' && <p className="rounded bg-slate-800 p-2">Facebook, Instagram y Meta Ads comparten esta reconexión. Instagram debe ser una cuenta profesional vinculada a la página configurada en Meta Business Suite. Si Meta pide un código, introdúcelo en su propia pantalla.</p>}
+      {selectedProvider === 'youtube' && <p>Utiliza la cuenta propietaria del canal de YouTube. Esta autorización es independiente de Google Ads.</p>}
       {selectedProvider === 'google_ads' && <div className="space-y-2">
         <p>El acceso a Google Ads API se administra en Google Cloud, en el proyecto que contiene el cliente OAuth del CRM. No se necesita un token de desarrollador.</p>
         {selected?.clientId && <p className="break-all text-xs">Cliente OAuth configurado: {selected.clientId}</p>}
@@ -102,6 +112,7 @@ export function SharedAgentConnections({ agentName }: { agentName: string }) {
       <p className="font-medium text-white">{names[connection.channel] || connection.channel}</p>
       <p className={connection.readVerified ? 'text-xs text-emerald-300' : 'text-xs text-amber-300'}>{connection.message}</p>
       {connection.httpStatus && <p className="mt-1 break-all text-xs text-amber-200">HTTP {connection.httpStatus}{connection.providerReason ? ` · ${connection.providerReason}` : ''}</p>}
+      {!connection.readVerified && <button type="button" disabled={busy} onClick={() => openReconnect(['facebook', 'instagram', 'meta_ads'].includes(connection.channel) ? 'meta' : connection.channel)} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-xs text-white disabled:opacity-50">Reconectar {['facebook', 'instagram', 'meta_ads'].includes(connection.channel) ? 'con Meta' : names[connection.channel]}</button>}
       {connection.checkedAt && <p className="mt-1 text-xs text-slate-500">{new Date(connection.checkedAt).toLocaleString()}</p>}
     </div>)}</div>
     <p className="text-xs text-slate-400">Revisión automática cada 10 minutos mientras el servidor esté activo y al abrir este panel. Google Ads y YouTube renuevan su acceso automáticamente si su autorización sigue válida. Solo reconecta cuando el proveedor lo requiera.</p>
