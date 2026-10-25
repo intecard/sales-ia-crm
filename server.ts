@@ -2458,6 +2458,8 @@ Proporciona el resultado estructurado en JSON con los campos:
 `;
 
     const response = await generateGeminiContentWithFallback(prompt, {
+      httpOptions: { timeout: 45000 },
+      maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       responseSchema: {
           type: Type.OBJECT,

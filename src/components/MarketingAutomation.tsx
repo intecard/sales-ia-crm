@@ -98,13 +98,14 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...parameters, contentType: type }),
+            signal: AbortSignal.timeout(150000),
           });
           const data = await response.json();
           if (!response.ok || !data.success || !data.content) throw new Error(data.error || 'No se pudo generar este contenido.');
           setGeneratedPieces(prev => [...prev, { type, content: data.content, audience, budget }]);
           if (first) { setActiveContentType(type); first = false; }
         } catch (err) {
-          setGenerationFailures(prev => ({ ...prev, [type]: err instanceof Error ? err.message : 'No se pudo generar este contenido.' }));
+          setGenerationFailures(prev => ({ ...prev, [type]: err instanceof Error && ['TimeoutError','AbortError'].includes(err.name) ? 'El proveedor tardó demasiado. Puedes volver a generar este formato.' : err instanceof Error ? err.message : 'No se pudo generar este contenido.' }));
         }
       }
     } finally {
