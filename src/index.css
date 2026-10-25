@@ -86,22 +86,12 @@ html[data-theme='light'] #root [class*='shadow-'] {
   --tw-shadow-color: rgb(99 102 241 / 0.16) !important;
 }
 
-/* Calm, consistent reading color in the workspace. Sidebar badges retain their palette. */
-html[data-theme='light'] #root main,
-html[data-theme='light'] #root main [class*='text-']:not(svg):not(svg *) {
-  color: #19263e !important;
+/* Targeted contrast corrections; preserve the existing workspace and badge palette. */
+html[data-theme='light'] #root .crm-logout,
+html[data-theme='light'] #root .crm-logout span {
+  color: #000000 !important;
 }
-
-html[data-theme='light'] #root .dashboard-intro {
-  background-image: linear-gradient(110deg, #edf2fa, #f5f7fc) !important;
-}
-
-html[data-theme='light'] #root main :is([class*='bg-cyan-950'], [class*='bg-indigo-950'], [class*='bg-blue-950'], [class*='bg-emerald-950'], [class*='bg-purple-950'], [class*='bg-rose-950'], [class*='bg-amber-950']) {
-  background-color: #e5eaf4 !important;
-}
-
-/* Keep action labels legible on saturated button backgrounds, including nested labels. */
-html[data-theme='light'] #root button:is([class*='bg-gradient'], [class*='bg-blue-600'], [class*='bg-indigo-600'], [class*='bg-purple-600'], [class*='bg-rose-600']),
-html[data-theme='light'] #root main button:is([class*='bg-gradient'], [class*='bg-blue-600'], [class*='bg-indigo-600'], [class*='bg-purple-600'], [class*='bg-rose-600']) :not(svg):not(svg *) {
+html[data-theme='light'] #root .dashboard-intro :is(h1, p),
+html[data-theme='light'] #root .dashboard-intro [class*='text-indigo-300'] {
   color: #ffffff !important;
 }

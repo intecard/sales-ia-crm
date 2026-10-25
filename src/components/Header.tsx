@@ -298,7 +298,7 @@ export const Header: React.FC<HeaderProps> = ({
         {onLogout && (
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-rose-600/30 text-slate-300 hover:text-rose-200 rounded-lg transition-colors border border-slate-700 hover:border-rose-500/40 text-xs font-bold"
+            className="crm-logout flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-rose-600/30 text-slate-300 hover:text-rose-200 rounded-lg transition-colors border border-slate-700 hover:border-rose-500/40 text-xs font-bold"
             title="Cerrar sesión real"
           >
             <LogOut className="w-4 h-4" />
