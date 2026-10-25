@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Bot,
   Building2,
   Loader2,
   LockKeyhole,
@@ -81,7 +80,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
 
           <div className="flex items-center gap-3 mb-6">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Bot className="w-8 h-8 text-white" />
+              <img src="/crm-logo.png" alt="Logo de Sales AI CRM" className="w-14 h-14 rounded-2xl object-contain" width={56} height={56} />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-white">SALES AI CRM</h1>

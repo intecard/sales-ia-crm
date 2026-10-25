@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   RefreshCw,
   Zap,
-  Bot,
   LogOut,
 } from 'lucide-react';
 import { CRMAuthSession, PlatformMode, UserRole, OrganizationTenant, UserProfile } from '../types';
@@ -70,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Organization Title */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-2 rounded-xl shadow-md shadow-indigo-500/20">
-          <Bot className="w-6 h-6 text-white animate-pulse" />
+          <img src="/crm-logo.png" alt="Logo de Sales AI CRM" className="w-9 h-9 rounded-lg object-contain shrink-0" width={36} height={36} />
           <div className="flex flex-col">
             <span className="font-extrabold text-base tracking-tight leading-none text-white">
               SALES <span className="text-cyan-300">AI CRM</span>
