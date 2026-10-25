@@ -2458,7 +2458,7 @@ Proporciona el resultado estructurado en JSON con los campos:
 `;
 
     const response = await generateGeminiContentWithFallback(prompt, {
-      httpOptions: { timeout: 45000 },
+      httpOptions: { timeout: 45000, retryOptions: { attempts: 1 } },
       maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       responseSchema: {
@@ -2500,7 +2500,7 @@ Proporciona el resultado estructurado en JSON con los campos:
           },
           required: ['title', 'bodyText', 'callToAction'],
       },
-    });
+    }, true);
 
     const parsedJson = JSON.parse(response.text || '{}');
     const promotionalContent = [parsedJson.title, parsedJson.bodyText, parsedJson.callToAction, parsedJson.flyerSpec, parsedJson.videoScript];
