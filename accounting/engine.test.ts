@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {journalSchema,reports,obligationsSchema} from './engine.ts';
+const valid={requestId:'11111111-1111-4111-8111-111111111111',date:'2026-10-24',description:'Servicio cobrado',kind:'sale',lines:[{account:'1101',debit:'0.30',credit:'0'},{account:'4101',debit:'0',credit:'0.30'}]};
+test('decimal ledger balances exactly and cumulative balance includes profit',()=>{const j=journalSchema.parse(valid);const r=reports([{id:'1',payload:j}]);assert.equal(r.income,'0.30');assert.equal(r.cash,'0.30');assert.equal(r.balanceDifference,'0.00');assert.equal(r.balanced,true);});
+test('rejects unbalanced entries, invalid dates, unknown accounts and two-sided lines',()=>{for(const edit of [{date:'2026-02-30'},{lines:[{account:'1101',debit:'1',credit:'0'},{account:'4101',debit:'0',credit:'0.99'}]},{lines:[{account:'bad',debit:'1',credit:'0'},{account:'4101',debit:'0',credit:'1'}]},{lines:[{account:'1101',debit:'1',credit:'1'},{account:'4101',debit:'0',credit:'1'}]}])assert.equal(journalSchema.safeParse({...valid,...edit}).success,false);});
+test('tax obligations require filing evidence and never infer applicability',()=>{const item={form:'606',applicable:'pending_review',dueOn:'',status:'submitted',receipt:'',notes:''};assert.equal(obligationsSchema.safeParse({period:'2026-10',items:[item]}).success,false);assert.equal(obligationsSchema.safeParse({period:'2026-10',items:[{...item,status:'pending'}]}).success,true);});

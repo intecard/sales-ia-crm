@@ -1534,6 +1534,7 @@ export function App() {
 
             {activeTab === 'accounting' && (
               <AccountingAutopilot
+                organization={currentOrg}
                 reports={accountingReports}
                 purchaseRequests={purchaseRequests}
                 cashReceipts={cashReceipts}

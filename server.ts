@@ -1,3 +1,4 @@
+import { createAccountingRouter } from './accounting/routes';
 import { probeMetaClient } from './meta-oauth-diagnostics';
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
 import { AgentConnections } from './agent-connections';
@@ -1127,7 +1128,7 @@ const AGENT_RUNTIME_REGISTRY = [
     function: 'Prepara reportes contables, conciliaciones, inventario, recibos y estados financieros.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_payments', 'int_dgii_ecf'],
-    executableTools: ['accounting.prepare_report', 'bank.reconcile', 'inventory.prepare_daily_report'],
+    executableTools: ['accounting.read_ledger', 'accounting.review_period', 'accounting.export_journal', 'accounting.prepare_tax_workpaper', 'bank.compare_book_balance'],
     humanIntervention: 'Reporte definitivo, conciliación con diferencia, criterio fiscal o cierre contable.',
   },
   {
@@ -1399,6 +1400,14 @@ app.use('/api/fiscal', (req,res,next) => {
   if(req.method!=='GET' && req.get('X-CRM-Action')!=='fiscal') return res.status(403).json({error:'Acción fiscal no autorizada.'});
   next();
 }, createFiscalRouter(salesStore,()=>getConfiguredAdminCredentials().email || ''));
+
+app.use('/api/accounting', (req,res,next) => {
+  res.set('Cache-Control','no-store');
+  const admin=getConfiguredAdminCredentials();
+  if(!verifySalesSession(req.headers.cookie || '',admin.password || '',admin.email || '')) return res.status(401).json({error:'Inicia sesión como administrador para consultar contabilidad.'});
+  if(req.method!=='GET' && req.get('X-CRM-Action')!=='accounting') return res.status(403).json({error:'Acción contable no autorizada.'});
+  next();
+}, createAccountingRouter(salesStore,()=>getConfiguredAdminCredentials().email || ''));
 
 // Sales APIs require the real administrator's signed, HttpOnly session.
 app.use('/api/sales', (req, res, next) => {
@@ -2769,10 +2778,10 @@ ${buildAgentKnowledgePrompt('contabilidad, reportes administrativos, ordenes de 
 
 Reglas:
 1. Para Estado de resultados, resume ingresos, costos, gastos y utilidad.
-2. Para Balance general, presenta activos, pasivos y patrimonio. Usa estructura compatible con NIF B-6.
+2. Para Balance general, presenta activos, pasivos y patrimonio. Usa el marco contable confirmado de la empresa; no asumas normas de otra jurisdicción.
 3. Para Flujo de efectivo, separa entradas, salidas y flujo neto.
 4. Para órdenes de compra, recibos, conciliaciones e inventarios, genera campos completos y estado.
-5. Si aplica adquisición de negocios, menciona NIF B-7 y los puntos de valuación.
+5. No apliques normas extranjeras ni tratamientos fiscales sin confirmar el marco y la actividad de la empresa. Los reportes 606/607/608/609 no sustituyen declaraciones tributarias; e-CF, firma y transmisión requieren autorización y evidencias reales.
 6. No marques documento como aprobado sin revisión humana autorizada.
 7. Devuelve JSON estricto con resumen, tablas, alertas y próximos pasos.
 8. Puedes explicar y resumir con lenguaje profesional, pero no inventar soportes, pagos, saldos, aprobaciones ni conciliaciones.

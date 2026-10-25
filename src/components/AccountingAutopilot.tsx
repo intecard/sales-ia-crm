@@ -1,3 +1,4 @@
+import { AccountingWorkspace } from './AccountingWorkspace';
 import React from 'react';
 import {
   Banknote,
@@ -19,6 +20,7 @@ import {
 } from '../types';
 
 interface AccountingAutopilotProps {
+  organization: {id:string;name:string};
   reports: AccountingReport[];
   purchaseRequests: PurchaseRequest[];
   cashReceipts: CashReceipt[];
@@ -46,6 +48,7 @@ const statusTone = (status: string) => {
 };
 
 export const AccountingAutopilot: React.FC<AccountingAutopilotProps> = ({
+  organization,
   reports,
   purchaseRequests,
   cashReceipts,
@@ -64,6 +67,7 @@ export const AccountingAutopilot: React.FC<AccountingAutopilotProps> = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
+      <AccountingWorkspace key={organization.id} organization={organization} />
       <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-1">

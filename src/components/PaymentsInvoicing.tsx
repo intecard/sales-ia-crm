@@ -1,3 +1,4 @@
+import { AccountingWorkspace } from './AccountingWorkspace';
 import { FiscalWorkspace } from './FiscalWorkspace';
 import type {
   CommercialQuote,
@@ -22,6 +23,7 @@ export function PaymentsInvoicing({ organization, transactions }: PaymentsInvoic
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto overflow-y-auto">
       <FiscalWorkspace key={organization.id} organization={organization} />
+      <AccountingWorkspace key={`accounting-${organization.id}`} organization={organization} />
       <section className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-slate-200">
         <h2 className="font-bold text-lg">Registro comercial de cobros</h2>
         <p className="mt-2 text-sm text-slate-400">
