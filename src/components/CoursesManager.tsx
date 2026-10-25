@@ -83,6 +83,9 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
       discountPrice: Number(discountPrice),
       description,
       durationHours: Number(durationHours),
+      durationMonths: selectedCourse?.durationMonths,
+      enrollmentFee: selectedCourse?.enrollmentFee,
+      monthlyFee: selectedCourse?.monthlyFee,
       schedule,
       instructors: instructors.split(',').map((s) => s.trim()),
       modulesCount: selectedCourse?.modulesCount || 6,
@@ -140,7 +143,9 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
         {courses.map((course) => {
           const hasConfirmedTotal = course.price > 0;
           const visiblePrice =
-            hasConfirmedTotal
+            course.enrollmentFee !== undefined && course.monthlyFee !== undefined
+              ? `Inscripción RD$${course.enrollmentFee.toLocaleString()} · Mensualidad RD$${course.monthlyFee.toLocaleString()}`
+              : hasConfirmedTotal
               ? `RD$${(course.discountPrice || course.price).toLocaleString()}`
               : course.activePromotions?.join(' · ') || 'Precio pendiente';
 
@@ -164,7 +169,7 @@ export const CoursesManager: React.FC<CoursesManagerProps> = ({
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-2 border-t border-slate-800/80">
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Duración: {course.durationHours} hrs</span>
+                  <span>Duración: {course.durationMonths ? `${course.durationMonths} meses` : `${course.durationHours} hrs`}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-blue-400" />

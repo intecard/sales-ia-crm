@@ -193,6 +193,9 @@ export interface Course {
   discountPrice?: number;
   description: string;
   durationHours: number;
+  durationMonths?: number;
+  enrollmentFee?: number;
+  monthlyFee?: number;
   schedule: string;
   instructors: string[];
   modulesCount: number;
