@@ -30,6 +30,9 @@ function harness(fail=false){
  return {row,settings,create,publishes:()=>publishes};
 }
 test('cross-process conditional claim sends a post only once',async()=>{const h=harness();await Promise.all([h.create().tick(),h.create().tick()]);assert.equal(h.publishes(),1);assert.equal(h.row.state,'published');});
+test('PostgreSQL jsonb key ordering preserves approval while altered content is rejected',async()=>{
+ for(const tampered of [false,true]){const h=harness();h.row.payload=Object.fromEntries(Object.entries(h.row.payload).reverse());if(tampered)h.row.payload.caption+=' Unapproved text';await h.create().tick();assert.equal(h.publishes(),tampered?0:1);assert.equal(h.row.state,tampered?'blocked':'published');}
+});
 test('uncertain external result is never retried automatically',async()=>{const h=harness(true);const a=h.create();await a.tick();await a.tick();assert.equal(h.publishes(),1);assert.equal(h.row.state,'review_required');await assert.rejects(a.retry(h.row.id));});
 test('pause, changed catalogue and changed destination prevent publication',async()=>{
  for(const change of ['pause','catalog','destination']){const h=harness();if(change==='pause')h.settings.enabled=false;if(change==='catalog')h.row.payload.catalogHash='changed';if(change==='destination')h.settings.destinations.facebook='other';await h.create().tick();assert.equal(h.publishes(),0);}

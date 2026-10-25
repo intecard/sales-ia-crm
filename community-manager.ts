@@ -1,6 +1,6 @@
 import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
-import { planMonth, rdDay, sha, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
+import { planMonth, rdDay, sha, contentHash, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from './community-media.ts';
 import type { CommunityPublisher } from './community-publisher.ts';
 type Store={request:(r:string,m?:string,b?:unknown)=>Promise<any>};
@@ -29,7 +29,7 @@ export class CommunityManager {
     const jobs=planMonth(catalog,today).map(item=>{
       const bootstrap=item.payload.kind==='flyer'&&item.slot.startsWith(today);
       const scheduled_at=bootstrap?now.toISOString():item.scheduled_at;
-      return {...item,scheduled_at,state:item.payload.kind==='long_brief'?'brief':new Date(scheduled_at)<now?'missed':'queued',content_hash:sha(item.payload)};
+      return {...item,scheduled_at,state:item.payload.kind==='long_brief'?'brief':new Date(scheduled_at)<now?'missed':'queued',content_hash:contentHash(item.payload)};
     });
     await this.store.request('rpc/crm_community_plan','POST',{p_jobs:jobs,p_destinations:destinations});
   }
@@ -58,7 +58,7 @@ export class CommunityManager {
           if(!settings.destinations?.[row.channel]||settings.destinations[row.channel]!==this.publisher.destination(row.channel))throw Error('CM_DESTINATION_CHANGED');
           const catalog=await this.catalog.get();if(!catalog||catalog.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
           const course=catalog.courses.find(c=>c.title===row.payload.courseTitle);
-          if(!course||sha(row.payload)!==row.content_hash||hasDiscount(row.payload)||hasUnlistedPrice(row.payload.caption,course.investment))throw Error('CM_CONTENT_REVIEW');
+          if(!course||contentHash(row.payload)!==row.content_hash||hasDiscount(row.payload)||hasUnlistedPrice(row.payload.caption,course.investment))throw Error('CM_CONTENT_REVIEW');
           // Identity must be valid before generating or sending anything to this channel.
           await this.publisher.verify(row.channel);
           const locks=await this.store.request(`crm_community_jobs?id=eq.${row.id}&state=eq.queued`,'PATCH',{state:'preparing',updated_at:new Date().toISOString()});if(!locks.length)continue;claimed=true;

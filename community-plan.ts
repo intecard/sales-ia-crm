@@ -4,6 +4,9 @@ export const SOCIAL_CHANNELS = ['facebook','instagram','youtube'] as const;
 export type SocialChannel = typeof SOCIAL_CHANNELS[number];
 export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'; pillar: string; slides: string[]; assetKey: string; catalogHash: string };
 export const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+// PostgreSQL jsonb reorders object keys. Keep the original field order when
+// checking persisted pieces, including the first plan already saved in production.
+export const contentHash = (p: CommunityPayload) => sha({title:p.title,caption:p.caption,courseTitle:p.courseTitle,kind:p.kind,pillar:p.pillar,slides:p.slides,assetKey:p.assetKey,catalogHash:p.catalogHash});
 export function rdDay(now: Date) { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(now); }
 export function makeContent(course: CatalogCourse, catalog: Catalog, date: string, kind: CommunityPayload['kind'], variant: number): CommunityPayload {
   const pillars = ['Educación','Educación','Educación','Educación','Educación','Educación','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Demostración','Demostración','Demostración','Demostración','Confianza','Confianza','Confianza','Promoción','Promoción'];
