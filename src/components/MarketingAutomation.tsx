@@ -33,12 +33,16 @@ type ContentType =
   | 'Video 30s'
   | 'Video 60s';
 
+const CONTENT_TYPES: ContentType[] = ['WhatsApp','Email','Meta Ads','Google Ads','YouTube','Landing Page','Flyer','Video 30s','Video 60s'];
+type GeneratedPiece = { type: ContentType; content: any; audience: string; budget: number };
+
 export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   campaigns,
   courses,
   onAddCampaign,
 }) => {
-  const [contentType, setContentType] = useState<ContentType>('WhatsApp');
+  const [contentTypes, setContentTypes] = useState<ContentType[]>(['WhatsApp']);
+  const [activeContentType, setActiveContentType] = useState<ContentType>('WhatsApp');
   const [targetAudience, setTargetAudience] = useState(
     'Personas en República Dominicana que quieren trabajar en ARS, clínicas, call center de salud o servicio al usuario en salud',
   );
@@ -56,40 +60,55 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   const [dailySalesGoal, setDailySalesGoal] = useState(5);
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedOutput, setGeneratedOutput] = useState<any>(null);
+  const [generatedPieces, setGeneratedPieces] = useState<GeneratedPiece[]>([]);
+  const [generationFailures, setGenerationFailures] = useState<Partial<Record<ContentType,string>>>({});
+  const [generationProgress, setGenerationProgress] = useState('');
+  const activePiece = generatedPieces.find(p => p.type === activeContentType);
+  const generatedOutput = activePiece?.content;
   const [copied, setCopied] = useState(false);
   const [generationError, setGenerationError] = useState('');
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
 
   const handleGenerateAI = async () => {
+    if (isGenerating || !contentTypes.length || !selectedCourse) return;
+    const selected = [...contentTypes];
+    const audience = targetAudience, budget = adBudget;
+    const parameters = {
+      targetAudience: audience,
+      courseTitle: selectedCourse.title,
+      promotionOffer,
+      tone: 'Persuasivo, Profesional, Directo y Orientado a Pago; sin urgencia ni escasez inventada',
+      tacticalMode: 'completo',
+      businessContext: `Ventaja injusta: ${unfairAdvantage}. Cuello de botella: ${bottleneck}. Presupuesto inicial por pauta: RD$${budget}. Meta mínima: ${dailySalesGoal} ventas diarias. Debe cubrir adquisición, conversión y aceleración.`,
+    };
     setIsGenerating(true);
-    setGeneratedOutput(null);
+    setGeneratedPieces([]);
+    setGenerationFailures({});
     setGenerationError('');
+    setCopied(false);
+    let first = true;
     try {
-      const response = await fetch('/api/ai/generate-marketing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contentType,
-          targetAudience,
-          courseTitle: selectedCourse?.title,
-          promotionOffer,
-          tone: 'Persuasivo, Profesional, Directo, Urgente y Orientado a Pago',
-          tacticalMode: 'completo',
-          businessContext: `Ventaja injusta: ${unfairAdvantage}. Cuello de botella: ${bottleneck}. Presupuesto inicial por pauta: RD$${adBudget}. Meta mínima: ${dailySalesGoal} ventas diarias. Debe cubrir adquisición, conversión y aceleración.`,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success && data.content) {
-        setGeneratedOutput(data.content);
-      } else {
-        throw new Error(data.error || 'No se pudo generar el contenido.');
+      // Separate requests preserve each format and partial successes; sequential
+      // execution avoids sending nine simultaneous requests to the AI provider.
+      for (const [index, type] of selected.entries()) {
+        setGenerationProgress(`Generando ${index + 1} de ${selected.length}: ${type}`);
+        try {
+          const response = await fetch('/api/ai/generate-marketing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...parameters, contentType: type }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success || !data.content) throw new Error(data.error || 'No se pudo generar este contenido.');
+          setGeneratedPieces(prev => [...prev, { type, content: data.content, audience, budget }]);
+          if (first) { setActiveContentType(type); first = false; }
+        } catch (err) {
+          setGenerationFailures(prev => ({ ...prev, [type]: err instanceof Error ? err.message : 'No se pudo generar este contenido.' }));
+        }
       }
-    } catch (err) {
-      setGenerationError(err instanceof Error ? err.message : 'No se pudo generar el contenido.');
     } finally {
+      setGenerationProgress('');
       setIsGenerating(false);
     }
   };
@@ -103,7 +122,7 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
   };
 
   const handleLaunchCampaign = () => {
-    if (!generatedOutput) return;
+    if (!generatedOutput || !activePiece) return;
 
     const channelMap: Record<ContentType, MarketingCampaign['channel']> = {
       WhatsApp: 'WhatsApp',
@@ -118,11 +137,11 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
     };
 
     const newCmp: MarketingCampaign = {
-      id: `cmp_${Date.now()}`,
+      id: `cmp_${crypto.randomUUID()}`,
       title: generatedOutput.title || 'Campaña Lanzada',
-      channel: channelMap[contentType],
+      channel: channelMap[activePiece.type],
       status: 'Borrador',
-      targetSegment: targetAudience,
+      targetSegment: activePiece.audience,
       sentCount: 0,
       openRatePercent: 0,
       clickRatePercent: 0,
@@ -130,17 +149,17 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
       revenueGenerated: 0,
       generatedByAI: true,
       contentSnippet: generatedOutput.bodyText,
-      recommendedBudgetDop: adBudget,
+      recommendedBudgetDop: activePiece.budget,
       paidByAgent: false,
       paymentAuthorizationStatus:
-        contentType === 'Meta Ads' || contentType === 'Google Ads' || contentType === 'YouTube'
+        activePiece.type === 'Meta Ads' || activePiece.type === 'Google Ads' || activePiece.type === 'YouTube'
           ? 'Pendiente aprobación'
           : 'Sin tarjeta',
       createdAt: new Date().toISOString(),
     };
 
     onAddCampaign(newCmp);
-    alert('Campaña preparada. Conecta o autoriza el canal antes de publicarla en producción.');
+    alert(`Borrador de ${activePiece.type} guardado. No se ha publicado ni activado gasto publicitario.`);
   };
 
   return (
@@ -278,33 +297,29 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
                 Tipo de Canal / Contenido
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(
-                  [
-                    'WhatsApp',
-                    'Email',
-                    'Meta Ads',
-                    'Google Ads',
-                    'YouTube',
-                    'Landing Page',
-                    'Flyer',
-                    'Video 30s',
-                    'Video 60s',
-                  ] as const
-                ).map((type) => (
+                {CONTENT_TYPES.map((type) => (
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setContentType(type)}
+                    aria-pressed={contentTypes.includes(type)}
+                    disabled={isGenerating}
+                    onClick={() => setContentTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type])}
                     className={`py-2 px-3 rounded-xl font-semibold text-center border transition-all cursor-pointer ${
-                      contentType === type
+                      contentTypes.includes(type)
                         ? 'bg-blue-600 text-white border-blue-500 shadow-md'
                         : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
                     }`}
                   >
-                    {type}
+                    {contentTypes.includes(type) ? '✓ ' : ''}{type}
                   </button>
                 ))}
               </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button type="button" disabled={isGenerating} onClick={() => setContentTypes([...CONTENT_TYPES])} className="text-blue-300 underline">Seleccionar todas</button>
+                <button type="button" disabled={isGenerating} onClick={() => setContentTypes([])} className="text-slate-300 underline">Limpiar selección</button>
+                <span className="text-slate-300">{contentTypes.length} opciones seleccionadas</span>
+              </div>
+              <p className="mt-2 text-slate-400">Elige una o varias opciones. Cada formato tendrá su propio resultado; generar no publica ni activa anuncios.</p>
             </div>
 
             <div>
@@ -397,14 +412,14 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
 
             <button
               onClick={handleGenerateAI}
-              disabled={isGenerating}
+              disabled={isGenerating || !contentTypes.length || !selectedCourse}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:opacity-50 mt-2"
             >
               <Zap className="w-4 h-4 text-amber-300" />
               <span>
                 {isGenerating
-                  ? 'Generando Copy e Imágenes con IA...'
-                  : 'Generar Campaña Completa con IA'}
+                  ? generationProgress || 'Preparando generación...'
+                  : `Generar ${contentTypes.length} opciones con IA`}
               </span>
             </button>
           </div>
@@ -434,6 +449,14 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
               )}
             </div>
 
+            <div aria-live="polite" className="mt-3 space-y-2 text-xs text-slate-300">
+              {generationProgress && <p>{generationProgress}</p>}
+              {generatedPieces.length > 0 && <p>{generatedPieces.length} resultados disponibles</p>}
+              {Object.entries(generationFailures).map(([type, error]) => <p key={type} role="alert" className="text-amber-300">{type}: {error} Los demás resultados se conservan.</p>)}
+            </div>
+            {generatedPieces.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Resultados por tipo de contenido">
+              {generatedPieces.map(piece => <button key={piece.type} type="button" aria-pressed={activeContentType === piece.type} onClick={() => { setActiveContentType(piece.type); setCopied(false); }} className={`rounded-lg border px-3 py-2 text-xs ${activeContentType === piece.type ? 'bg-blue-600 text-white border-blue-500' : 'border-slate-600 text-slate-200'}`}>Ver {piece.type}</button>)}
+            </div>}
             {generatedOutput ? (
               <div className="mt-4 space-y-4">
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
@@ -517,8 +540,7 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
               <div className="p-12 text-center text-slate-500 text-xs space-y-2">
                 <Sparkles className="w-8 h-8 text-slate-600 mx-auto animate-pulse" />
                 <p>
-                  Haz clic en "Generar Campaña" para que la IA cree el copy y los creativos
-                  automáticos.
+                  Selecciona los tipos de contenido y pulsa Generar. Aquí aparecerán los textos, propuestas visuales y guiones de cada formato.
                 </p>
               </div>
             )}
@@ -530,7 +552,7 @@ export const MarketingAutomation: React.FC<MarketingAutomationProps> = ({
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              <span>Ejecutar y Distribuir Campaña Omnicanal Ahora</span>
+              <span>Guardar borrador de {activePiece?.type}</span>
             </button>
           )}
         </div>
