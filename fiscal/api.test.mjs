@@ -57,7 +57,7 @@ test('compiled fiscal API authenticates owner, scopes company data, exports esca
       password: 'test-only-password',
     });
     assert.equal(login.status, 200);
-    const Cookie = login.headers.get('set-cookie').split(';')[0],
+    const Cookie = login.headers.getSetCookie().find(value => value.startsWith('crm_sales_session=')).split(';')[0],
       headers = { Cookie, 'X-CRM-Action': 'fiscal' };
     const p = {
       legalName: 'Company <script>alert(1)</script>',

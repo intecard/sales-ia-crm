@@ -1,3 +1,4 @@
+import { createTeamStudio } from './team/routes';
 import { createAccountingRouter } from './accounting/routes';
 import { probeMetaClient } from './meta-oauth-diagnostics';
 import { FISCAL_RULE_VERSION } from './fiscal/engine';
@@ -1409,6 +1410,9 @@ app.use('/api/accounting', (req,res,next) => {
   next();
 }, createAccountingRouter(salesStore,()=>getConfiguredAdminCredentials().email || ''));
 
+const teamStudio=createTeamStudio(salesStore,req=>{const c=getConfiguredAdminCredentials();return verifySalesSession(req.headers.cookie||'',c.password||'',c.email||'');},()=>getConfiguredAdminCredentials().email||'',async prompt=>{const r=await generateGeminiContentWithFallback(prompt,{temperature:0.4});return r.text||'';},async()=>buildAgentKnowledgePrompt('catálogo y planificación interna'));
+app.use('/api/team',teamStudio.router);
+
 // Sales APIs require the real administrator's signed, HttpOnly session.
 app.use('/api/sales', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -1818,12 +1822,13 @@ app.get('/api/knowledge/inteca/status', async (_req, res) => {
   });
 });
 
-// Restore UI identity only from the signed, unexpired owner cookie.
+// Restore identity from the signed owner cookie or a server-validated, active staff session.
 // This does not renew the cookie or extend its lifetime.
-app.get('/api/auth/session', (req, res) => {
+app.get('/api/auth/session', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const credentials = getConfiguredAdminCredentials();
   if (!credentials.email || !credentials.password || !verifySalesSession(req.headers.cookie || '', credentials.password, credentials.email)) {
+    try { const i=await teamStudio.identity(req);if(i&&!i.owner)return res.json({success:true,session:{mode:'real',userName:i.name,email:i.email,role:i.area,organizationId:i.org,organizationName:(await salesStore.request(`crm_team_members?id=eq.${i.id}&select=organization_name`))[0].organization_name,token:'',loginAt:new Date().toISOString()}}); } catch {}
     return res.status(401).json({ success: false, error: 'SESSION_REQUIRED' });
   }
   return res.json({ success: true, session: {
@@ -1833,7 +1838,7 @@ app.get('/api/auth/session', (req, res) => {
   } });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', rateLimit({windowMs:15*60000,limit:20}), async (req, res) => {
   const parsed = authLoginRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     return res
@@ -1858,6 +1863,7 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   if (!validateAdminCredentials(parsed.data.email, parsed.data.password)) {
+    try { if(await teamStudio.login(parsed.data.email,parsed.data.password,res))return; } catch {}
     recordServerAudit({
       actorType: 'Usuario',
       actorName: parsed.data.email,
@@ -1901,6 +1907,7 @@ app.post('/api/auth/login', (req, res) => {
     status: 'Registrado',
   });
 
+  res.clearCookie('crm_team_session',{path:'/api'});
   if (configuredPassword && configuredEmail) res.cookie('crm_sales_session', issueSalesSession(configuredPassword, configuredEmail), {
     httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000, path: '/api',
   });
@@ -1909,6 +1916,7 @@ app.post('/api/auth/login', (req, res) => {
 
 app.post('/api/auth/logout', (_req, res) => {
   res.clearCookie('crm_sales_session', { path: '/api' });
+  res.clearCookie('crm_team_session', {path:'/api'});
   recordServerAudit({
     actorType: 'Usuario',
     actorName: 'Usuario CRM',

@@ -30,6 +30,7 @@ export type NavTab =
   | 'leads'
   | 'agents'
   | 'chat'
+  | 'clientChat'
   | 'courses'
   | 'funnels'
   | 'marketing'
@@ -47,6 +48,7 @@ export type NavTab =
   | 'settings';
 
 interface SidebarProps {
+  staffMode?: boolean;
   activeTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   leadsCount: number;
@@ -56,6 +58,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  staffMode = false,
   activeTab,
   onTabChange,
   leadsCount,
@@ -227,41 +230,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Nav List */}
       <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
+        {navItems
+          .filter((item) => !staffMode || item.id === 'chat')
+          .map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                isActive
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 font-semibold'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
-              }`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <Icon
-                className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`}
-              />
-              {!isCollapsed && (
-                <div className="flex-1 flex items-center justify-between truncate">
-                  <span className="truncate">{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        item.badgeColor || 'bg-slate-800 border-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 font-semibold'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                }`}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <Icon
+                  className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`}
+                />
+                {!isCollapsed && (
+                  <div className="flex-1 flex items-center justify-between truncate">
+                    <span className="truncate">{item.label}</span>
+                    {item.badge && (
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          item.badgeColor || 'bg-slate-800 border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
       </nav>
 
       {/* Bottom Footer Info */}

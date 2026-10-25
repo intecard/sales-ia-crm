@@ -29,7 +29,7 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await post('/api/advertising/shared-connections/verify', {})).status, 401);
     assert.equal((await post('/api/advertising/campaigns', {})).status, 401);
     const login = await post('/api/auth/login', { email: 'owner@example.test', password: 'test-only-password' }); assert.equal(login.status, 200); assert.ok(login.headers.get('set-cookie').includes('SameSite=Strict'));
-    const cookie = login.headers.get('set-cookie').split(';')[0];
+    const cookie = login.headers.getSetCookie().find(value => value.startsWith('crm_sales_session=')).split(';')[0];
     const restored = await fetch(base+'/api/auth/session', {headers:{Cookie:cookie}});
     assert.equal(restored.status,200);
     assert.equal(restored.headers.get('cache-control'),'no-store');

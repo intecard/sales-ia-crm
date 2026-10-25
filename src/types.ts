@@ -698,6 +698,7 @@ export interface UserProfile {
 }
 
 export interface CRMAuthSession {
+  organizationId?: string;
   mode: 'real';
   userName: string;
   email: string;

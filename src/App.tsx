@@ -1,3 +1,4 @@
+import { TeamChatStudio } from './components/TeamChatStudio';
 import React, { useEffect, useState } from 'react';
 import { PlatformFrame } from './components/PlatformFrame';
 import { Sidebar, NavTab } from './components/Sidebar';
@@ -96,7 +97,7 @@ const buildOrganizationFromSession = (session: CRMAuthSession | null): Organizat
   const isInteca = organizationName.toLowerCase().includes('inteca');
 
   return {
-    id: isInteca ? 'org_inteca_main' : `org_${slug}`,
+    id: session?.organizationId || (isInteca ? 'org_inteca_main' : `org_${slug}`),
     name: organizationName,
     slug: isInteca ? 'inteca-main' : slug,
     logo: isInteca ? '🎓' : '🏢',
@@ -122,6 +123,7 @@ const loadRealOrganizations = (session: CRMAuthSession | null): OrganizationTena
 };
 
 const getOrganizationsForSession = (session: CRMAuthSession | null): OrganizationTenant[] => {
+  if (session && session.role !== 'Super Admin CRM') return [buildOrganizationFromSession(session)];
   return loadRealOrganizations(session);
 };
 
@@ -427,14 +429,23 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' })
-      .then(async response => {
+      .then(async (response) => {
         if (cancelled) return;
-        if (response.status === 401) { setAuthSession(null); return; }
+        if (response.status === 401) {
+          setAuthSession(null);
+          return;
+        }
         if (!response.ok) return;
         const data = await response.json();
-        if (!cancelled && data.success && data.session?.mode === 'real') setAuthSession(data.session);
-      }).catch(() => { /* A temporary network failure is not a logout. */ });
-    return () => { cancelled = true; };
+        if (!cancelled && data.success && data.session?.mode === 'real')
+          setAuthSession(data.session);
+      })
+      .catch(() => {
+        /* A temporary network failure is not a logout. */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const effectiveDeploymentMode = deploymentMode;
@@ -468,7 +479,7 @@ export function App() {
       email: session.email,
       role: session.role,
     }));
-    setActiveTab('dashboard');
+    setActiveTab(session.role === 'Super Admin CRM' ? 'dashboard' : 'chat');
   };
 
   const handleLogout = () => {
@@ -594,6 +605,7 @@ export function App() {
     setProcurementAgentTasks([]);
     setCompanyKpis([]);
     setSelectedLeadForChat(null);
+    if (authSession && authSession.role !== 'Super Admin CRM') setActiveTab('chat');
   }, [authSession]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -1001,7 +1013,7 @@ export function App() {
 
   const handleOpenChatWithLead = (lead: Lead) => {
     setSelectedLeadForChat(lead);
-    setActiveTab('chat');
+    setActiveTab('clientChat');
   };
 
   const handleUpdateAgent = (updatedAgent: AIAgentSpec) => {
@@ -1313,7 +1325,9 @@ export function App() {
 
   const handleConfirmEnrollmentPayment = (lead: Lead, courseId: string) => {
     if (authSession?.mode === 'real') {
-      window.alert('Valida el recibo y el abono en Agentes IA → Ventas y Cierre. La matrícula se procesa desde Conversión y Matrícula.');
+      window.alert(
+        'Valida el recibo y el abono en Agentes IA → Ventas y Cierre. La matrícula se procesa desde Conversión y Matrícula.',
+      );
       setActiveTab('agents');
       return;
     }
@@ -1348,6 +1362,7 @@ export function App() {
       <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
         {/* Left Sidebar Navigation */}
         <Sidebar
+          staffMode={Boolean(authSession && authSession.role !== 'Super Admin CRM')}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           leadsCount={leads.length}
@@ -1406,36 +1421,29 @@ export function App() {
               />
             )}
 
-            {activeTab === 'chat' &&
-              (selectedLeadForChat || leads[0] ? (
-                <AIChatStudio
-                  leads={leads}
-                  agents={agents}
-                  courses={courses}
-                  selectedLead={selectedLeadForChat || leads[0]}
-                  onSelectLead={setSelectedLeadForChat}
-                  onSendMessageToLead={handleSendMessageToLead}
-                  onGeneratePaymentLink={handleGeneratePaymentLink}
-                  onConfirmEnrollmentPayment={handleConfirmEnrollmentPayment}
-                />
-              ) : (
-                <div className="p-6 max-w-3xl mx-auto">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                    <h2 className="text-xl font-black text-white">Chat sin leads reales</h2>
-                    <p className="text-sm text-slate-400 mt-2">
-                      Esta es la versión real. Primero registra leads reales desde el módulo Leads
-                      CRM 360° o conecta WhatsApp, formularios, Meta Ads o Google Ads.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('leads')}
-                      className="mt-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl px-4 py-2"
-                    >
-                      Registrar primer lead real
-                    </button>
-                  </div>
-                </div>
-              ))}
+            {activeTab === 'chat' && (
+              <TeamChatStudio
+                key={currentOrg.id}
+                organization={currentOrg}
+                onOpenClients={
+                  authSession?.role === 'Super Admin CRM' && leads.length
+                    ? () => setActiveTab('clientChat')
+                    : undefined
+                }
+              />
+            )}
+            {activeTab === 'clientChat' && (selectedLeadForChat || leads[0]) && (
+              <AIChatStudio
+                leads={leads}
+                agents={agents}
+                courses={courses}
+                selectedLead={selectedLeadForChat || leads[0]}
+                onSelectLead={setSelectedLeadForChat}
+                onSendMessageToLead={handleSendMessageToLead}
+                onGeneratePaymentLink={handleGeneratePaymentLink}
+                onConfirmEnrollmentPayment={handleConfirmEnrollmentPayment}
+              />
+            )}
 
             {activeTab === 'agents' && (
               <AIAgentsCommand

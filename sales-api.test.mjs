@@ -98,7 +98,7 @@ test('sales endpoints enforce administrator session and explicit bank review; pa
     assert.match(setCookie, /HttpOnly/);
     assert.match(setCookie, /Secure/);
     assert.match(setCookie, /SameSite=Strict/);
-    const cookie = setCookie.split(';')[0];
+    const cookie = login.headers.getSetCookie().find(value => value.startsWith('crm_sales_session=')).split(';')[0];
     assert.equal((await req('/api/sales', undefined, cookie)).status, 200);
     assert.equal((await req('/api/sales/settings', { enabled: false }, cookie, false)).status, 403);
     assert.equal((await req('/api/sales/settings', { enabled: false }, cookie)).status, 200);

@@ -69,7 +69,13 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Organization Title */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-2 rounded-xl shadow-md shadow-indigo-500/20">
-          <img src="/crm-logo.png" alt="Logo de Sales AI CRM" className="w-9 h-9 rounded-lg object-contain shrink-0" width={36} height={36} />
+          <img
+            src="/crm-logo.png"
+            alt="Logo de Sales AI CRM"
+            className="w-9 h-9 rounded-lg object-contain shrink-0"
+            width={36}
+            height={36}
+          />
           <div className="flex flex-col">
             <span className="font-extrabold text-base tracking-tight leading-none text-white">
               SALES <span className="text-cyan-300">AI CRM</span>
@@ -220,6 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
           <UserCheck className="w-3.5 h-3.5 text-purple-400" />
           <span className="text-[10px] text-slate-400 hidden sm:inline">Rol:</span>
           <select
+            disabled={Boolean(authSession && authSession.role !== 'Super Admin CRM')}
             value={userRole}
             onChange={(e) => onRoleChange && onRoleChange(e.target.value as UserRole)}
             className="bg-transparent text-slate-200 font-medium focus:outline-none cursor-pointer pr-1"

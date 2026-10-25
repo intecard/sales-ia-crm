@@ -118,7 +118,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
 
           <form onSubmit={handleRealLogin} className="space-y-4">
             <label className="block">
-              <span className="text-xs font-bold text-slate-300">Correo administrador</span>
+              <span className="text-xs font-bold text-slate-300">Correo electrónico</span>
               <div className="mt-1 flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5">
                 <Mail className="w-4 h-4 text-slate-500" />
                 <input
