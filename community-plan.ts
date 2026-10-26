@@ -11,13 +11,28 @@ export function rdDay(now: Date) { return new Intl.DateTimeFormat('en-CA',{timeZ
 export function makeContent(course: CatalogCourse, catalog: Catalog, date: string, kind: CommunityPayload['kind'], variant: number): CommunityPayload {
   const pillars = ['Educación','Educación','Educación','Educación','Educación','Educación','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Demostración','Demostración','Demostración','Demostración','Confianza','Confianza','Confianza','Promoción','Promoción'];
   const pillar = pillars[(Number(date.slice(-2))*3+variant)%20];
-  const title = (kind==='story' ? '¿Qué quieres aprender sobre ' : variant===1 ? 'Conoce tu ruta de formación: ' : 'Qué aprenderás en ') + course.title;
-  const url = new URL('https://www.inteca.com.do/'); url.searchParams.set('utm_source','community');url.searchParams.set('utm_medium','organic');url.searchParams.set('utm_campaign','lisa_30_dias');url.searchParams.set('utm_content',`${date}_${kind}_${variant}`);
+  const hooks = [
+    `¿Qué aprenderás en ${course.title}?`,
+    `De la duda al aprendizaje: ${course.title}`,
+    `Antes de elegir ${course.title}, conoce esto`,
+    `Tu próxima habilidad: ${course.title}`,
+    `Una pregunta frecuente sobre ${course.title}`,
+  ];
+  const seed = Number(date.slice(-2))*3+variant+(kind==='story'?2:kind==='flyer'?1:0);
+  const title = hooks[seed%hooks.length];
+  const url = new URL('https://www.inteca.com.do/'); url.searchParams.set('utm_source','community');url.searchParams.set('utm_medium','organic');url.searchParams.set('utm_campaign','lisa_crecimiento');url.searchParams.set('utm_content',`${date}_${kind}_${variant}`);
   const learning = course.description || course.text.split('\n').find(l=>l.startsWith('Aprender')) || 'Consulta el contenido del programa en INTECA.';
   const facts = `Duración: ${course.duration}\nModalidad: ${course.modality || 'Consulta con INTECA'}\n${course.investment}\nHorario: ${course.schedule || catalog.generalSchedule || 'Consulta disponibilidad con INTECA'}`;
-  const cta = 'Consulta el programa y los pasos de inscripción en INTECA.';
-  const caption = `${learning.slice(0,650)}\n\n${course.title}\n${facts}\n\n${cta}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud`.slice(0,1950);
-  return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides:[learning.slice(0,270), facts.slice(0,400),`${cta}\ninteca.com.do`],assetKey:sha([date,course.title,kind,variant,catalog.hash]).slice(0,32),catalogHash:catalog.hash};
+  const actions = [
+    'Sigue a INTECA para descubrir más rutas de formación en salud.',
+    '¿Qué te gustaría aprender de este programa? Cuéntanos tu duda en los comentarios.',
+    'Guarda esta información para comparar tus opciones de formación.',
+    'Comparte esta guía con alguien que esté buscando capacitarse en el sector salud.',
+    'Visita el programa y consulta los pasos de inscripción en nuestro sitio oficial.',
+  ];
+  const cta = actions[seed%actions.length];
+  const caption = `${title}\n\n${learning.slice(0,650)}\n\n${course.title}\n${facts}\n\n${cta}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud`.slice(0,1950);
+  return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides:[`${title}\n${learning}`.slice(0,270), facts.slice(0,400),`${cta}\ninteca.com.do`],assetKey:sha(['growth-v1',date,course.title,kind,variant,catalog.hash]).slice(0,32),catalogHash:catalog.hash};
 }
 export function planMonth(catalog: Catalog, start: string) {
   const result: Array<{slot:string;channel:SocialChannel;scheduled_at:string;payload:CommunityPayload}> = [];

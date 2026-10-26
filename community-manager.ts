@@ -1,6 +1,7 @@
+import { growthSummary } from './community-growth.ts';
 import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
-import { planMonth, rdDay, sha, contentHash, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
+import { makeContent, planMonth, rdDay, sha, contentHash, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from './community-media.ts';
 import type { CommunityPublisher } from './community-publisher.ts';
 type Store={request:(r:string,m?:string,b?:unknown)=>Promise<any>};
@@ -9,14 +10,14 @@ export class CommunityManager {
   private running=false;
   constructor(private store:Store,private catalog:Pick<CatalogStore,'get'>,private publisher:Pick<CommunityPublisher,'destination'|'verify'|'publish'|'metrics'>){}
   async settings(){return (await this.store.request('crm_community_settings?id=eq.inteca&limit=1'))[0];}
-  async snapshot(){return {settings:await this.settings(),jobs:await this.store.request('crm_community_jobs?order=scheduled_at.asc&limit=500'),observations:await this.store.request('crm_community_observations?order=checked_at.desc&limit=100'),scope:'org_inteca_main',capabilities:{flyers:true,verticalVideo:'MP4 de 24 segundos, tres escenas, texto e imágenes; sin narración',stories:'Instagram: tres piezas visuales diarias; sin stickers interactivos',longVideo:'Guion semanal para grabación y revisión humana',communityReplies:'Propuestas en Chat Sales Studio; respuestas públicas y moderación requieren revisión humana',paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',metrics:'Interacciones de las últimas 20 publicaciones de Meta, cada 12 horas. Alcance, retención y matrículas no se infieren de los me gusta.',continuousOperation:'Mientras Render esté activo; el plan gratuito puede suspenderse'}};}
+  async snapshot(){const jobs=await this.store.request('crm_community_jobs?order=scheduled_at.asc&limit=500'),observations=await this.store.request('crm_community_observations?order=checked_at.desc&limit=100');return {settings:await this.settings(),jobs,observations,growth:growthSummary(jobs,observations),scope:'org_inteca_main',capabilities:{flyers:true,verticalVideo:'MP4 de 24 segundos, tres escenas, texto e imágenes; sin narración',stories:'Instagram: tres piezas visuales diarias; sin stickers interactivos',longVideo:'Guion semanal para grabación y revisión humana',communityReplies:'Propuestas en Chat Sales Studio; respuestas públicas y moderación requieren revisión humana',paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',growth:'Ganchos educativos, series, preguntas relevantes y CTA alternados para seguir, guardar, compartir, comentar y visitar el sitio. Se aplican a piezas futuras todavía sin producir.',metrics:'Últimas 20 publicaciones cada 12 horas: interacciones Meta, estadísticas YouTube y seguidores cuando los permisos lo permitan. Visitas web, alcance y retención no se infieren.',continuousOperation:'Mientras Render esté activo; el plan gratuito puede suspenderse'}};}
   async observe(){
     if(this.running)return;
     try{const s=await this.settings();if(!s?.enabled||s.metrics_checked_at&&Date.now()-Date.parse(s.metrics_checked_at)<12*3600000)return;
       const posts:CommunityJob[]=await this.store.request('crm_community_jobs?state=eq.published&order=scheduled_at.desc&limit=20');
       if(!posts.length)return;
       await this.store.request('crm_community_settings?id=eq.inteca','PATCH',{metrics_checked_at:new Date().toISOString()});
-      for(const post of posts){if(!post.result.id)continue;try{const metrics=await this.publisher.metrics(post.channel,post.result.id);await this.store.request('crm_community_observations','POST',{job_id:post.id,metrics,recommendation:'Comparar interacciones y consultas verificadas antes de proponer pauta; no aumentar gasto automáticamente.'});}catch{/* Missing metrics stay unavailable; never fabricate zeroes. */}}
+      for(const post of posts){if(!post.result.id)continue;try{const metrics=await this.publisher.metrics(post.channel,post.result.id);await this.store.request('crm_community_observations','POST',{job_id:post.id,metrics,recommendation:post.payload.caption.includes('Sigue a INTECA')?'Medir la evolución de seguidores sin atribuirla automáticamente a esta publicación.':'Comparar vistas e interacciones con otras piezas del mismo formato y tiempo publicado; probar otro gancho antes de proponer pauta.'});}catch{/* Missing metrics stay unavailable; never fabricate zeroes. */}}
     }catch{/* Observation failures cannot trigger external writes. */}
   }
   async setEnabled(enabled:boolean){return this.store.request('crm_community_settings?id=eq.inteca','PATCH',{enabled,updated_at:new Date().toISOString()});}
@@ -62,6 +63,13 @@ export class CommunityManager {
           // Identity must be valid before generating or sending anything to this channel.
           await this.publisher.verify(row.channel);
           const locks=await this.store.request(`crm_community_jobs?id=eq.${row.id}&state=eq.queued`,'PATCH',{state:'preparing',updated_at:new Date().toISOString()});if(!locks.length)continue;claimed=true;
+          // Upgrade only a claimed, unproduced piece. Published, uncertain and rendered jobs remain unchanged.
+          if(!row.media_url&&!row.result?.id&&!row.result?.containerId&&!row.payload.caption.includes('utm_campaign=lisa_crecimiento')){
+            const date=rdDay(new Date(row.scheduled_at));const variant=Number(row.slot.split(':')[2])||0;
+            row.payload=makeContent(course,catalog,date,row.payload.kind,variant);
+            row.content_hash=contentHash(row.payload);
+            await this.update(row.id,{payload:row.payload,content_hash:row.content_hash});
+          }
           let mediaUrl=row.media_url;
           if(!mediaUrl){
             // Reuse already produced media for the same original piece across platforms.

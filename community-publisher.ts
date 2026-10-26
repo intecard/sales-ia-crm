@@ -6,9 +6,31 @@ export class CommunityPublisher {
   async verify(channel:SocialChannel){return this.ads.verify(channel);}
   async metrics(channel:SocialChannel,id:string){
     if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))throw Error('CM_ID');
-    if(channel==='instagram'){const d=await this.graph(`${id}?fields=like_count,comments_count`);return {likes:typeof d.like_count==='number'?d.like_count:null,comments:typeof d.comments_count==='number'?d.comments_count:null,reach:null,conversions:null};}
-    if(channel==='facebook'){const d=await this.graph(`${id}?fields=shares,reactions.limit(0).summary(true),comments.limit(0).summary(true)`);return {shares:typeof d.shares?.count==='number'?d.shares.count:null,reactions:typeof d.reactions?.summary?.total_count==='number'?d.reactions.summary.total_count:null,comments:typeof d.comments?.summary?.total_count==='number'?d.comments.summary.total_count:null,reach:null,conversions:null};}
-    return {views:null,reach:null,conversions:null,note:'Consulta Analytics de YouTube; este módulo no tiene un lector de retención conectado.'};
+    const count=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:typeof v==='string'&&/^\d+$/.test(v)&&Number.isSafeInteger(Number(v))?Number(v):null;
+    if(channel==='instagram'){
+      const d=await this.graph(`${id}?fields=like_count,comments_count`);
+      const account=await this.graph(`${this.destination(channel)}?fields=followers_count`).catch(()=>({}));
+      return {likes:count(d.like_count),comments:count(d.comments_count),followers:count(account.followers_count),views:null,reach:null,websiteVisits:null,conversions:null};
+    }
+    if(channel==='facebook'){
+      const d=await this.graph(`${id}?fields=shares,reactions.limit(0).summary(true),comments.limit(0).summary(true)`);
+      const account=await this.graph(`${this.destination(channel)}?fields=followers_count`).catch(()=>({}));
+      return {shares:count(d.shares?.count),reactions:count(d.reactions?.summary?.total_count),comments:count(d.comments?.summary?.total_count),followers:count(account.followers_count),views:null,reach:null,websiteVisits:null,conversions:null};
+    }
+    try{
+      const t=await this.youtubeToken();
+      const headers={Authorization:`Bearer ${t}`};
+      const d=await this.json(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${encodeURIComponent(id)}`,{headers});
+      const video=d.items?.find((item:any)=>item.id===id&&item.snippet?.channelId===this.destination(channel));
+      if(!video)throw Error('CM_DESTINATION_CHANGED');
+      const c=await this.json(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${encodeURIComponent(this.destination(channel))}`,{headers}).catch(()=>({}));
+      const account=c.items?.find((item:any)=>item.id===this.destination(channel));
+      return {views:count(video.statistics?.viewCount),likes:count(video.statistics?.likeCount),comments:count(video.statistics?.commentCount),followers:account?.statistics?.hiddenSubscriberCount?null:count(account?.statistics?.subscriberCount),followersApproximate:true,reach:null,websiteVisits:null,conversions:null};
+    }catch{return {views:null,likes:null,comments:null,followers:null,reach:null,websiteVisits:null,conversions:null,note:'Estadísticas YouTube no disponibles con la conexión actual. Revisar permisos; no se solicitan permisos nuevos automáticamente.'};}
+  }
+  private async youtubeToken(){
+    const t=await this.json('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',client_id:this.env.YOUTUBE_CLIENT_ID||'',client_secret:this.env.YOUTUBE_CLIENT_SECRET||'',refresh_token:this.env.YOUTUBE_REFRESH_TOKEN||''}).toString()});
+    if(!t.access_token)throw Error('CM_YOUTUBE_AUTH');return String(t.access_token);
   }
   private async json(url:string,init:RequestInit={}){
     const r=await this.fetcher(url,{...init,redirect:'error',signal:AbortSignal.timeout(60000)});

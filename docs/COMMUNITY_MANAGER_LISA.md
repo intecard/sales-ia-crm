@@ -27,3 +27,11 @@ La solicitud del propietario autoriza publicación orgánica en las cuentas ya c
 ## Verificación
 
 Pruebas de calendario, precios, concurrencia, catálogo cambiado, pausa y resultado incierto; pruebas del chat por área y de conexiones compartidas. Producción real JPG y MP4 local inspeccionada antes de desplegar. Revisar IDs de proveedor y estados en Supabase después de desplegar antes de declarar publicación conseguida.
+
+## Crecimiento orgánico de la comunidad
+
+Lisa prioriza seguidores y suscriptores auténticos, vistas, interacciones y consultas. Alterna ganchos educativos, preguntas útiles, invitaciones a guardar y compartir, y visitas al programa con enlaces UTM. No compra seguidores, no inventa premios ni cifras y no activa descuentos o gasto. Las publicaciones programadas que todavía no tienen recursos producidos se actualizan después de reclamarlas y validar su catálogo y hash. Las publicaciones ya producidas, publicadas o inciertas se conservan.
+
+El panel Crecimiento de la comunidad muestra las últimas métricas observadas por red, con una sola lectura por publicación para evitar sumar duplicados. Los seguidores se leen como total de la cuenta y su evolución se calcula entre muestras, sin atribuir el cambio a una pieza. Se consulta YouTube videos.list y channels.list con la autorización existente; ante falta de permisos los datos quedan no disponibles. Meta conserva interacciones por publicación y consulta seguidores si el campo está autorizado. Las visitas web, alcance y retención permanecen no disponibles sin analítica adicional. No se solicita una autorización nueva ni se amplían permisos.
+
+El chat interno de Lisa recibe estos resultados y las piezas con más interacciones para preparar comparaciones de formatos, temas y horarios, considerando antigüedad y alcance. El ranking no activa pauta ni prueba causalidad. La observación es cada 12 horas mientras el servidor esté activo; Render gratuito puede suspenderse. Los resultados dependen de la audiencia y no se garantizan.
