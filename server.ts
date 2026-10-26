@@ -1049,7 +1049,7 @@ const AGENT_RUNTIME_REGISTRY = [
   {id:'agent_voice_closer',name:'Valeria Parkert · Ventas por teléfono',function:'Llamadas autorizadas, conversación de voz, objeciones y registro de intención de pago.',requiredIntegrationIds:['int_voice_sales','int_gemini_ai','int_supabase_database'],optionalIntegrationIds:[],executableTools:['voice.verify_number','voice.schedule_authorized','voice.stop','voice.transcript','crm.payment_interest'],humanIntervention:'Activar proveedor y número, aprobar costos, validar pagos y conciliar resultados inciertos.'},
   {
     id: 'agent_whatsapp',
-    name: 'Agente IA WhatsApp',
+    name: 'Mateo Rivera',
     function: 'Atención, respuesta, seguimiento y transferencia humana por WhatsApp.',
     requiredIntegrationIds: ['int_whatsapp_cloud', 'int_gemini_ai', 'int_supabase_database'],
     optionalIntegrationIds: ['int_owner_notifications', 'int_payments'],
@@ -1059,7 +1059,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_omnichannel',
-    name: 'Agente IA Omnicanal',
+    name: 'Nora Campos',
     function: 'Captura, normaliza y enruta leads desde web, redes, Meta, Google y WhatsApp.',
     requiredIntegrationIds: ['int_web_forms', 'int_supabase_database'],
     optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_whatsapp_cloud'],
@@ -1068,7 +1068,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_conversion',
-    name: 'Agente IA Conversión y Matrícula',
+    name: 'Catalina Méndez',
     function:
       'Registra leads, califica intención, mueve el embudo, valida inscripción, activa estudiante y prepara bienvenida/campus.',
     requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
@@ -1092,7 +1092,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_closer',
-    name: 'Agente IA Ventas',
+    name: 'Valeria Parkert',
     function: 'Seguimiento comercial, cierre, actualización de oportunidad y solicitud de pago.',
     requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
     optionalIntegrationIds: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
@@ -1101,7 +1101,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_copywriter',
-    name: 'Agente IA Marketing',
+    name: 'Camila Torres',
     function: 'Crea campañas, copys, embudos y propuestas de valor para adquisición y conversión.',
     requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
     optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_youtube', 'int_creative_ai'],
@@ -1110,7 +1110,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_media_buyer',
-    name: 'Agente IA Publicidad',
+    name: 'Marco Salazar',
     function: 'Prepara, valida y optimiza campañas pagadas con límites y aprobación del dueño.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_meta_social', 'int_google_ads', 'int_ad_payment_wallet'],
@@ -1119,7 +1119,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_creative',
-    name: 'Agente IA Creativo',
+    name: 'Isabella Morel',
     function: 'Genera briefs, flyers, carruseles, prompts, piezas visuales y evidencias de revisión.',
     requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
     optionalIntegrationIds: ['int_creative_ai', 'int_meta_social', 'int_whatsapp_cloud'],
@@ -1128,7 +1128,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_video',
-    name: 'Agente IA Video',
+    name: 'Dante Vega',
     function: 'Prepara guiones, videos cortos, metadatos, miniaturas y publicación autorizada.',
     requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
     optionalIntegrationIds: ['int_creative_ai', 'int_youtube'],
@@ -1137,7 +1137,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_billing',
-    name: 'Agente IA Facturación e-CF',
+    name: 'Sofía Navarro',
     function: 'Prepara documentos comerciales por empresa con cálculos deterministas y control previo a emisión fiscal.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_payments', 'int_dgii_ecf', 'int_owner_notifications'],
@@ -1146,7 +1146,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_accounting',
-    name: 'Agente IA Contable',
+    name: 'Bruno Ferrer',
     function: 'Prepara reportes contables, conciliaciones, inventario, recibos y estados financieros.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_payments', 'int_dgii_ecf'],
@@ -1155,7 +1155,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_procurement_national',
-    name: 'Agente IA Compras Nacionales',
+    name: 'Nadia Paredes',
     function: 'Gestiona requisiciones, cotizaciones locales, comparativos, órdenes e inventario.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_owner_notifications'],
@@ -1164,7 +1164,7 @@ const AGENT_RUNTIME_REGISTRY = [
   },
   {
     id: 'agent_owner_ops',
-    name: 'Agente IA Dueño',
+    name: 'Bruno Montes',
     function: 'Filtra avances y notifica solo pagos, llamadas, bloqueos, campañas listas y decisiones.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_owner_notifications', 'int_whatsapp_cloud'],
@@ -2631,7 +2631,7 @@ Devuelve JSON estricto con:
     const parsedJson = JSON.parse(response.text || '{}');
     recordServerAudit({
       actorType: 'Agente IA',
-      actorName: 'Máximo Growth Strategist',
+      actorName: 'Máximo Sterling',
       module: 'Marketing',
       action: 'Generó',
       entityType: 'GrowthSystem',
@@ -2758,7 +2758,7 @@ Devuelve JSON estricto con:
     const parsedJson = JSON.parse(response.text || '{}');
     recordServerAudit({
       actorType: 'Agente IA',
-      actorName: creativeType.includes('Video') ? 'Dante Video Ads' : 'Isabella Creativa',
+      actorName: creativeType.includes('Video') ? 'Dante Vega' : 'Isabella Morel',
       module: creativeType.includes('Video') ? 'Creativos' : 'Marketing',
       action: 'Generó',
       entityType: 'CreativeBrief',
@@ -2802,7 +2802,7 @@ app.post('/api/ai/generate-accounting-report', async (req, res) => {
 
     const { organizationName, period, reportType, sourceData, notes } = parsed.data;
     const prompt = `
-Eres Bruno Contable IA, agente contable autónomo para ${organizationName || 'la empresa'}.
+Eres Bruno Ferrer, agente contable autónomo para ${organizationName || 'la empresa'}.
 Debes preparar un documento contable estructurado, auditable y listo para revisión.
 
 TIPO DE REPORTE/DOCUMENTO: ${reportType}
@@ -2847,7 +2847,7 @@ Reglas:
     const parsedJson = JSON.parse(response.text || '{}');
     recordServerAudit({
       actorType: 'Agente IA',
-      actorName: 'Bruno Contable IA',
+      actorName: 'Bruno Ferrer',
       module: 'Contabilidad',
       action: 'Generó',
       entityType: 'AccountingReport',

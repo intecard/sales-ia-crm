@@ -129,27 +129,27 @@ export const GrowthRevenueCommandCenter: React.FC<GrowthRevenueCommandCenterProp
     {
       title: 'Atracción',
       detail: 'Hooks, anuncios, shorts, flyers y contenidos que detienen el scroll.',
-      owner: 'Marco Media Buyer',
+      owner: 'Marco Salazar',
     },
     {
       title: 'Captura',
       detail: 'WhatsApp, formularios, landing y QR con UTM y consentimiento.',
-      owner: 'Nora Omnicanal',
+      owner: 'Nora Campos',
     },
     {
       title: 'Calificación',
       detail: 'Necesidad, urgencia, presupuesto, autoridad, objeciones y score.',
-      owner: 'Selena SDR Pro',
+      owner: 'Selena Duarte',
     },
     {
       title: 'Conversión',
       detail: 'Prueba de valor, oferta, guion, objeciones, cierre y enlace de pago.',
-      owner: 'Héctor Closer Elite',
+      owner: 'Héctor Castillo',
     },
     {
       title: 'Aceleración',
       detail: 'Duplicar ganadores, retargeting, referidos, upsell y reactivación.',
-      owner: 'Ana CRO Analytics',
+      owner: 'Ana Morgan',
     },
   ];
 

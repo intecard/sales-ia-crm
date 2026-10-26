@@ -466,7 +466,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                       <span className="text-[10px] text-slate-500">Hace 8 minutos</span>
                     </div>
                     <p className="text-xs text-slate-300 mt-1">
-                      Agente <strong className="text-white">Mateo WhatsApp Pro</strong> respondió
+                      Agente <strong className="text-white">Mateo Rivera</strong> respondió
                       consulta por WhatsApp con audio, pensum, beneficios laborales y próximo paso
                       de inscripción.
                     </p>
