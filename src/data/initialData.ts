@@ -1,3 +1,4 @@
+import { VOICE_SALES_MANDATE } from './voice-sales.ts';
 import { LISA_MANDATE } from './lisa.ts';
 import {
   Lead,
@@ -770,6 +771,7 @@ const withSharedAgentConversationGuide = (prompt: string) =>
   `${prompt.trim()}\n\n${SHARED_AGENT_CONVERSATION_GUIDE.trim()}`;
 
 const RAW_MULTI_AGENTS_SPEC = [
+  {id:'agent_voice_closer',name:'Valeria Voz',roleTitle:'Cierre de ventas por llamadas telefónicas',specialty:'Ventas',avatar:'/crm-logo.png',description:'Conversaciones telefónicas con catálogo autorizado, memoria, objeciones, baja y transferencia humana. Requiere telefonía conectada.',systemPrompt:VOICE_SALES_MANDATE,autonomyLevel:'Supervisado',operatingMandate:'Contactar solo prospectos autorizados dentro de horario y presupuesto. Nunca confirmar pagos por lo que diga el cliente.',tacticalArsenal:['Diagnóstico comercial','Manejo de objeciones','Telefonía Twilio ConversationRelay','Memoria por empresa','Seguimiento autorizado','Transferencia humana configurada'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'En Pausa',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {id:'agent_community_manager',name:'Lisa Parkerd',roleTitle:'Community Manager IA de INTECA',specialty:'Community Manager',avatar:'/crm-logo.png',description:'Planifica, produce flyers y videos verticales, publica en canales verificados y registra resultados reales.',systemPrompt:LISA_MANDATE,autonomyLevel:'24/7 Autónomo',operatingMandate:'Ejecutar el calendario orgánico con catálogo vigente, memoria persistente y trazabilidad. El servidor gratuito puede suspenderse.',tacticalArsenal:['Catálogo de Supabase','Calendario de 30 días','Flyers con logo e imágenes','MP4 verticales y guiones','Publicación orgánica con auditoría','Coordinación con ventas y matrícula'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'Activo',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {
     id: 'agent_director',
@@ -1554,6 +1556,7 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = RAW_MULTI_AGENTS_SPEC.map((agent
 }));
 
 export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
+  {id:'int_voice_sales',name:'Telefonía de ventas · Twilio ConversationRelay',category:'Telefonía',status:'Requiere credenciales',inboundWebhookPath:'/api/voice/provider',outboundCapability:'Llamadas salientes autorizadas, conversación de voz, historial y transferencia humana configurada.',requiredEnvVars:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'],ownerAgentId:'agent_voice_closer',setupNotes:['Registrar la cuenta Twilio y un número de voz propio. No usar el ID telefónico de WhatsApp como credencial Twilio.','Activar ConversationRelay y revisar sus condiciones en la cuenta del proveedor.','Configurar límites, costos y contactos autorizados en Valeria Voz. Realizar una llamada piloto antes de aumentar volumen.']},
   {
     id: 'int_supabase_database',
     name: 'Supabase Database, Auth y Storage',

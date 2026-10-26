@@ -1,0 +1,16 @@
+import twilio from 'twilio';
+export const PHONE = /^\+[1-9]\d{7,14}$/;
+export function publicBase(env=process.env){const u=new URL(env.APP_URL||'https://sales.ia.crm.inteca.com.do');if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash)throw Error('VOICE_URL');return u.origin;}
+export class VoiceProvider {
+ constructor(private env=process.env){}
+ missing(){return ['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'].filter(k=>!this.env[k]);}
+ private client(){if(this.missing().length)throw Error('VOICE_CREDENTIALS');return twilio(this.env.TWILIO_ACCOUNT_SID,this.env.TWILIO_AUTH_TOKEN,{timeout:15000,autoRetry:false});}
+ account(){return this.env.TWILIO_ACCOUNT_SID||'';}
+ async verify(from:string){if(!PHONE.test(from))throw Error('VOICE_NUMBER');const c=this.client();const [a,n]=await Promise.all([c.api.accounts(this.account()).fetch(),c.incomingPhoneNumbers.list({phoneNumber:from,limit:2})]);if(a.status!=='active'||n.length!==1||!n[0].capabilities.voice)throw Error('VOICE_NUMBER_ACCESS');return {readVerified:true,number:from,accountActive:true,relayVerified:false};}
+ async dial(id:string,to:string,from:string,maxSeconds:number){return this.client().calls.create({to,from,url:`${publicBase(this.env)}/api/voice/provider/connect/${id}`,method:'POST',statusCallback:`${publicBase(this.env)}/api/voice/provider/status/${id}`,statusCallbackMethod:'POST',statusCallbackEvent:['initiated','ringing','answered','completed'],timeout:25,timeLimit:maxSeconds,record:false});}
+ async stop(sid:string){await this.client().calls(sid).update({status:'completed'});}
+ async inspect(sid:string){const c=await this.client().calls(sid).fetch();return {sid:c.sid,status:c.status,from:c.from,to:c.to,duration:c.duration};}
+ valid(signature:string,url:string,body:Record<string,string>={}){return Boolean(this.env.TWILIO_AUTH_TOKEN&&twilio.validateRequest(this.env.TWILIO_AUTH_TOKEN,signature,url,body));}
+ xml(id:string,maxSeconds:number,company:string){const v=new twilio.twiml.VoiceResponse();v.connect({action:`${publicBase(this.env)}/api/voice/provider/finish/${id}`,method:'POST'}).conversationRelay({url:`${publicBase(this.env).replace('https:','wss:')}/api/voice/relay/${id}`,language:'es-US',ttsProvider:'ElevenLabs',voice:'CaJslL1xziwefCeTNzHv',transcriptionProvider:'Google',speechModel:'telephony',welcomeGreeting:`Hola, soy Valeria, asistente de inteligencia artificial de ${company}. Esta conversación se transcribe para atenderte y dar seguimiento. ¿Puedes conversar un momento?`,interruptible:'any'});v.hangup();return v.toString();}
+ finish(transfer:string,from:string,outcome:string){const v=new twilio.twiml.VoiceResponse();if(PHONE.test(transfer)){v.say({language:'es-MX'},'Voy a comunicarte con una persona del equipo.');v.dial({callerId:from,timeout:20,timeLimit:60},transfer);}else{v.say({language:'es-MX'},outcome==='opt_out'?'Entendido. No volveremos a llamarte. Gracias.':outcome==='human'?'Tu solicitud de atención humana quedó registrada. En este momento no hay una transferencia configurada.':outcome==='follow_up_requested'?'Tu solicitud de seguimiento quedó registrada para coordinarla con el equipo. Gracias.':'Gracias por tu tiempo. Que tengas buen día.');}v.hangup();return v.toString();}
+}

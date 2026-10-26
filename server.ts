@@ -1,3 +1,7 @@
+import { createServer } from 'node:http';
+import { VoiceSalesAgent } from './voice/agent';
+import { VoiceProvider } from './voice/provider';
+import { voiceAdminRouter, voiceProviderRouter, attachVoiceRelay } from './voice/routes';
 import { CommunityManager } from './community-manager';
 import { CommunityPublisher } from './community-publisher';
 import { createTeamStudio } from './team/routes';
@@ -42,6 +46,8 @@ const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
 const communityManager = new CommunityManager(salesStore, whatsAppCatalog, new CommunityPublisher(advertisingAgent));
+const voiceSalesAgent = new VoiceSalesAgent(salesStore, whatsAppCatalog, new VoiceProvider(), async prompt => { const r=await generateGeminiContentWithFallback(prompt,{responseMimeType:'application/json',httpOptions:{timeout:12000,retryOptions:{attempts:1}},maxOutputTokens:512},true); return r.text||''; });
+const voiceTimer=setInterval(()=>void voiceSalesAgent.tick(),60000);voiceTimer.unref();
 const communityTimer = setInterval(() => { void communityManager.tick().then(() => communityManager.observe()); }, 60000);
 communityTimer.unref();
 setTimeout(() => void communityManager.tick(), 20000).unref();
@@ -973,6 +979,13 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     webhookPath: '/api/webhooks/youtube/events',
   },
   {
+    id: 'int_voice_sales',
+    name: 'Telefonía de ventas · Twilio ConversationRelay',
+    category: 'Telefonía',
+    requiredEnvVars: ['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'],
+    webhookPath: '/api/voice/provider',
+  },
+  {
     id: 'int_creative_ai',
     name: 'Generación de imágenes y videos con IA',
     category: 'Creativos',
@@ -1033,6 +1046,7 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
 ];
 
 const AGENT_RUNTIME_REGISTRY = [
+  {id:'agent_voice_closer',name:'Valeria Voz · Ventas por teléfono',function:'Llamadas autorizadas, conversación de voz, objeciones y registro de intención de pago.',requiredIntegrationIds:['int_voice_sales','int_gemini_ai','int_supabase_database'],optionalIntegrationIds:[],executableTools:['voice.verify_number','voice.schedule_authorized','voice.stop','voice.transcript','crm.payment_interest'],humanIntervention:'Activar proveedor y número, aprobar costos, validar pagos y conciliar resultados inciertos.'},
   {
     id: 'agent_whatsapp',
     name: 'Agente IA WhatsApp',
@@ -1336,6 +1350,8 @@ app.use('/api/advertising/oauth', createIntegrationOAuth({
   },
   verified: () => agentConnections.refresh(),
 }));
+app.use('/api/voice/provider',voiceProviderRouter(voiceSalesAgent));
+app.use('/api/advertising/voice',voiceAdminRouter(voiceSalesAgent));
 app.get('/api/advertising/community', async (_req,res)=>{try{res.json(await communityManager.snapshot());}catch{res.status(503).json({error:'No se pudo leer la memoria de Lisa en Supabase.'});}});
 app.post('/api/advertising/community/settings',async(req,res)=>{const b=z.object({enabled:z.boolean()}).strict().safeParse(req.body);if(!b.success)return res.status(400).json({error:'Revisa la configuración.'});try{await communityManager.setEnabled(b.data.enabled);res.json({success:true});}catch{res.status(503).json({error:'No se pudo guardar la configuración.'});}});
 app.post('/api/advertising/community/run',async(_req,res)=>{void communityManager.tick();res.json({accepted:true,message:'Procesamiento solicitado. Consulta el estado real en el calendario.'});});
@@ -2870,7 +2886,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const httpServer=createServer(app);
+  attachVoiceRelay(httpServer,voiceSalesAgent);
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Sales AI CRM listening on http://0.0.0.0:${PORT}`);
     if (process.env.CRM_RENDER_PERSISTENCE_DIAGNOSTIC === 'true') {
       void probeRenderPersistence(process.env.RENDER_SERVICE_ID || '', process.env.RENDER_API_KEY || '')

@@ -5,7 +5,7 @@ import { createTeamStudio } from './routes.ts';
 import { TEAM_AGENTS, allowedAgent } from './agents.ts';
 
 test('area mapping covers all agents and prevents cross-area access', () => {
-  assert.equal(TEAM_AGENTS.length, 22);
+  assert.equal(TEAM_AGENTS.length, 23);
   assert.ok(TEAM_AGENTS.every((a) => allowedAgent('owner', a.id)));
   assert.equal(allowedAgent('Marketing', 'agent_accounting'), false);
   assert.equal(allowedAgent('Contabilidad', 'agent_accounting'), true);

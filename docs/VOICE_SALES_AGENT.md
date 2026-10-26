@@ -1,0 +1,37 @@
+# Valeria Voz — ventas telefónicas
+
+Implementación independiente de WhatsApp y publicidad. El despliegue inicial conserva llamadas deshabilitadas, presupuesto cero y ninguna llamada piloto realizada.
+
+## Flujo implementado
+
+- Cuenta Twilio y número de voz verificados con su API. ConversationRelay STT/TTS en español latino, voz sintética preconfigurada, WebSocket firmado y conversación mediante la IA existente del CRM. No usa ni exige una nueva clave OpenAI.
+- El proveedor requiere activar ConversationRelay y aceptar sus condiciones en su consola. Esa aceptación corresponde al titular, no la realiza el CRM.
+- Presentación como IA, aviso de transcripción, preguntas de diagnóstico, catálogo autorizado, objeciones, rechazo, baja y solicitud de persona. No se promete acento dominicano exacto ni voz clonada; requiere piloto auditivo.
+- Supabase guarda contactos, permiso, programación, texto de conversación, resultado, reserva estimada e identificador Twilio. No se graba audio. Se omiten secuencias numéricas largas y referencias evidentes a claves en el texto guardado.
+- Un trabajador por minuto procesa la cola mientras Render está activo. Una llamada activa o de resultado incierto bloquea otras llamadas de la misma empresa. Una reserva transaccional comprueba horario, consentimiento, tope diario, reservas y frecuencia; otra instancia no puede reservar simultáneamente una segunda llamada.
+- La importación INTECA solo incluye interesados de WhatsApp con callbackConsent=yes y control automático, excluye pagos validados y vuelve a comprobar el permiso antes de marcar. La baja de voz no se restaura al importar nuevamente.
+- Otras empresas tienen catálogo, contactos, número y límites separados. Solo el administrador global actual controla la operación telefónica. El personal de Call Center puede coordinar propuestas en el chat; no obtiene credenciales ni permisos de llamada por elegir un rol visual.
+- Una solicitud de pago de un contacto de WhatsApp se comunica al flujo de ventas como intención de pago; nunca se confirma la venta ni se matricula por la declaración del cliente. Para contactos manuales u otras empresas queda registrada en el historial telefónico.
+- La transferencia usa exclusivamente el número humano configurado, con duración adicional limitada. La atención humana y el seguimiento sin fecha confirmada quedan en next_action para coordinación; no se inventa una cita.
+- El simulador usa texto y la IA del CRM. No marca números ni ejecuta acciones de clientes.
+
+## Autorización de costos
+
+La habilitación exige que el administrador introduzca el número propio, reserva estimada por llamada y diaria, confirme costos y confirme la activación de ConversationRelay. Los costos reales dependen de Twilio, STT/TTS/relay, IA, destinos y transferencias. Las reservas son un control interno conservador, no un límite garantizado de la factura externa. Configurar también alertas, permisos geográficos y controles de gasto en el proveedor. No se compra un número ni se modifica una suscripción automáticamente.
+
+## Límites actuales
+
+No existe llamada real verificada hasta conectar cuenta, número, activación del proveedor y completar un piloto autorizado con un límite de gasto. Render gratuito puede dormir o cerrar conexiones; no se garantiza atención continua. Este módulo inicia llamadas salientes; no se configuró un número para recibir llamadas entrantes públicas. No envía WhatsApp desde el discurso del modelo, no captura pagos por teléfono, no concede descuentos, no ofrece garantía de cierre ni optimiza automáticamente argumentos a partir de matrículas no verificadas.
+
+Si se pierde una respuesta después de pedir una llamada, no se vuelve a marcar automáticamente. Con un Call SID conocido se consulta Twilio; si no se recibió SID, el administrador debe conciliar el caso con el proveedor antes de desbloquearlo. Esto evita duplicados con costo e interrupciones a clientes.
+
+Para INTECA se consulta Supabase y se aplican los cambios confirmados por el propietario el 25/10/2026: Promotor de Salud 6 meses y Promotor de Seguros de Salud 5 meses; ambos inscripción RD$2,500 y mensualidad RD$2,000. Los cambios aquí no reescriben el archivo público de conocimiento de otros módulos.
+
+## Referencias consultadas
+
+- https://www.twilio.com/docs/voice/conversationrelay/onboarding
+- https://www.twilio.com/docs/voice/conversationrelay/websocket-messages
+- https://www.twilio.com/docs/voice/conversationrelay/voice-configuration
+- https://www.twilio.com/docs/voice/api/call-resource
+- https://render.com/docs/deploys
+- https://render.com/docs/health-checks

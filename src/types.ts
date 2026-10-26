@@ -729,6 +729,7 @@ export type IntegrationStatus =
   | 'Modo demo';
 
 export type IntegrationCategory =
+  | 'Telefonía'
   | 'Base de datos'
   | 'Hosting'
   | 'IA'

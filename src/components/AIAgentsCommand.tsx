@@ -1,3 +1,4 @@
+import { VoiceSalesCenter } from './VoiceSalesCenter';
 import { CommunityManagerCenter } from './CommunityManagerCenter';
 import { FiscalWorkspace } from './FiscalWorkspace';
 import { SharedAgentConnections } from './SharedAgentConnections';
@@ -319,7 +320,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
 
         {/* Right 2 Columns: Detailed Inspector & Prompt Editor */}
         <div className="lg:col-span-2 space-y-6">
-          {selectedAgent.id === 'agent_community_manager' ? (organization.id === 'org_inteca_main' ? <CommunityManagerCenter /> : <p className="text-slate-200">La operación de Lisa está autorizada para INTECA. Usa el chat de Marketing para preparar un plan para esta empresa.</p>) : selectedAgent.id === 'agent_billing' ? <FiscalWorkspace key={organization.id} organization={organization} /> : selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : ['agent_creative', 'agent_video'].includes(selectedAgent.id) ? <BrandedCreativeStudio /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
+          {selectedAgent.id === 'agent_voice_closer' ? <VoiceSalesCenter key={organization.id} organization={organization} onConfigure={onNavigateToSettings} /> : selectedAgent.id === 'agent_community_manager' ? (organization.id === 'org_inteca_main' ? <CommunityManagerCenter /> : <p className="text-slate-200">La operación de Lisa está autorizada para INTECA. Usa el chat de Marketing para preparar un plan para esta empresa.</p>) : selectedAgent.id === 'agent_billing' ? <FiscalWorkspace key={organization.id} organization={organization} /> : selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : ['agent_creative', 'agent_video'].includes(selectedAgent.id) ? <BrandedCreativeStudio /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
           {/* Active Agent Profile Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">

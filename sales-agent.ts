@@ -164,6 +164,7 @@ export class SalesStore {
         const result = await response.json().catch(() => ({}));
         // Return only known application codes, never provider details or credentials.
         const known = [
+          'VOICE_NOT_FOUND','VOICE_STATE','VOICE_CONSENT','VOICE_DISABLED','VOICE_HOURS','VOICE_ACTIVE','VOICE_BUDGET','VOICE_FREQUENCY',
           'ALREADY_PAID',
           'INVALID_PAYMENT',
           'UNKNOWN_CONTACT',

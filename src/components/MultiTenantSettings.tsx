@@ -138,6 +138,15 @@ const PRODUCTION_CONFIG_SECTIONS: ProductionConfigSection[] = [
     ],
   },
   {
+    id: 'voice-sales',
+    title: 'Telefonía de ventas · Twilio',
+    description: 'Credenciales privadas para Valeria Voz. El número y los límites se configuran en la ficha del agente. Los campos vacíos conservan lo guardado.',
+    fields: [
+      {key:'TWILIO_ACCOUNT_SID',label:'Twilio Account SID',placeholder:'AC…',sensitive:true},
+      {key:'TWILIO_AUTH_TOKEN',label:'Twilio Auth Token',placeholder:'Token privado de la cuenta',sensitive:true},
+    ],
+  },
+  {
     id: 'whatsapp',
     title: 'WhatsApp Cloud API',
     description: 'Credenciales para responder mensajes reales por WhatsApp.',
