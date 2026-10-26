@@ -6,6 +6,7 @@ import express from 'express';
 import twilio from 'twilio';
 import { WebSocket } from 'ws';
 import { VoiceSalesAgent, actionFor, redact, settingsSchema } from './agent.ts';
+import { voiceGreeting, VOICE_SALES_MANDATE } from '../src/data/voice-sales.ts';
 import { VoiceProvider } from './provider.ts';
 import { voiceProviderRouter,attachVoiceRelay } from './routes.ts';
 const sid='CA'+'a'.repeat(32), account='AC'+'b'.repeat(32), id='00000000-0000-4000-8000-000000000001';
@@ -27,7 +28,7 @@ test('webhooks and WebSocket reject forged signatures, wrong destinations and re
  const c={id:'contact',organization_id:'org_inteca_main',phone:'+18095550101',consent:true,do_not_call:false,course:'Autorizaciones'};
  const j:any={id,organization_id:'org_inteca_main',contact_id:'contact',provider_sid:sid,destination_from:'+18095550100',state:'starting',outcome:'pending'};let sessionUsed=false;let writes=0;
  const store={request:async(r:string,m='GET',b?:any)=>{if(r.startsWith('crm_voice_contacts'))return[c];if(r.includes('session_id=is.null')&&m==='PATCH'){if(sessionUsed)return[];sessionUsed=true;writes++;return[j];}if(r.startsWith('crm_voice_calls'))return r.includes('id=neq.')?[]:[j];return[];}};
- const agent:any={store,provider:new VoiceProvider(env as any),job:async()=>j,settings:async()=>({enabled:true,max_seconds:180,company_name:'INTECA'}),update:async()=>{writes++;}};
+ const agent:any={store,customerContext:async()=>({name:'Luis',title:'señor',course:'Autorizaciones',linked:false,profile:{},whatsapp:[],stage:'',objection:'',nextAction:''}),provider:new VoiceProvider(env as any),job:async()=>j,settings:async()=>({enabled:true,max_seconds:180,company_name:'INTECA'}),update:async()=>{writes++;}};
  const app=express();app.use('/api/voice/provider',voiceProviderRouter(agent));const server=createServer(app),wss=attachVoiceRelay(server,agent);server.listen(0,'127.0.0.1');await once(server,'listening');const port=(server.address() as any).port;
  const body={AccountSid:account,CallSid:sid,To:c.phone,From:j.destination_from};const path=`/api/voice/provider/connect/${id}`;
  try{
@@ -40,4 +41,23 @@ test('webhooks and WebSocket reject forged signatures, wrong destinations and re
  for(let n=0;n<20&&!sessionUsed;n++)await new Promise(r=>setTimeout(r,10));assert.equal(sessionUsed,true);
  const second=new WebSocket(`ws://127.0.0.1:${port}${wsPath}`,{headers:{'X-Twilio-Signature':signature}});await once(second,'open');second.send(JSON.stringify(setup));const [code]=await once(second,'close');assert.equal(code,1008);first.close();await once(first,'close');
  }finally{for(const ws of wss.clients)ws.terminate();wss.close();await new Promise<void>(resolve=>server.close(()=>resolve()));if(old===undefined)delete process.env.APP_URL;else process.env.APP_URL=old;}
+});
+
+test('pitch introduction identifies institution and uses only a confirmed form of address',()=>{
+ assert.match(voiceGreeting('INTECA','Luis','señor',true),/Hola, señor Luis.*Valeria Parkert, de INTECA/);
+ assert.match(voiceGreeting('INTECA','Ana',''),/Cómo prefiere/);
+ assert.doesNotMatch(voiceGreeting('INTECA','Ana',''),/señora Ana/);
+ assert.match(VOICE_SALES_MANDATE,/la propuesta cumple con lo que necesita/);
+ assert.match(VOICE_SALES_MANDATE,/Qué necesita saber para tomar la decisión/);
+});
+test('precall context binds exact phone to INTECA sales and unexpired WhatsApp without crossing tenants',async()=>{
+ const reads:string[]=[];let prompt='';
+ const lead={contact_key:'key',profile:{fullName:'Señor Luis',phone:'+18095550101',course:'Autorizaciones',schedule:'sábado tarde',email:'luis@example.test'},stage:'payment_review',objection:'tiempo',next_action:'Revisar comprobante'};
+ const contact={id,organization_id:'org_inteca_main',phone:'+18095550101',name:'Luis',course:'',source_contact_key:'key'};
+ const a=new VoiceSalesAgent({get:async()=>lead,request:async(r:string)=>{reads.push(r);if(r.startsWith('crm_whatsapp_memory'))return[{state:{turns:[{role:'user',text:'Tráteme de señor. Prefiero el sábado'},{role:'assistant',text:'Tenemos su horario registrado.'}]}}];return[{company_name:'INTECA'}];}}, {get:async()=>({courses:[],generalSchedule:[],specialSchedules:[],payments:[]}) as any},new VoiceProvider(env as any),async p=>{prompt=p;return '{"reply":"Señor Luis, veo que prefiere el sábado. Su pago está en revisión."}';});
+ const c=await a.customerContext('org_inteca_main',contact);assert.equal(c.title,'señor');assert.equal(c.profile.schedule,'sábado tarde');assert.equal(c.stage,'payment_review');assert.equal(c.whatsapp.length,2);assert.ok(reads[0].includes('expires_at=gt.'));
+ await a.answer('org_inteca_main','',[],'Lo tengo que pensar',c);assert.match(prompt,/sábado tarde/);assert.match(prompt,/payment_review/);assert.match(prompt,/Prefiero el sábado/);
+ await assert.rejects(()=>a.customerContext('org_other',contact),/VOICE_CONTEXT/);
+ lead.profile.phone='+18095550999';await assert.rejects(()=>a.customerContext('org_inteca_main',contact),/VOICE_CONTEXT/);
+ reads.length=0;await a.customerContext('org_other',{...contact,organization_id:'org_other'});assert.equal(reads.length,0);
 });

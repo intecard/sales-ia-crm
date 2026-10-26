@@ -8,9 +8,9 @@ type Recognition = {
  onend: (() => void) | null; start(): void; stop(): void; abort(): void;
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
-const greeting = 'Hola, soy Valeria Parkert. Qué gusto saludarte. Cuéntame, ¿qué te gustaría aprender?';
 
-export function BrowserVoiceTrial({ organizationId }: { organizationId: string }) {
+export function BrowserVoiceTrial({ organizationId, contacts = [] }: { organizationId: string; contacts?: Array<{id:string;name:string;course?:string}> }) {
+ const [contactId,setContactId]=useState(''),[contextNotice,setContextNotice]=useState('');
  const [turns,setTurns]=useState<Turn[]>([]),[draft,setDraft]=useState(''),[course,setCourse]=useState('');
  const [voices,setVoices]=useState<SpeechSynthesisVoice[]>([]),[voiceId,setVoiceId]=useState(''),[rate,setRate]=useState(1);
  const [listening,setListening]=useState(false),[busy,setBusy]=useState(false),[speaking,setSpeaking]=useState(false),[active,setActive]=useState(false);
@@ -62,7 +62,7 @@ export function BrowserVoiceTrial({ organizationId }: { organizationId: string }
   const hide=()=>{if(document.hidden)stop();};document.addEventListener('visibilitychange',hide);
   return()=>{cancelAll();window.speechSynthesis?.removeEventListener('voiceschanged',loadVoices);document.removeEventListener('visibilitychange',hide);};
  },[]);
- useEffect(()=>{stop();setTurns([]);setDraft('');setCourse('');setError('');},[organizationId]);
+ useEffect(()=>{stop();setTurns([]);setDraft('');setCourse('');setContactId('');setContextNotice('');setError('');},[organizationId]);
  useEffect(()=>{transcript.current?.scrollTo({top:transcript.current.scrollHeight});},[turns,busy,draft]);
  function speak(text:string,resume=false){
   stopAudio();
@@ -103,16 +103,24 @@ export function BrowserVoiceTrial({ organizationId }: { organizationId: string }
   if(!supported){setError('Este navegador no ofrece dictado. Prueba Chrome o Edge, o escribe tu mensaje.');return;}
   if(!await prepareMic())return;
   session.current=current.current.continuous;setActive(session.current);
-  const text=current.current.turns.length?'Te escucho, cuéntame.':greeting;
-  if(!current.current.turns.length)setTurns([{speaker:'agent',text}]);
-  speak(text,session.current);
+  const version=generation.current;const controller=new AbortController();request.current=controller;locked.current=true;setBusy(true);
+  const timeout=setTimeout(()=>controller.abort(),30000);
+  try {
+   const response=await fetch(`/api/advertising/voice/${encodeURIComponent(organizationId)}/prepare`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:JSON.stringify(contactId?{contactId}:{}),signal:controller.signal});
+   const prepared=await response.json();if(!response.ok)throw Error('No se pudo consultar la ficha y el catálogo. Reintente antes de iniciar.');
+   if(version!==generation.current)return;
+   setContextNotice(prepared.context?.whatsapp?.length?'Ficha comercial e historial de WhatsApp vinculados al contacto.':prepared.context?.linked?'Ficha comercial vinculada; no hay historial de WhatsApp vigente disponible.':contactId?'Ficha telefónica disponible; no hay conversación de WhatsApp vinculada.':'Prueba general sin ficha de cliente.');
+   const text=current.current.turns.length?'Le escucho, cuénteme.':prepared.greeting;
+   if(!current.current.turns.length)setTurns([{speaker:'agent',text}]);speak(text,session.current);
+  } catch(e){if(version===generation.current){stop();setError(e instanceof Error?e.message:'No se pudo preparar la conversación.');}}
+  finally{clearTimeout(timeout);if(version===generation.current){locked.current=false;setBusy(false);request.current=null;}}
  }
  async function send(textOverride?:string){
   const text=(textOverride??current.current.draft).trim();if(!text||locked.current||recognition.current)return;
   locked.current=true;setBusy(true);setError('');stopAudio();const controller=new AbortController();request.current=controller;const version=generation.current;
   const timeout=setTimeout(()=>controller.abort(),45000);
   try{
-   const response=await fetch(`/api/advertising/voice/${encodeURIComponent(organizationId)}/simulate`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:JSON.stringify({course:current.current.course,text,history:current.current.turns.slice(-16).map(t=>({...t,text:t.text.slice(0,1000)}))}),signal:controller.signal});
+   const response=await fetch(`/api/advertising/voice/${encodeURIComponent(organizationId)}/simulate`,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:JSON.stringify({...(contactId?{contactId}:{}),course:current.current.course,text,history:current.current.turns.slice(-16).map(t=>({...t,text:t.text.slice(0,1000)}))}),signal:controller.signal});
    const result=await response.json();if(!response.ok||typeof result.reply!=='string'||!result.reply.trim())throw Error('No se pudo obtener la respuesta. Revisa la sesión y la conexión de IA del CRM.');if(version!==generation.current)return;
    setTurns(previous=>[...previous,{speaker:'customer',text},{speaker:'agent',text:result.reply}]);setDraft('');
    if(['end','opt_out','human','follow_up_requested'].includes(result.action)){session.current=false;setActive(false);releaseMic();setLevel(0);}
@@ -127,6 +135,8 @@ export function BrowserVoiceTrial({ organizationId }: { organizationId: string }
   <p className="text-sm text-cyan-200">Voz en el CRM disponible · Asistente virtual de ventas · Sin Twilio ni tarjeta</p>
   <p className="text-sm text-slate-300">Pulsa Iniciar conversación y permite el micrófono. Valeria te saluda, escucha y responde por turnos, sin pulsar Enviar cada vez. Espera a que termine de hablar o pulsa Interrumpir y hablar.</p>
   <p className="text-xs text-slate-300">La voz depende de tu navegador; elige una voz femenina Natural/Neural si está disponible. El dictado puede usar servidores del navegador. Las respuestas usan la cuota o tarifa existente de IA del CRM. No se graba audio ni se realizan llamadas celulares, pagos o matrículas.</p>
+  <label className="block text-sm">Ficha del cliente para la conversación<select aria-label="Cliente para conversar con Valeria" disabled={busy||listening||active||speaking} value={contactId} onChange={e=>{stop();setContactId(e.target.value);setTurns([]);setDraft('');setContextNotice('');setCourse(contacts.find(c=>c.id===e.target.value)?.course||'');}} className="mt-1 w-full rounded bg-slate-800 p-2"><option value="">Prueba general sin cliente</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.name}{c.course?' · '+c.course:''}</option>)}</select></label>
+  {contextNotice&&<p className="text-sm text-cyan-200">{contextNotice}</p>}
   <label className="block text-sm">Curso o producto (opcional)<input aria-label="Curso para hablar con Valeria" maxLength={250} disabled={busy||listening||active||speaking} value={course} onChange={e=>{stop();setCourse(e.target.value);setTurns([]);}} className="mt-1 w-full rounded bg-slate-800 p-2"/></label>
   <div className="grid gap-3 sm:grid-cols-2">
    <label className="block text-sm">Voz en español<select aria-label="Voz de prueba en español" disabled={active||listening||busy||speaking} value={voiceId} onChange={e=>{stopAudio();setVoiceId(e.target.value);}} className="mt-1 w-full rounded bg-slate-800 p-2"><option value="">Predeterminada del dispositivo</option>{voices.map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}</select></label>
