@@ -1,4 +1,4 @@
-# Valeria Voz — ventas telefónicas
+# Valeria Parkert — ventas telefónicas
 
 Implementación independiente de WhatsApp y publicidad. El despliegue inicial conserva llamadas deshabilitadas, presupuesto cero y ninguna llamada piloto realizada.
 
@@ -37,3 +37,11 @@ Para INTECA se consulta Supabase y se aplican los cambios confirmados por el pro
 - https://render.com/docs/health-checks
 
 Voz seleccionada: https://docs.cloud.google.com/text-to-speech/docs/list-voices-and-types (es-US-Neural2-A, FEMALE). El perfil también se aplica a despedidas y avisos de transferencia para mantener la misma voz.
+
+## Prueba de voz en el navegador (sin Twilio)
+
+El panel incluye Hablar con Valeria. Usa SpeechRecognition del navegador para dictar y SpeechSynthesis para leer respuestas en español. No requiere credenciales Twilio, tarjeta, número ni autorización de costos telefónicos. La generación usa el mismo endpoint autenticado `/api/advertising/voice/:org/simulate`, catálogo y mandato que el simulador comercial, con historial de los últimos 16 turnos. Ese endpoint no marca teléfonos ni ejecuta acciones sobre leads, pagos o matrículas. No se modifica la configuración de telefonía.
+
+El usuario pulsa Hablar, permite el micrófono, dicta, revisa la transcripción y pulsa Enviar. Puede escribir si el reconocimiento no está disponible, elegir voz española, repetir la respuesta, silenciar y limpiar. Los proveedores del navegador pueden procesar audio fuera del equipo. No se almacena audio en el CRM. El historial es temporal, aislado por empresa y se cancela al salir, cambiar de empresa o esconder la pestaña. La voz disponible depende del dispositivo; no es una prueba de la voz Google telefónica. El modelo de IA conserva su cuota o tarifa existente; esta prueba elimina los cargos de Twilio, no garantiza gratuidad del proveedor de IA.
+
+Una llamada a un celular necesita telefonía conectada. El modo navegador nunca debe presentarse como una llamada celular efectuada.

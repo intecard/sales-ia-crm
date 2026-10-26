@@ -438,7 +438,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                       <span className="text-[10px] text-slate-500">Hace 2 minutos</span>
                     </div>
                     <p className="text-xs text-slate-300 mt-1">
-                      Agente <strong className="text-white">Valeria Sotomayor</strong> llevó a{' '}
+                      Agente <strong className="text-white">Valeria Parkert</strong> llevó a{' '}
                       <strong className="text-cyan-300">Alejandro Gómez</strong> hasta pago recibido
                       por <span className="text-amber-300">Técnico en Autorizaciones Médicas</span>.
                       El sistema exige validación antes de matricular.

@@ -771,18 +771,18 @@ const withSharedAgentConversationGuide = (prompt: string) =>
   `${prompt.trim()}\n\n${SHARED_AGENT_CONVERSATION_GUIDE.trim()}`;
 
 const RAW_MULTI_AGENTS_SPEC = [
-  {id:'agent_voice_closer',name:'Valeria Voz',roleTitle:'Cierre de ventas por llamadas telefónicas',specialty:'Ventas',avatar:'/crm-logo.png',description:'Conversaciones telefónicas con catálogo autorizado, memoria, objeciones, baja y transferencia humana. Requiere telefonía conectada.',systemPrompt:VOICE_SALES_MANDATE,autonomyLevel:'Supervisado',operatingMandate:'Contactar solo prospectos autorizados dentro de horario y presupuesto. Nunca confirmar pagos por lo que diga el cliente.',tacticalArsenal:['Diagnóstico comercial','Manejo de objeciones','Telefonía Twilio ConversationRelay','Memoria por empresa','Seguimiento autorizado','Transferencia humana configurada'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'En Pausa',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
+  {id:'agent_voice_closer',name:'Valeria Parkert',roleTitle:'Cierre de ventas por llamadas telefónicas',specialty:'Ventas',avatar:'/crm-logo.png',description:'Conversaciones telefónicas con catálogo autorizado, memoria, objeciones, baja y transferencia humana. Requiere telefonía conectada.',systemPrompt:VOICE_SALES_MANDATE,autonomyLevel:'Supervisado',operatingMandate:'Contactar solo prospectos autorizados dentro de horario y presupuesto. Nunca confirmar pagos por lo que diga el cliente.',tacticalArsenal:['Diagnóstico comercial','Manejo de objeciones','Telefonía Twilio ConversationRelay','Memoria por empresa','Seguimiento autorizado','Transferencia humana configurada'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'En Pausa',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {id:'agent_community_manager',name:'Lisa Parkerd',roleTitle:'Community Manager IA de INTECA',specialty:'Community Manager',avatar:'/crm-logo.png',description:'Planifica, produce flyers y videos verticales, publica en canales verificados y registra resultados reales.',systemPrompt:LISA_MANDATE,autonomyLevel:'24/7 Autónomo',operatingMandate:'Ejecutar el calendario orgánico con catálogo vigente, memoria persistente y trazabilidad. El servidor gratuito puede suspenderse.',tacticalArsenal:['Catálogo de Supabase','Calendario de 30 días','Flyers con logo e imágenes','MP4 verticales y guiones','Publicación orgánica con auditoría','Coordinación con ventas y matrícula'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'Activo',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {
     id: 'agent_director',
-    name: 'Don Fernando Vane',
+    name: 'Fernando Vane',
     roleTitle: 'Director Comercial & Estratega AI',
     specialty: 'Estrategia',
     avatar:
       'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
     description:
       'Supervisa el flujo comercial general, analiza probabilidades de cierre, sugiere descuentos autorizados y gestiona el cumplimiento de metas.',
-    systemPrompt: `Eres Don Fernando Vane, el experimentado Director Comercial de INTECA. Tu tono es sumamente profesional, seguro, empático y orientado a resultados. Evalúas la intención de compra del estudiante, respondes dudas estratégicas sobre los programas de INTECA y buscas el beneficio académico del alumno garantizando el cierre de la venta.`,
+    systemPrompt: `Eres Fernando Vane, el experimentado Director Comercial de INTECA. Tu tono es sumamente profesional, seguro, empático y orientado a resultados. Evalúas la intención de compra del estudiante, respondes dudas estratégicas sobre los programas de INTECA y buscas el beneficio académico del alumno garantizando el cierre de la venta.`,
     status: 'Activo',
     stats: {
       conversationsHandled: 4120,
@@ -793,14 +793,14 @@ const RAW_MULTI_AGENTS_SPEC = [
   },
   {
     id: 'agent_closer',
-    name: 'Valeria Sotomayor',
+    name: 'Valeria Parkert',
     roleTitle: 'Agente de Ventas 24/7, Conversión y Cierre',
     specialty: 'Cierre',
     avatar:
       'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
     description:
       'Detecta necesidades, adapta la oferta, rompe objeciones, crea urgencia ética, negocia dentro de políticas y empuja cada conversación hacia pago validado.',
-    systemPrompt: `Eres Valeria Sotomayor, agente de ventas 24/7 del CRM. Tu misión es convertir conversaciones en pagos validados sin inventar promesas. Conoces al cliente, detectas su necesidad real, adaptas la oferta a su dolor y explicas la mejora concreta en empleo, ingresos, productividad o crecimiento. Debes crear la necesidad con ética: mostrar el costo de no actuar, el beneficio de actuar ahora y por qué esta oferta es la opción obvia para su nicho. Manejas objeciones de precio, tiempo, confianza y urgencia; negocias solo dentro de políticas; actualizas etapa, próxima acción y probabilidad de cierre. Meta operativa: lograr 5 ventas diarias, responder en menos de 5 minutos, validar pago antes de marcar matriculado o cliente activo, y que el dueño solo reciba notificaciones claras de pagos, bloqueos y decisiones importantes.`,
+    systemPrompt: `Eres Valeria Parkert, agente de ventas 24/7 del CRM. Tu misión es convertir conversaciones en pagos validados sin inventar promesas. Conoces al cliente, detectas su necesidad real, adaptas la oferta a su dolor y explicas la mejora concreta en empleo, ingresos, productividad o crecimiento. Debes crear la necesidad con ética: mostrar el costo de no actuar, el beneficio de actuar ahora y por qué esta oferta es la opción obvia para su nicho. Manejas objeciones de precio, tiempo, confianza y urgencia; negocias solo dentro de políticas; actualizas etapa, próxima acción y probabilidad de cierre. Meta operativa: lograr 5 ventas diarias, responder en menos de 5 minutos, validar pago antes de marcar matriculado o cliente activo, y que el dueño solo reciba notificaciones claras de pagos, bloqueos y decisiones importantes.`,
     autonomyLevel: '24/7 Autónomo',
     operatingMandate:
       'Convertir atención fría en clientes pagados, mantener seguimiento constante y escalar las habilidades comerciales del dueño sin depender de su presencia.',
@@ -1556,7 +1556,7 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = RAW_MULTI_AGENTS_SPEC.map((agent
 }));
 
 export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
-  {id:'int_voice_sales',name:'Telefonía de ventas · Twilio ConversationRelay',category:'Telefonía',status:'Requiere credenciales',inboundWebhookPath:'/api/voice/provider',outboundCapability:'Llamadas salientes autorizadas, conversación de voz, historial y transferencia humana configurada.',requiredEnvVars:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'],ownerAgentId:'agent_voice_closer',setupNotes:['Registrar la cuenta Twilio y un número de voz propio. No usar el ID telefónico de WhatsApp como credencial Twilio.','Activar ConversationRelay y revisar sus condiciones en la cuenta del proveedor.','Configurar límites, costos y contactos autorizados en Valeria Voz. Realizar una llamada piloto antes de aumentar volumen.']},
+  {id:'int_voice_sales',name:'Telefonía de ventas · Twilio ConversationRelay',category:'Telefonía',status:'Requiere credenciales',inboundWebhookPath:'/api/voice/provider',outboundCapability:'Llamadas salientes autorizadas, conversación de voz, historial y transferencia humana configurada.',requiredEnvVars:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'],ownerAgentId:'agent_voice_closer',setupNotes:['Registrar la cuenta Twilio y un número de voz propio. No usar el ID telefónico de WhatsApp como credencial Twilio.','Activar ConversationRelay y revisar sus condiciones en la cuenta del proveedor.','Configurar límites, costos y contactos autorizados en Valeria Parkert. Realizar una llamada piloto antes de aumentar volumen.']},
   {
     id: 'int_supabase_database',
     name: 'Supabase Database, Auth y Storage',

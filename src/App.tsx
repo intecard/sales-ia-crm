@@ -129,17 +129,17 @@ const getOrganizationsForSession = (session: CRMAuthSession | null): Organizatio
 
 const REAL_AGENT_IDENTITIES: Record<string, { name: string; roleTitle: string; initials: string }> =
   {
-    agent_voice_closer: {name:'Valeria Voz · Ventas por teléfono',roleTitle:'Llamadas, objeciones y cierre con pago validado',initials:'VV'},
+    agent_voice_closer: {name:'Valeria Parkert · Ventas por teléfono',roleTitle:'Llamadas, objeciones y cierre con pago validado',initials:'VP'},
     agent_community_manager: {name:'Lisa Parkerd · Community Manager',roleTitle:'Contenido, comunidad y publicación orgánica INTECA',initials:'LP'},
     agent_director: {
-      name: 'Agente IA Estratega Comercial',
+      name: 'Fernando Vane',
       roleTitle: 'Dirección comercial autónoma',
-      initials: 'EC',
+      initials: 'FV',
     },
     agent_closer: {
-      name: 'Agente IA de Ventas y Cierre',
+      name: 'Valeria Parkert',
       roleTitle: 'Ventas 24/7, objeciones, seguimiento y pagos',
-      initials: 'VC',
+      initials: 'VP',
     },
     agent_conversion: {
       name: 'Agente IA Conversión y Matrícula',

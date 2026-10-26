@@ -1,3 +1,4 @@
+import { BrowserVoiceTrial } from './BrowserVoiceTrial';
 import { VOICE_PROFILE } from '../data/voice-sales';
 import { useEffect,useState } from 'react';
 const configKeys=['company_name','enabled','auto_queue','from_number','transfer_number','timezone','start_hour','end_hour','max_calls_day','max_seconds','daily_reserve_usd','per_call_reserve_usd','costs_authorized','relay_terms_confirmed','catalog'];
@@ -11,8 +12,9 @@ export function VoiceSalesCenter({organization,onConfigure}:{organization:{id:st
  async function simulate(){const text=simulation.trim();if(!text)return;const result=await action('/simulate',{course,text,history:history.slice(-16)});if(result){setHistory(h=>[...h,{speaker:'customer',text},{speaker:'agent',text:result.reply}]);setSimulation('');}}
  const calls=snapshot?.calls||[];
  return <section className="space-y-5 rounded-2xl border border-slate-700 bg-slate-900 p-5 text-slate-100">
-  <h2 className="text-xl font-bold">Valeria Voz · Cierre de ventas por teléfono</h2><p className="text-sm text-slate-300">{organization.name} · Motor comercial con datos y autorización separados por empresa. Se identifica como IA. Sin descuentos ni matrículas antes del pago validado.</p>
-  <p className="text-sm text-cyan-200">Voz configurada: {VOICE_PROFILE.label}. Estilo: {VOICE_PROFILE.style}. La prueba de audio requiere conectar la telefonía.</p>
+  <h2 className="text-xl font-bold">Valeria Parkert · Cierre de ventas por teléfono</h2><p className="text-sm text-slate-300">{organization.name} · Motor comercial con datos y autorización separados por empresa. Se identifica como IA. Sin descuentos ni matrículas antes del pago validado.</p>
+  <p className="text-sm text-cyan-200">Voz configurada: {VOICE_PROFILE.label}. Estilo: {VOICE_PROFILE.style}. La voz telefónica requiere conectar la telefonía. Puedes probar la conversación con la voz de tu navegador aquí debajo.</p>
+  <BrowserVoiceTrial key={organization.id} organizationId={organization.id}/>
   <p role="status" className="rounded bg-slate-800 p-3">{snapshot?.settings?.enabled?'Llamadas habilitadas según permisos y límites':'Llamadas en pausa'} · {calls.filter((c:any)=>c.state==='completed').length} llamadas completadas · {calls.filter((c:any)=>c.outcome==='payment_requested').length} solicitudes de pago · {calls.filter((c:any)=>c.state==='review_required').length} resultados por revisar</p>
   {error&&<p role="alert" className="text-amber-300">{error}</p>}{notice&&<p role="status" className="text-cyan-300">{notice}</p>}
   <div className="rounded border border-amber-700 p-3 text-sm space-y-2"><p>La telefonía requiere una cuenta Twilio, un número habilitado para voz, saldo y ConversationRelay activado en el proveedor. No se ha contratado un número ni se ha realizado una llamada piloto desde este módulo.</p><p>Credenciales pendientes: {snapshot?.missing?.join(', ')||'Consultar verificación del proveedor'}. Regístralas en Configuración, nunca en el chat.</p><button onClick={()=>onConfigure?.()} className="rounded bg-blue-600 px-3 py-2 text-white">Configurar credenciales de telefonía</button><button disabled={busy} onClick={()=>void action('/verify').then(d=>{if(d)setNotice('Cuenta y número verificados por Twilio. La voz y las llamadas todavía requieren una prueba real.');})} className="ml-2 rounded border px-3 py-2">Verificar cuenta y número</button></div>

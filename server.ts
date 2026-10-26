@@ -1046,7 +1046,7 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
 ];
 
 const AGENT_RUNTIME_REGISTRY = [
-  {id:'agent_voice_closer',name:'Valeria Voz · Ventas por teléfono',function:'Llamadas autorizadas, conversación de voz, objeciones y registro de intención de pago.',requiredIntegrationIds:['int_voice_sales','int_gemini_ai','int_supabase_database'],optionalIntegrationIds:[],executableTools:['voice.verify_number','voice.schedule_authorized','voice.stop','voice.transcript','crm.payment_interest'],humanIntervention:'Activar proveedor y número, aprobar costos, validar pagos y conciliar resultados inciertos.'},
+  {id:'agent_voice_closer',name:'Valeria Parkert · Ventas por teléfono',function:'Llamadas autorizadas, conversación de voz, objeciones y registro de intención de pago.',requiredIntegrationIds:['int_voice_sales','int_gemini_ai','int_supabase_database'],optionalIntegrationIds:[],executableTools:['voice.verify_number','voice.schedule_authorized','voice.stop','voice.transcript','crm.payment_interest'],humanIntervention:'Activar proveedor y número, aprobar costos, validar pagos y conciliar resultados inciertos.'},
   {
     id: 'agent_whatsapp',
     name: 'Agente IA WhatsApp',
