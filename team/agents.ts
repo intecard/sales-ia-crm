@@ -12,7 +12,6 @@ export const AREAS = [
   'Soporte',
 ] as const;
 const areaById: Record<string, string> = {
-  agent_voice_closer: 'Call Center',
   agent_community_manager: 'Marketing',
   agent_director: 'Ventas',
   agent_closer: 'Ventas',
@@ -42,9 +41,12 @@ export const TEAM_AGENTS = MULTI_AGENTS_SPEC.map((a) => ({
   title: a.roleTitle,
   area: areaById[a.id] || 'Soporte',
 }));
+export const canonicalAgentId = (id: string) => id === 'agent_voice_closer' ? 'agent_closer' : id;
+export const agentHistoryIds = (id: string) => canonicalAgentId(id) === 'agent_closer' ? ['agent_closer', 'agent_voice_closer'] : [id];
 export function allowedAgent(area: string, id: string) {
+  id = canonicalAgentId(id);
   const a = TEAM_AGENTS.find((a) => a.id === id);
   return Boolean(
-    a && (area === 'owner' || a.area === area || (area === 'Inventario' && a.area === 'Compras')),
+    a && (area === 'owner' || a.area === area || (area === 'Call Center' && id === 'agent_closer') || (area === 'Inventario' && a.area === 'Compras')),
   );
 }

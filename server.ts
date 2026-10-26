@@ -1046,7 +1046,6 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
 ];
 
 const AGENT_RUNTIME_REGISTRY = [
-  {id:'agent_voice_closer',name:'Valeria Parkert · Ventas por teléfono',function:'Llamadas autorizadas, conversación de voz, objeciones y registro de intención de pago.',requiredIntegrationIds:['int_voice_sales','int_gemini_ai','int_supabase_database'],optionalIntegrationIds:[],executableTools:['voice.verify_number','voice.schedule_authorized','voice.stop','voice.transcript','crm.payment_interest'],humanIntervention:'Activar proveedor y número, aprobar costos, validar pagos y conciliar resultados inciertos.'},
   {
     id: 'agent_whatsapp',
     name: 'Mateo Rivera',
@@ -1093,11 +1092,11 @@ const AGENT_RUNTIME_REGISTRY = [
   {
     id: 'agent_closer',
     name: 'Valeria Parkert',
-    function: 'Seguimiento comercial, cierre, actualización de oportunidad y solicitud de pago.',
+    function: 'Ventas y cierre por WhatsApp, conversación de voz y llamadas autorizadas, objeciones, historial, seguimiento y pago validado.',
     requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'],
-    optionalIntegrationIds: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
-    executableTools: ['crm.update_opportunity', 'crm.schedule_followup', 'payments.create_request'],
-    humanIntervention: 'Descuento fuera de política, promesa sensible, pago dudoso o llamada necesaria.',
+    optionalIntegrationIds: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications', 'int_voice_sales'],
+    executableTools: ['crm.update_opportunity', 'crm.schedule_followup', 'payments.create_request', 'voice.verify_number', 'voice.schedule_authorized', 'voice.stop', 'voice.transcript', 'crm.payment_interest'],
+    humanIntervention: 'Aprobar descuentos y costos telefónicos, activar proveedor y número, validar pagos, atender transferencias y conciliar resultados inciertos.',
   },
   {
     id: 'agent_copywriter',

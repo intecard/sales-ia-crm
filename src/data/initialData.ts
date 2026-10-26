@@ -771,7 +771,6 @@ const withSharedAgentConversationGuide = (prompt: string) =>
   `${prompt.trim()}\n\n${SHARED_AGENT_CONVERSATION_GUIDE.trim()}`;
 
 const RAW_MULTI_AGENTS_SPEC = [
-  {id:'agent_voice_closer',name:'Valeria Parkert',roleTitle:'Cierre de ventas por llamadas telefónicas',specialty:'Ventas',avatar:'/crm-logo.png',description:'Conversaciones telefónicas con catálogo autorizado, memoria, objeciones, baja y transferencia humana. Voz en el navegador disponible; llamadas celulares requieren telefonía conectada.',systemPrompt:VOICE_SALES_MANDATE,autonomyLevel:'Supervisado',operatingMandate:'Contactar solo prospectos autorizados dentro de horario y presupuesto. Nunca confirmar pagos por lo que diga el cliente.',tacticalArsenal:['Diagnóstico comercial','Manejo de objeciones','Telefonía Twilio ConversationRelay','Memoria por empresa','Seguimiento autorizado','Transferencia humana configurada'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'Activo',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {id:'agent_community_manager',name:'Lisa Parkerd',roleTitle:'Community Manager IA de INTECA',specialty:'Community Manager',avatar:'/crm-logo.png',description:'Planifica, produce flyers y videos verticales, publica en canales verificados y registra resultados reales.',systemPrompt:LISA_MANDATE,autonomyLevel:'24/7 Autónomo',operatingMandate:'Ejecutar el calendario orgánico con catálogo vigente, memoria persistente y trazabilidad. El servidor gratuito puede suspenderse.',tacticalArsenal:['Catálogo de Supabase','Calendario de 30 días','Flyers con logo e imágenes','MP4 verticales y guiones','Publicación orgánica con auditoría','Coordinación con ventas y matrícula'],approvalPolicy:{canLaunchCommercialCampaigns:false,requiresApprovalForTestimonials:true,requiresApprovalForInstitutionalNews:true,maxDiscountPercent:0},status:'Activo',stats:{conversationsHandled:0,dealsClosed:0,avgSatisfaction:0,conversionRatePercent:0}},
   {
     id: 'agent_director',
@@ -794,13 +793,13 @@ const RAW_MULTI_AGENTS_SPEC = [
   {
     id: 'agent_closer',
     name: 'Valeria Parkert',
-    roleTitle: 'Agente de Ventas 24/7, Conversión y Cierre',
+    roleTitle: 'Ventas, cierre, WhatsApp y llamadas',
     specialty: 'Cierre',
     avatar:
       'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
     description:
-      'Detecta necesidades, adapta la oferta, rompe objeciones, crea urgencia ética, negocia dentro de políticas y empuja cada conversación hacia pago validado.',
-    systemPrompt: `Eres Valeria Parkert, agente de ventas 24/7 del CRM. Tu misión es convertir conversaciones en pagos validados sin inventar promesas. Conoces al cliente, detectas su necesidad real, adaptas la oferta a su dolor y explicas la mejora concreta en empleo, ingresos, productividad o crecimiento. Debes crear la necesidad con ética: mostrar el costo de no actuar, el beneficio de actuar ahora y por qué esta oferta es la opción obvia para su nicho. Manejas objeciones de precio, tiempo, confianza y urgencia; negocias solo dentro de políticas; actualizas etapa, próxima acción y probabilidad de cierre. Meta operativa: lograr 5 ventas diarias, responder en menos de 5 minutos, validar pago antes de marcar matriculado o cliente activo, y que el dueño solo reciba notificaciones claras de pagos, bloqueos y decisiones importantes.`,
+      'Cierre consultivo por WhatsApp, voz en el navegador y llamadas autorizadas: necesidades, objeciones, seguimiento, historial, transferencia humana y pago validado.',
+    systemPrompt: `Eres Valeria Parkert, agente de ventas 24/7 del CRM. Tu misión es convertir conversaciones en pagos validados sin inventar promesas. Conoces al cliente, detectas su necesidad real, adaptas la oferta a su dolor y explicas la mejora concreta en empleo, ingresos, productividad o crecimiento. Debes crear la necesidad con ética: mostrar el costo de no actuar, el beneficio de actuar ahora y por qué esta oferta es la opción obvia para su nicho. Manejas objeciones de precio, tiempo, confianza y urgencia; negocias solo dentro de políticas; actualizas etapa, próxima acción y probabilidad de cierre. Meta operativa: lograr 5 ventas diarias, responder en menos de 5 minutos, validar pago antes de marcar matriculado o cliente activo, y que el dueño solo reciba notificaciones claras de pagos, bloqueos y decisiones importantes.` + '\n' + VOICE_SALES_MANDATE,
     autonomyLevel: '24/7 Autónomo',
     operatingMandate:
       'Convertir atención fría en clientes pagados, mantener seguimiento constante y escalar las habilidades comerciales del dueño sin depender de su presencia.',
@@ -811,6 +810,10 @@ const RAW_MULTI_AGENTS_SPEC = [
       'Seguimiento inmediato, 24h y 72h',
       'Validación de pago antes de activar cliente o matrícula',
       'Actualización automática de CRM, oportunidad y próxima acción',
+      'Conversación por voz en el navegador',
+      'Llamadas autorizadas con Twilio ConversationRelay',
+      'Memoria telefónica, baja y transferencia humana configurada',
+      'Horarios, consentimiento y límites de costos para llamadas',
     ],
     kpiTargets: {
       dailySalesTarget: 5,
@@ -819,10 +822,10 @@ const RAW_MULTI_AGENTS_SPEC = [
       minimumQualifiedLeadsDaily: 60,
     },
     approvalPolicy: {
-      canLaunchCommercialCampaigns: true,
+      canLaunchCommercialCampaigns: false,
       requiresApprovalForTestimonials: true,
       requiresApprovalForInstitutionalNews: true,
-      maxDiscountPercent: 40,
+      maxDiscountPercent: 0,
     },
     status: 'Activo',
     stats: {
@@ -1556,7 +1559,7 @@ export const MULTI_AGENTS_SPEC: AIAgentSpec[] = RAW_MULTI_AGENTS_SPEC.map((agent
 }));
 
 export const EXTERNAL_INTEGRATIONS_READINESS: ExternalIntegration[] = [
-  {id:'int_voice_sales',name:'Telefonía de ventas · Twilio ConversationRelay',category:'Telefonía',status:'Requiere credenciales',inboundWebhookPath:'/api/voice/provider',outboundCapability:'Llamadas salientes autorizadas, conversación de voz, historial y transferencia humana configurada.',requiredEnvVars:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'],ownerAgentId:'agent_voice_closer',setupNotes:['Registrar la cuenta Twilio y un número de voz propio. No usar el ID telefónico de WhatsApp como credencial Twilio.','Activar ConversationRelay y revisar sus condiciones en la cuenta del proveedor.','Configurar límites, costos y contactos autorizados en Valeria Parkert. Realizar una llamada piloto antes de aumentar volumen.']},
+  {id:'int_voice_sales',name:'Telefonía de ventas · Twilio ConversationRelay',category:'Telefonía',status:'Requiere credenciales',inboundWebhookPath:'/api/voice/provider',outboundCapability:'Llamadas salientes autorizadas, conversación de voz, historial y transferencia humana configurada.',requiredEnvVars:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'],ownerAgentId:'agent_closer',setupNotes:['Registrar la cuenta Twilio y un número de voz propio. No usar el ID telefónico de WhatsApp como credencial Twilio.','Activar ConversationRelay y revisar sus condiciones en la cuenta del proveedor.','Configurar límites, costos y contactos autorizados en Valeria Parkert. Realizar una llamada piloto antes de aumentar volumen.']},
   {
     id: 'int_supabase_database',
     name: 'Supabase Database, Auth y Storage',

@@ -83,7 +83,7 @@ const CONNECTORS_BY_SPECIALTY: Partial<Record<AIAgentSpec['specialty'], string[]
   Publicidad: ['int_meta_social', 'int_google_ads', 'int_ad_payment_wallet', 'int_youtube'],
   Video: ['int_youtube', 'int_creative_ai'],
   Creativos: ['int_creative_ai', 'int_meta_social'],
-  Cierre: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
+  Cierre: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications', 'int_voice_sales'],
   Ventas: ['int_whatsapp_cloud', 'int_payments', 'int_owner_notifications'],
   Prospección: ['int_whatsapp_cloud', 'int_meta_social', 'int_web_forms'],
   Embudos: ['int_whatsapp_cloud', 'int_meta_social', 'int_google_ads', 'int_web_forms'],
@@ -301,7 +301,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-indigo-300 font-medium">{ag.roleTitle}</p>
-                    {['agent_closer', 'agent_conversion'].includes(ag.id) ? <p className="mt-2 text-xs text-emerald-400">{ag.id === 'agent_conversion' ? 'Abrir matrículas verificadas' : 'Abrir oportunidades de WhatsApp'}</p> : <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                    {['agent_closer', 'agent_conversion'].includes(ag.id) ? <p className="mt-2 text-xs text-emerald-400">{ag.id === 'agent_conversion' ? 'Abrir matrículas verificadas' : 'Abrir ventas, WhatsApp y llamadas'}</p> : <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                       <span>
                         Cierres:{' '}
                         <strong className="text-emerald-400">{ag.stats.dealsClosed}</strong>
@@ -320,7 +320,7 @@ export const AIAgentsCommand: React.FC<AIAgentsCommandProps> = ({
 
         {/* Right 2 Columns: Detailed Inspector & Prompt Editor */}
         <div className="lg:col-span-2 space-y-6">
-          {selectedAgent.id === 'agent_voice_closer' ? <VoiceSalesCenter key={organization.id} organization={organization} onConfigure={onNavigateToSettings} /> : selectedAgent.id === 'agent_community_manager' ? (organization.id === 'org_inteca_main' ? <CommunityManagerCenter /> : <p className="text-slate-200">La operación de Lisa está autorizada para INTECA. Usa el chat de Marketing para preparar un plan para esta empresa.</p>) : selectedAgent.id === 'agent_billing' ? <FiscalWorkspace key={organization.id} organization={organization} /> : selectedAgent.id === 'agent_closer' ? <SalesClosingCenter /> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : ['agent_creative', 'agent_video'].includes(selectedAgent.id) ? <BrandedCreativeStudio /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
+          {selectedAgent.id === 'agent_community_manager' ? (organization.id === 'org_inteca_main' ? <CommunityManagerCenter /> : <p className="text-slate-200">La operación de Lisa está autorizada para INTECA. Usa el chat de Marketing para preparar un plan para esta empresa.</p>) : selectedAgent.id === 'agent_billing' ? <FiscalWorkspace key={organization.id} organization={organization} /> : selectedAgent.id === 'agent_closer' ? <div className="space-y-8"><section><h3 className="text-lg font-semibold mb-3">Ventas y cierre por WhatsApp</h3><SalesClosingCenter /></section><section><h3 className="text-lg font-semibold mb-3">Voz y llamadas de Valeria</h3><VoiceSalesCenter key={organization.id} organization={organization} onConfigure={onNavigateToSettings} /></section></div> : selectedAgent.id === 'agent_conversion' ? <EnrollmentCenter /> : ['agent_creative', 'agent_video'].includes(selectedAgent.id) ? <BrandedCreativeStudio /> : selectedAgent.id === 'agent_media_buyer' ? <AdvertisingCenter onConfigure={onNavigateToSettings} /> : <>
           {/* Active Agent Profile Card */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">

@@ -5,12 +5,16 @@ import { createTeamStudio } from './routes.ts';
 import { TEAM_AGENTS, allowedAgent } from './agents.ts';
 
 test('area mapping covers all agents and prevents cross-area access', () => {
-  assert.equal(TEAM_AGENTS.length, 23);
+  assert.equal(TEAM_AGENTS.length, 22);
   assert.ok(TEAM_AGENTS.every((a) => allowedAgent('owner', a.id)));
   assert.equal(allowedAgent('Marketing', 'agent_accounting'), false);
   assert.equal(allowedAgent('Contabilidad', 'agent_accounting'), true);
   assert.equal(allowedAgent('Inventario', 'agent_procurement_national'), true);
   assert.equal(allowedAgent('owner', 'unknown'), false);
+  assert.equal(TEAM_AGENTS.filter(a => a.name.startsWith('Valeria ')).length, 1);
+  assert.equal(allowedAgent('Call Center', 'agent_closer'), true);
+  assert.equal(allowedAgent('Ventas', 'agent_voice_closer'), true);
+  assert.equal(allowedAgent('Marketing', 'agent_voice_closer'), false);
 });
 test('signed-in team permissions, persistent history, shared briefs, and idempotent replies', async () => {
   const tables: Record<string, any[]> = {
@@ -21,6 +25,7 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
     crm_team_tasks: [],
   };
   let modelCalls = 0;
+  let lastPrompt = '';
   const store = {
     request: async (resource: string, method = 'GET', body?: any) => {
       const [name, q] = resource.split('?'),
@@ -61,6 +66,7 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
     () => 'owner@example.test',
     async (p) => {
       modelCalls++;
+      lastPrompt = p;
       assert.ok(p.includes('CONVERSACIÓN'));
       return 'Plan propuesto: revisar fecha y preparar campaña.';
     },
@@ -151,6 +157,23 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
     tables.crm_team_messages.push({id:crypto.randomUUID(),organization_id:'org_other',agent_id:'agent_media_buyer',content:'Preservar'});
     assert.equal((await call('/api/team/org_inteca_main/messages/agent_media_buyer/clear',{confirmed:true})).status,200);
     assert.equal(tables.crm_team_messages.length,1);assert.equal(tables.crm_team_messages[0].organization_id,'org_other');
+    for (const agent_id of ['agent_closer','agent_voice_closer']) {
+      tables.crm_team_messages.push({id:crypto.randomUUID(),organization_id:'org_inteca_main',agent_id,sender:'human',author:'Luis',content:'Historia '+agent_id});
+    }
+    tables.crm_team_messages.push({id:crypto.randomUUID(),organization_id:'org_other',agent_id:'agent_voice_closer',content:'Otra empresa privada'});
+    tables.crm_team_tasks.push({id:crypto.randomUUID(),organization_id:'org_inteca_main',agent_id:'agent_voice_closer',content:'Llamada pendiente',status:'requested'});
+    const merged = await (await call('/api/team/org_inteca_main/messages/agent_closer')).json() as any[];
+    assert.equal(merged.length,2);
+    assert.equal((await call('/api/team/org_inteca_main/messages/agent_voice_closer',undefined,cookie)).status,403);
+    const unified = await (await call('/api/team/org_inteca_main')).json() as any;
+    assert.equal(unified.agents.filter((a:any)=>a.name.startsWith('Valeria ')).length,1);
+    assert.equal(unified.tasks[0].agent_id,'agent_closer');
+    const voiceRequest = {requestId:crypto.randomUUID(),agentId:'agent_voice_closer',message:'Continuemos con el cierre'};
+    assert.equal((await call('/api/team/org_inteca_main/chat',voiceRequest)).status,200);
+    assert.ok(lastPrompt.includes('Historia agent_closer') && lastPrompt.includes('Historia agent_voice_closer'));
+    assert.ok(!lastPrompt.includes('Otra empresa privada'));
+    assert.equal(tables.crm_team_messages.at(-1).agent_id,'agent_closer');
+    assert.equal((await call('/api/team/org_inteca_main/chat',{...voiceRequest,agentId:'agent_closer'})).status,200);
     const id = tables.crm_team_members[0].id;
     assert.equal((await call(`/api/team/org_inteca_main/members/${id}/disable`, {})).status, 200);
     assert.equal((await call('/api/team/org_inteca_main', undefined, cookie)).status, 401);
