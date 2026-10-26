@@ -4,9 +4,9 @@ Implementación independiente de WhatsApp y publicidad. El despliegue inicial co
 
 ## Flujo implementado
 
-- Cuenta Twilio y número de voz verificados con su API. ConversationRelay STT/TTS en español latino, voz sintética preconfigurada, WebSocket firmado y conversación mediante la IA existente del CRM. No usa ni exige una nueva clave OpenAI.
+- Cuenta Twilio y número de voz verificados con su API. ConversationRelay STT/TTS en español latino, voz femenina Google es-US-Neural2-A preconfigurada, WebSocket firmado y conversación mediante la IA existente del CRM. No usa ni exige una nueva clave OpenAI.
 - El proveedor requiere activar ConversationRelay y aceptar sus condiciones en su consola. Esa aceptación corresponde al titular, no la realiza el CRM.
-- Presentación como IA, aviso de transcripción, preguntas de diagnóstico, catálogo autorizado, objeciones, rechazo, baja y solicitud de persona. No se promete acento dominicano exacto ni voz clonada; requiere piloto auditivo.
+- Presentación como IA, aviso de transcripción, preguntas de diagnóstico, catálogo autorizado, objeciones, rechazo, baja y solicitud de persona. Español latino neutro con estilo elegante, sereno, cálido y profesional; requiere piloto auditivo para confirmar el resultado.
 - Supabase guarda contactos, permiso, programación, texto de conversación, resultado, reserva estimada e identificador Twilio. No se graba audio. Se omiten secuencias numéricas largas y referencias evidentes a claves en el texto guardado.
 - Un trabajador por minuto procesa la cola mientras Render está activo. Una llamada activa o de resultado incierto bloquea otras llamadas de la misma empresa. Una reserva transaccional comprueba horario, consentimiento, tope diario, reservas y frecuencia; otra instancia no puede reservar simultáneamente una segunda llamada.
 - La importación INTECA solo incluye interesados de WhatsApp con callbackConsent=yes y control automático, excluye pagos validados y vuelve a comprobar el permiso antes de marcar. La baja de voz no se restaura al importar nuevamente.
@@ -35,3 +35,5 @@ Para INTECA se consulta Supabase y se aplican los cambios confirmados por el pro
 - https://www.twilio.com/docs/voice/api/call-resource
 - https://render.com/docs/deploys
 - https://render.com/docs/health-checks
+
+Voz seleccionada: https://docs.cloud.google.com/text-to-speech/docs/list-voices-and-types (es-US-Neural2-A, FEMALE). El perfil también se aplica a despedidas y avisos de transferencia para mantener la misma voz.

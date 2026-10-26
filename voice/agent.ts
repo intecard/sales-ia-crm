@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
-import { VOICE_SALES_MANDATE } from '../src/data/voice-sales.ts';
+import { VOICE_SALES_MANDATE, VOICE_PROFILE } from '../src/data/voice-sales.ts';
 import { hasDiscount, hasUnlistedPrice } from '../advertising-agent.ts';
 import { findCourses, type CatalogStore, type Catalog } from '../whatsapp-catalog.ts';
 import { PHONE, VoiceProvider } from './provider.ts';
@@ -15,7 +15,7 @@ export class VoiceSalesAgent {
  private running=false;
  constructor(public store:Store,private catalog:Pick<CatalogStore,'get'>,public provider:VoiceProvider,private generate:(prompt:string)=>Promise<string>){}
  async settings(org:string):Promise<VoiceSettings|undefined>{return (await this.store.request(`crm_voice_settings?organization_id=eq.${org}&limit=1`))[0];}
- async snapshot(org:string){const settings=await this.settings(org);return {settings:settings||null,missing:this.provider.missing(),contacts:await this.store.request(`crm_voice_contacts?organization_id=eq.${org}&order=updated_at.desc&limit=200`),calls:await this.store.request(`crm_voice_calls?organization_id=eq.${org}&order=created_at.desc&limit=200`),capabilities:{engine:'Twilio ConversationRelay + IA del CRM',recording:false,realCallsVerified:false,discounts:false,paymentGate:'Comprobante y validación bancaria; una llamada no confirma pago',budget:'Reservas estimadas, no un tope de facturación de Twilio. Configura también límites en el proveedor.',hosting:'Render gratuito puede dormir o interrumpir una llamada.',incoming:'Este módulo atiende las llamadas salientes que él inicia; no se configuró recepción pública.',voice:'Voz sintética en español latino; requiere prueba auditiva. No se garantiza acento dominicano.'}};}
+ async snapshot(org:string){const settings=await this.settings(org);return {settings:settings||null,missing:this.provider.missing(),contacts:await this.store.request(`crm_voice_contacts?organization_id=eq.${org}&order=updated_at.desc&limit=200`),calls:await this.store.request(`crm_voice_calls?organization_id=eq.${org}&order=created_at.desc&limit=200`),capabilities:{engine:'Twilio ConversationRelay + IA del CRM',recording:false,realCallsVerified:false,discounts:false,paymentGate:'Comprobante y validación bancaria; una llamada no confirma pago',budget:'Reservas estimadas, no un tope de facturación de Twilio. Configura también límites en el proveedor.',hosting:'Render gratuito puede dormir o interrumpir una llamada.',incoming:'Este módulo atiende las llamadas salientes que él inicia; no se configuró recepción pública.',voice:`${VOICE_PROFILE.label}; ${VOICE_PROFILE.style}. Perfil ${VOICE_PROFILE.id}. Prueba auditiva pendiente de conectar la telefonía.`}};}
  async save(org:string,value:unknown){const s=settingsSchema.parse(value);if(org!=='org_inteca_main'&&!s.catalog.trim())throw Error('VOICE_CATALOG');if(s.enabled){await this.provider.verify(s.from_number);await this.knowledge(org);}
   const existing=await this.settings(org);return this.store.request(`crm_voice_settings${existing?`?organization_id=eq.${org}`:''}`,existing?'PATCH':'POST',{...s,organization_id:org,updated_at:new Date().toISOString()});}
  async verify(org:string){const s=await this.settings(org);if(!s)throw Error('VOICE_SETTINGS');return this.provider.verify(s.from_number);}
