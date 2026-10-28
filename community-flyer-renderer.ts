@@ -59,7 +59,6 @@ export async function containFlyerPhoto(photo:Buffer,width:number,height:number)
   // Never crop a head, hands or any part of the uploaded photograph.
   return sharp(photo).rotate().resize(width,height,{
     fit:'contain',background:{r:14,g:35,b:54,alpha:1},
-    withoutEnlargement:true,
   }).png().toBuffer();
 }
 function svgText(text:string,x:number,y:number,size:number,fill:string,weight='normal'){
