@@ -30,9 +30,9 @@ export class IntequitoVideoProvider {
       provider:'Runway Gen-4.5',
       voiceProvider:'ElevenLabs multilingual v2',
       referencePresent,runwayConfigured,elevenConfigured,
-      renderReady:referencePresent&&runwayConfigured&&elevenConfigured,
+      renderReady:referencePresent&&runwayConfigured,
       automaticSpending:false,
-      reason:!referencePresent?'Falta public/intequito-oficial.png':!runwayConfigured?'Falta RUNWAYML_API_SECRET':!elevenConfigured?'Falta ELEVENLABS_API_KEY o INTEQUITO_VOICE_ID':null,
+      reason:!referencePresent?'Falta public/intequito-oficial.png':!runwayConfigured?'Falta RUNWAYML_API_SECRET':null,
       policy:'Solo inicia generaciones desde una acción aprobada y con presupuesto; los MP4 deben revisarse y almacenarse antes de publicar.',
     };
   }
