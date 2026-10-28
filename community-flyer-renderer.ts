@@ -133,9 +133,21 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  const edition='PROGRAMA DEL MES · '+prettyMonth.toLocaleUpperCase('es')+' · '+day;
  const heading=reverse?'ORIENTACIÓN ACADÉMICA':'FORMACIÓN EN SALUD';
  const bgSvg='<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+bg+'"/><stop offset="1" stop-color="'+deep+'"/></linearGradient></defs>';
- const heroPhoto=photoPng
+ // Even without new licensed photos, create a genuinely different ORIGINAL hero
+ // illustration on alternating days; never stretch/crop a repeated stock portrait.
+ const illustrationDay=(seed%2)===0;
+ const originalArt=
+   '<g transform="translate('+mediaX+' '+mediaY+')">'+
+   '<rect width="'+mediaWidth+'" height="'+mediaHeight+'" rx="18" fill="'+deep+'"/>'+
+   '<circle cx="'+(mediaWidth/2)+'" cy="155" r="'+(118+seed%29)+'" fill="'+accent+'" opacity=".13"/>'+
+   '<path d="M30 250 Q'+(mediaWidth/2)+' 85 '+(mediaWidth-30)+' 260" fill="none" stroke="'+accent+'" stroke-width="4" opacity=".22"/>'+
+   '<g transform="translate('+(mediaWidth/2-146)+' 18) scale(1.25)">'+motif(seed+1,accent)+'</g>'+
+   svgText('INTECA · APRENDIZAJE',42,290,25,'#ffffff','bold')+
+   '<circle cx="'+(mediaWidth-51)+'" cy="53" r="18" fill="'+accent+'" opacity=".55"/>'+
+   '</g>';
+ const heroPhoto=photoPng&&!illustrationDay
    ? '<image x="'+mediaX+'" y="'+mediaY+'" width="'+mediaWidth+'" height="'+mediaHeight+'" href="data:image/png;base64,'+photoPng.toString('base64')+'"/>'
-   : '<rect x="'+mediaX+'" y="'+mediaY+'" width="'+mediaWidth+'" height="'+mediaHeight+'" fill="'+bg+'"/><circle cx="'+(mediaX+mediaWidth/2)+'" cy="'+(mediaY+150)+'" r="112" fill="'+accent+'" opacity=".08"/>';
+   : originalArt;
  const logoSvg=logoPng
    ? '<image x="900" y="31" width="125" height="100" href="data:image/png;base64,'+logoPng.toString('base64')+'"/>'
    : svgText('INTECA',883,88,38,'#ffffff','bold');
