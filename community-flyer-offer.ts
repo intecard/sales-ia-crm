@@ -57,7 +57,7 @@ export function flyerOffer(course:CatalogCourse,date:string,variant=0):FlyerOffe
   // Never add promises of jobs, allowances, special prices, avals or clinical
   // competencies not actually present in the official academic catalog.
   const fromDescription=(course.description||'').split(/[.;]\s+/).map(clean)
-    .filter(line=>line.length>=25&&line.length<=105&&!/opciones? formativas|oferta institucional|consulta|apertura|sujeto a/i.test(line));
+    .filter(line=>line.length>=25&&line.length<=105&&!/opciones? formativas|oferta institucional|consulta|apertura|sujeto a|formaci[oó]n profesional|sector salud dominicano|educaci[oó]n accesible/i.test(line));
   const all=[...topics,...fromSection,...fromDescription];
   const unique=all.filter((value,index)=>all.findIndex(x=>normalized(x)===normalized(value))===index);
   const day=Number(date.slice(8,10));
