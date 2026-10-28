@@ -19,7 +19,7 @@ const env={
 const good=(data:unknown)=>new Response(JSON.stringify(data),{status:200,headers:{'content-type':'application/json'}});
 test('HeyGen provider requires explicit approval before sending a paid generation',async()=>{
   let calls=0;
-  const p=new HeyGenVideoProvider(env,async()=>{calls++;return good({data:{video_id:'v_intequito_01',status:'waiting'}});} as typeof fetch);
+  const p=new HeyGenVideoProvider(env,(async()=>{calls++;return good({data:{video_id:'v_intequito_01',status:'waiting'}});}) as typeof fetch);
   await assert.rejects(()=>p.createVideo(script,{confirmed:false,requestId:'approved-example'}),/VIDEO_APPROVAL_REQUIRED/);
   assert.equal(calls,0);
 });
