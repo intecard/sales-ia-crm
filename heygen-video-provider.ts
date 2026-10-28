@@ -1,6 +1,6 @@
 /**
  * HeyGen Avatar Video v3 integration.
- * Uses INTEQUITO's explicitly configured HeyGen avatar and Spanish voice.
+ * Uses INTEQUITO's explicitly configured HeyGen avatar OR its uploaded official image and Spanish voice.
  * Does not create an avatar from a random text prompt or substitute a stock presenter.
  * Calls are paid: only a previously reviewed, explicitly approved production may call createVideo.
  *
@@ -37,28 +37,32 @@ export class HeyGenVideoProvider {
   status(){
     const apiKeyConfigured=Boolean(this.env.HEYGEN_API_KEY?.trim());
     const avatarConfigured=Boolean(this.env.HEYGEN_INTEQUITO_AVATAR_ID?.trim());
+    const officialImageConfigured=Boolean(this.env.HEYGEN_INTEQUITO_IMAGE_ASSET_ID?.trim());
     const voiceConfigured=Boolean(this.env.HEYGEN_INTEQUITO_VOICE_ID?.trim());
     return {
       provider:'HeyGen Avatar Video v3',
       apiKeyConfigured,
       avatarConfigured,
+      officialImageConfigured,
       voiceConfigured,
-      ready:apiKeyConfigured&&avatarConfigured&&voiceConfigured,
-      reason:!apiKeyConfigured?'Falta HEYGEN_API_KEY':!avatarConfigured?'Falta HEYGEN_INTEQUITO_AVATAR_ID (avatar oficial de INTEQUITO)':!voiceConfigured?'Falta HEYGEN_INTEQUITO_VOICE_ID (voz en español)':null,
+      ready:apiKeyConfigured&&(avatarConfigured||officialImageConfigured)&&voiceConfigured,
+      reason:!apiKeyConfigured?'Falta HEYGEN_API_KEY':!(avatarConfigured||officialImageConfigured)?'Falta HEYGEN_INTEQUITO_AVATAR_ID o HEYGEN_INTEQUITO_IMAGE_ASSET_ID':!voiceConfigured?'Falta HEYGEN_INTEQUITO_VOICE_ID (voz en español)':null,
       automaticSpending:false,
-      identity:'Se exige el avatar aprobado de INTEQUITO; no se escoge un avatar genérico.',
+      identity:'Se exige el avatar de INTEQUITO o su imagen oficial importada; nunca se escoge un avatar genérico.',
     };
   }
   async createVideo(script:Script,approval:{confirmed:boolean;requestId:string}){
     if(approval.confirmed!==true||!requestPattern.test(approval.requestId))throw Error('VIDEO_APPROVAL_REQUIRED');
     if(!this.status().ready)throw Error('HEYGEN_NOT_CONFIGURED');
     if(script.actor!=='INTEQUITO'||!Array.isArray(script.scenes)||!script.scenes.length)throw Error('VIDEO_SCRIPT_INVALID');
-    if(!idPattern.test(this.env.HEYGEN_INTEQUITO_AVATAR_ID!)||!idPattern.test(this.env.HEYGEN_INTEQUITO_VOICE_ID!))throw Error('HEYGEN_ID_INVALID');
+    const chosenAvatar=this.env.HEYGEN_INTEQUITO_AVATAR_ID?.trim();
+    const chosenImage=this.env.HEYGEN_INTEQUITO_IMAGE_ASSET_ID?.trim();
+    if(!idPattern.test((chosenAvatar||chosenImage)!)||!idPattern.test(this.env.HEYGEN_INTEQUITO_VOICE_ID!))throw Error('HEYGEN_ID_INVALID');
     const spoken=script.scenes.map(s=>s.dialogue.trim()).filter(Boolean).join(' ');
     if(!spoken||spoken.length>5000)throw Error('VIDEO_SCRIPT_INVALID');
     const payload={
       type:'avatar',
-      avatar_id:this.env.HEYGEN_INTEQUITO_AVATAR_ID,
+      ...(chosenAvatar?{avatar_id:chosenAvatar}:{image_asset_id:chosenImage}),
       voice_id:this.env.HEYGEN_INTEQUITO_VOICE_ID,
       title:`INTECA | INTEQUITO | ${script.course}`.slice(0,120),
       script:spoken,
