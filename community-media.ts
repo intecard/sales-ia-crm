@@ -29,19 +29,22 @@ const colors=[
  * If INTEQUITO's official PNG is not installed, render the branded flyer without
  * inventing or replacing the character; report missing reference separately.
  */
-export async function renderCommunityImage(p:CommunityPayload,slide?:number) {
+export async function renderCommunityImage(p:CommunityPayload,slide?:number,assetRoot=process.cwd()) {
  const photoName=/farmac|farmacia|visitador/i.test(p.courseTitle)?'pharmacy':/enfermer|promotor.*salud/i.test(p.courseTitle)?'nursing':'call-center';
+ // Missing static assets must not suspend the whole organic content operation.
+ // Use vector-only educational branding, never stock people or an invented INTEQUITO.
+ const available=async(file:string)=>readFile(path.join(assetRoot,file)).catch((error:NodeJS.ErrnoException)=>{
+   if(error.code==='ENOENT')return null;throw error;
+ });
  const [photo,logo,intequito]=await Promise.all([
-   readFile(path.join(process.cwd(),`public/creative/${photoName}.webp`)),
-   readFile(path.join(process.cwd(),'public/inteca-logo.webp')),
-   readFile(path.join(process.cwd(),'public/intequito-oficial.png')).catch((error:NodeJS.ErrnoException)=>{
-     if(error.code==='ENOENT')return null;throw error;
-   }),
+   available(`public/creative/${photoName}.webp`),
+   available('public/inteca-logo.webp'),
+   available('public/intequito-oficial.png'),
  ]);
  const seed=p.designSeed??(Number.parseInt(p.assetKey.slice(0,5),16)||0);
  const [bg,accent,deep]=colors[((seed%colors.length)+colors.length)%colors.length];
- const hero=await sharp(photo).resize(760,480,{fit:'cover',position:(seed%2?'attention':'centre')}).jpeg({quality:83}).toBuffer();
- const logoPng=await sharp(logo).resize(115,115,{fit:'inside'}).png().toBuffer();
+ const hero=photo?await sharp(photo).resize(760,480,{fit:'cover',position:(seed%2?'attention':'centre')}).jpeg({quality:83}).toBuffer():null;
+ const logoPng=logo?await sharp(logo).resize(115,115,{fit:'inside'}).png().toBuffer():null;
  const mascotPng=intequito?await sharp(intequito).resize(230,350,{fit:'inside'}).png().toBuffer():null;
  const date=p.editorialDate||'';
  const displayDate=/^\d{4}-\d{2}-\d{2}$/.test(date)?new Intl.DateTimeFormat('es-DO',{day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(`${date}T12:00:00Z`)):`Serie ${p.assetKey.slice(0,8)}`;
@@ -57,10 +60,10 @@ export async function renderCommunityImage(p:CommunityPayload,slide?:number) {
  <defs><linearGradient id="bg" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="${bg}"/><stop offset="1" stop-color="${deep}"/></linearGradient></defs>
  <rect width="720" height="1280" fill="url(#bg)"/>
  <path d="M-65 500 Q300 ${480+(seed%5)*17} 810 350 L810 555 Q220 650 -80 585Z" fill="${accent}" opacity=".16"/>
- <image href="data:image/jpeg;base64,${hero.toString('base64')}" x="${photoX}" y="${photoY}" width="760" height="480" opacity=".8"/>
+ ${hero?`<image href="data:image/jpeg;base64,${hero.toString('base64')}" x="${photoX}" y="${photoY}" width="760" height="480" opacity=".8"/>`:`<circle cx="${500+seed%80}" cy="220" r="210" fill="${accent}" opacity=".12"/><path d="M0 390 L400 10 L720 390 Z" fill="${accent}" opacity=".06"/>`}
  <rect x="0" y="0" width="720" height="480" fill="${bg}" opacity=".24"/>
  <rect x="0" y="345" width="720" height="180" fill="${bg}" opacity=".93"/>
- <image href="data:image/png;base64,${logoPng.toString('base64')}" x="572" y="22" width="115" height="115"/>
+ ${logoPng?`<image href="data:image/png;base64,${logoPng.toString('base64')}" x="572" y="22" width="115" height="115"/>`:`<text x="560" y="70" fill="white" font-size="28" font-weight="bold" font-family="DejaVu Sans">INTECA</text>`}
  ${mascotPng?`<image href="data:image/png;base64,${mascotPng.toString('base64')}" x="475" y="120" width="230" height="350"/>`:''}
  <rect x="30" y="25" width="335" height="45" rx="12" fill="${accent}"/>
  <text x="45" y="55" fill="${bg}" font-size="23" font-family="DejaVu Sans" font-weight="bold">INTECA · FORMACIÓN</text>
