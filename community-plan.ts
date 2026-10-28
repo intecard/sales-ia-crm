@@ -17,6 +17,11 @@ export const contentHash = (p: CommunityPayload) => sha({
   slides:p.slides,assetKey:p.assetKey,catalogHash:p.catalogHash,
   ...(p.script?{script:normalizeJson(p.script)}:{}),
 });
+/** Text actually spoken or printed for viewers; excludes production metadata and numeric resolutions. */
+export const communityPublicCopy=(payload:CommunityPayload)=>[
+  payload.title,payload.caption,...payload.slides,
+  ...(payload.script?.scenes.flatMap(s=>[s.dialogue,s.subtitle])||[]),
+].join('\n');
 export function rdDay(now: Date) { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(now); }
 export function makeContent(course: CatalogCourse, catalog: Catalog, date: string, kind: CommunityPayload['kind'], variant: number): CommunityPayload {
   const pillars = ['Educación','Educación','Educación','Educación','Educación','Educación','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Demostración','Demostración','Demostración','Demostración','Confianza','Confianza','Confianza','Promoción','Promoción'];
