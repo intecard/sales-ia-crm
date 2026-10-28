@@ -6,6 +6,15 @@ import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from 
 import type { CommunityPublisher } from './community-publisher.ts';
 type Store={request:(r:string,m?:string,b?:unknown)=>Promise<any>};
 export type CommunityJob={id:string;slot:string;channel:SocialChannel;state:string;scheduled_at:string;payload:CommunityPayload;content_hash:string;media_url:string|null;result:any;last_error:string|null;updated_at:string};
+/** When Render sleeps, flyers remain eligible later on the SAME local calendar day;
+ * all other items retain the 90-minute deadline. Never mass-post previous-day flyers.
+ */
+export function shouldMissCampaignSlot(row:Pick<CommunityJob,'scheduled_at'|'payload'>,now:Date):boolean{
+  const at=Date.parse(row.scheduled_at);
+  if(!Number.isFinite(at))return true;
+  if(row.payload.kind==='flyer'&&rdDay(new Date(at))===rdDay(now))return false;
+  return now.getTime()-at>90*60_000;
+}
 export class CommunityManager {
   private running=false;
   constructor(private store:Store,private catalog:Pick<CatalogStore,'get'>,private publisher:Pick<CommunityPublisher,'destination'|'verify'|'publish'|'metrics'>){}
@@ -100,9 +109,7 @@ export class CommunityManager {
         let phase='validate';
         // For a daily flyer, preserve the opportunity to publish later on the SAME
         // Dominican calendar day after Render Free wakes up. Never flood past days.
-        const isTodaysFlyer=row.payload.kind==='flyer' &&
-          rdDay(new Date(row.scheduled_at))===rdDay(new Date());
-        if(!isTodaysFlyer&&Date.now()-Date.parse(row.scheduled_at)>90*60_000){
+        if(shouldMissCampaignSlot(row,new Date())){
           await this.update(row.id,{state:'missed',last_error:'CM_SLOT_MISSED'});
           continue;
         }
