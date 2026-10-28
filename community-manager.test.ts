@@ -12,7 +12,9 @@ test('30-day plan allocates 1 post, 7 reel scripts and 1 promo script per day',(
  assert.equal(jobs.filter(j=>j.channel==='facebook'&&j.payload.kind==='short').length,210);
  assert.equal(jobs.filter(j=>j.payload.kind==='short').every(j=>j.payload.script?.actor==='INTEQUITO'),true);
  assert.equal(jobs.every(j=>j.payload.caption.includes('809-643-5502')),true);
- assert.equal(jobs.every(j=>!hasDiscount(communityPublicCopy(j.payload))&&j.payload.caption.includes('5 meses')&&j.payload.caption.includes('RD$2,500')),true);
+ assert.equal(jobs.every(j=>!hasDiscount(communityPublicCopy(j.payload))),true,'No se deben inventar descuentos');
+ assert.equal(jobs.every(j=>j.payload.caption.includes('5 meses')),true,'La duración debe figurar en el texto');
+ assert.equal(jobs.every(j=>j.payload.caption.includes('RD$2,500')),true,'La inscripción oficial debe figurar en el texto');
  assert.equal(rdDay(new Date('2026-10-26T02:00:00Z')),'2026-10-25');
 });
 function harness(fail=false){
