@@ -129,7 +129,8 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  const timing=fitFlyerText(note,910,1,26,20);
  const month=p.campaignMonth||p.editorialDate?.slice(0,7)||'INTECA';
  const day=p.editorialDate?.slice(-2)||String(offer.dailyVariant);
- const edition='EDICIÓN '+day+' · '+month;
+ const prettyMonth=/^\d{4}-\d{2}$/.test(month)?new Intl.DateTimeFormat('es-DO',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-15T12:00:00Z')):month;
+ const edition='PROGRAMA DEL MES · '+prettyMonth.toLocaleUpperCase('es')+' · '+day;
  const heading=reverse?'ORIENTACIÓN ACADÉMICA':'FORMACIÓN EN SALUD';
  const bgSvg='<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="'+bg+'"/><stop offset="1" stop-color="'+deep+'"/></linearGradient></defs>';
  const heroPhoto=photoPng
