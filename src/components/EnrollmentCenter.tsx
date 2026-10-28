@@ -161,9 +161,9 @@ export function EnrollmentCenter() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <p className="rounded bg-slate-800 p-3">Cuenta de servicio: <strong>{campusHealth?.campusConfigured?'Detectada':'Pendiente'}</strong></p>
-          <p className="rounded bg-slate-800 p-3">Firebase Auth: <strong>{campusHealth?.authReady?'Verificado':'Sin verificar'}</strong></p>
-          <p className="rounded bg-slate-800 p-3">Firestore y cursos: <strong>{campusHealth?.databaseReady?'Conectados ('+campusHealth.courseCount+')':'Sin verificar'}</strong></p>
-          <p className="rounded bg-slate-800 p-3">Matrícula autónoma: <strong>{campusHealth?.readyForEnrollment?'Lista':'Bloqueada por seguridad'}</strong></p>
+          <p className="rounded bg-slate-800 p-3">Firebase Auth (lectura): <strong>{campusHealth?.authReady?'Verificado':'Sin verificar'}</strong></p>
+          <p className="rounded bg-slate-800 p-3">Firestore y cursos (lectura): <strong>{campusHealth?.databaseReady?'Conectados ('+campusHealth.courseCount+')':'Sin verificar'}</strong></p>
+          <p className="rounded bg-slate-800 p-3">Matrícula autónoma: <strong>{campusHealth?.readyForEnrollment?'Configurada; falta prueba de escritura':'Bloqueada por seguridad'}</strong></p>
         </div>
         {campusHealth?.errorCode&&<p className="text-amber-300">Conexión pendiente: {state?.errors[campusHealth.errorCode]||'Revisa los permisos y la configuración.'}</p>}
         {campusHealth?.verified&&!campusHealth.campusSyncEnabled&&<p className="text-amber-300">
