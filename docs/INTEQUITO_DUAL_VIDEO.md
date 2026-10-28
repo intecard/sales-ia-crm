@@ -1,7 +1,7 @@
 # INTEQUITO · Estudio audiovisual con HeyGen + Runway
 
 ## Motores seleccionables
-- **HeyGen Avatar Video v3**: produce un video vertical con guion completo, lip-sync, subtítulos SRT y el avatar de INTEQUITO registrado en la cuenta. No selecciona avatares de stock. Requiere `HEYGEN_API_KEY`, `HEYGEN_INTEQUITO_AVATAR_ID`, `HEYGEN_INTEQUITO_VOICE_ID`.
+- **HeyGen Avatar Video v3**: produce un video vertical con guion, lip-sync y subtítulos. Puede usar el avatar propio aprobado (`HEYGEN_INTEQUITO_AVATAR_ID`) **o** la imagen oficial importada (`HEYGEN_INTEQUITO_IMAGE_ASSET_ID`), además de `HEYGEN_API_KEY` y `HEYGEN_INTEQUITO_VOICE_ID`. Nunca sustituye INTEQUITO por avatares genéricos.
 - **Runway Gen-4.5**: produce **un único plano animado de 5 segundos** a partir de `public/intequito-oficial.png` y la escena 1 del guion. Requiere `RUNWAYML_API_SECRET`; 5 segundos cuestan aproximadamente 60 créditos API según tarifa publicada. **No es un video final de 45 o 60 segundos**.
 - **ElevenLabs**: módulo de voz opcional y separado para futuras composiciones; HeyGen utiliza su voz configurada. No se exige ElevenLabs para Runway.
 
@@ -15,7 +15,7 @@
 ## Instalación
 1. Aplicar, en orden, migraciones `20261027204000_intequito_community_calendar.sql` y `20261027215000_intequito_dual_video_generations.sql` sobre la instancia confirmada de Supabase. No se han aplicado por este commit.
 2. Guardar el **archivo original** de INTEQUITO en `public/intequito-oficial.png`; revisarlo visualmente antes de activar Runway. El CRM no improvisa otro personaje.
-3. Crear y aprobar un avatar de INTEQUITO (photo avatar/Avatar IV) en HeyGen; copiar el ID real del avatar y el ID real de una voz en español dominicano/latino. Crear una cuenta API HeyGen habilitada y configurar sus secretos en Render, nunca en el frontend.
+3. El 27 de octubre de 2026 la cuenta HeyGen conectada `intecaedu@gmail.com` estaba en plan Free y la creación de avatar privado respondió **403: requiere plan pagado**. Se logró importar el PNG original a los recursos de HeyGen. Alternativa condicional: usar `HEYGEN_INTEQUITO_IMAGE_ASSET_ID` (ID real del recurso importado) en lugar de un avatar; esto requiere una cuenta API que permita crear el video y **no se ha verificado que el plan Free habilite generaciones API**. Elegir una voz en español, configurar `HEYGEN_API_KEY` y `HEYGEN_INTEQUITO_VOICE_ID` en Render. Nunca guardar claves en GitHub.
 4. Habilitar créditos API Runway y clave en Render si se usarán escenas animadas.
 5. Probar en modo limitado: una sola generación aprobada por motor; inspeccionar continuidad del rostro, logo, movimiento, voz, subtítulos, duración y costos reales.
 6. Solo después de aprobar pruebas, habilitar cualquier flujo adicional de producción o publicación.
