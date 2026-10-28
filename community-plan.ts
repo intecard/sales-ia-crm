@@ -30,7 +30,7 @@ export const communityPublicCopy=(payload:CommunityPayload)=>[
  * takes more than one year; no course is silently dropped.
  */
 export function monthCourseIndex(date:string,count:number):number{
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||count<=0)throw Error('CM_DATE_OR_CATALOG');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||count<=0)throw Error('CM_DATE_OR_CATALOG');
   const year=Number(date.slice(0,4)),month=Number(date.slice(5,7));
   if(month<1||month>12)throw Error('CM_DATE_OR_CATALOG');
   const elapsed=(year-2026)*12+(month-10);
