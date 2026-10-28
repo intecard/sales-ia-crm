@@ -9,7 +9,7 @@ import type { Catalog } from './whatsapp-catalog.ts';
 const course=(name:string)=>({
  title:name,text:'',duration:'4 meses',modality:'Virtual',schedule:'Sábados',
  investment:'Inscripción RD$2,500; mensualidad RD$2,000',
- description:'Formación profesional en el sistema de salud dominicano.',
+ description:'Aprenderás procesos de autorizaciones médicas y atención a los afiliados en servicios de salud.',
 });
 const courses=Array.from({length:14},(_,i)=>course('Programa técnico INTECA '+(i+1)));
 const catalog:Catalog={text:'source',hash:'a'.repeat(64),generalSchedule:'Un día por semana',specialSchedules:[],payments:'',courses};

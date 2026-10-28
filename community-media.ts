@@ -6,6 +6,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import ffmpeg from '@ffmpeg-installer/ffmpeg';
 import type { CommunityPayload } from './community-plan.ts';
+import { renderINTECAFlyer } from './community-flyer-renderer.ts';
 const exec = promisify(execFile);
 const escape = (s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!));
 function lines(s:string, max=34) { const out:string[]=[];for(const paragraph of s.split('\n')) {let line='';for(const word of paragraph.split(/\s+/)){if((line+' '+word).trim().length>max&&line){out.push(line);line=word;}else line=(line+' '+word).trim();}if(line)out.push(line);}return out; }
@@ -30,6 +31,7 @@ const colors=[
  * inventing or replacing the character; report missing reference separately.
  */
 export async function renderCommunityImage(p:CommunityPayload,slide?:number,assetRoot=process.cwd()) {
+ if(p.kind==='flyer'&&p.flyerOffer)return renderINTECAFlyer(p,assetRoot);
  const photoName=/farmac|farmacia|visitador/i.test(p.courseTitle)?'pharmacy':/enfermer|promotor.*salud/i.test(p.courseTitle)?'nursing':'call-center';
  // Missing static assets must not suspend the whole organic content operation.
  // Use vector-only educational branding, never stock people or an invented INTEQUITO.
