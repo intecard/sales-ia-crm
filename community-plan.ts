@@ -3,7 +3,7 @@ import type { Catalog, CatalogCourse } from './whatsapp-catalog.ts';
 import { intequitoScript, INTEQUITO, type Script } from './intequito-studio.ts';
 export const SOCIAL_CHANNELS = ['facebook','instagram','youtube'] as const;
 export type SocialChannel = typeof SOCIAL_CHANNELS[number];
-export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'|'promo_video'; pillar: string; slides: string[]; assetKey: string; catalogHash: string; script?: Script };
+export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'|'promo_video'; pillar: string; slides: string[]; assetKey: string; catalogHash: string; editorialDate?:string;campaignMonth?:string;designSeed?:number; script?: Script };
 export const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 // PostgreSQL jsonb reorders object keys. Keep the original field order when
 // checking persisted pieces, including the first plan already saved in production.
@@ -15,6 +15,9 @@ const normalizeJson = (value:unknown):unknown => Array.isArray(value)
 export const contentHash = (p: CommunityPayload) => sha({
   title:p.title,caption:p.caption,courseTitle:p.courseTitle,kind:p.kind,pillar:p.pillar,
   slides:p.slides,assetKey:p.assetKey,catalogHash:p.catalogHash,
+  ...(p.editorialDate?{editorialDate:p.editorialDate}:{}),
+  ...(p.campaignMonth?{campaignMonth:p.campaignMonth}:{}),
+  ...(p.designSeed!==undefined?{designSeed:p.designSeed}:{}),
   ...(p.script?{script:normalizeJson(p.script)}:{}),
 });
 /** Text actually spoken or printed for viewers; excludes production metadata and numeric resolutions. */
@@ -22,6 +25,19 @@ export const communityPublicCopy=(payload:CommunityPayload)=>[
   payload.title,payload.caption,...payload.slides,
   ...(payload.script?.scenes.flatMap(s=>[s.dialogue,s.subtitle])||[]),
 ].join('\n');
+/** One featured program per whole calendar month, all programs in an ongoing rotation.
+ * Month #0 is 2026-10. If there are more than 12 programs the complete rotation
+ * takes more than one year; no course is silently dropped.
+ */
+export function monthCourseIndex(date:string,count:number):number{
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||count<=0)throw Error('CM_DATE_OR_CATALOG');
+  const year=Number(date.slice(0,4)),month=Number(date.slice(5,7));
+  if(month<1||month>12)throw Error('CM_DATE_OR_CATALOG');
+  const elapsed=(year-2026)*12+(month-10);
+  return ((elapsed%count)+count)%count;
+}
+export const featuredCourseForDate=(catalog:Catalog,date:string):CatalogCourse=>catalog.courses[monthCourseIndex(date,catalog.courses.length)];
+export const editorialMonth=(date:string)=>date.slice(0,7);
 export function rdDay(now: Date) { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(now); }
 export function makeContent(course: CatalogCourse, catalog: Catalog, date: string, kind: CommunityPayload['kind'], variant: number): CommunityPayload {
   const pillars = ['Educación','Educación','Educación','Educación','Educación','Educación','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Demostración','Demostración','Demostración','Demostración','Confianza','Confianza','Confianza','Promoción','Promoción'];
@@ -34,6 +50,7 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
     `Una pregunta frecuente sobre ${course.title}`,
   ];
   const seed = Number(date.slice(-2))*3+variant+(kind==='story'?2:kind==='flyer'?1:0);
+  const editorialNumber=Number(date.slice(8,10));
   const title = hooks[seed%hooks.length];
   const url = new URL('https://www.inteca.com.do/'); url.searchParams.set('utm_source','community');url.searchParams.set('utm_medium','organic');url.searchParams.set('utm_campaign','lisa_crecimiento');url.searchParams.set('utm_content',`${date}_${kind}_${variant}`);
   const learning = course.description || course.text.split('\n').find(l=>l.startsWith('Aprender')) || 'Consulta el contenido del programa en INTECA.';
@@ -47,8 +64,8 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
   ];
   const cta = actions[seed%actions.length];
   const contact = `Escríbenos al WhatsApp ${INTEQUITO.phone} para solicitar información e inscribirte: ${INTEQUITO.whatsapp}`;
-  const caption = `${title}\n\n${learning.slice(0,650)}\n\n${course.title}\n${facts}\n\n${cta}\n${contact}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud`.slice(0,1950);
-  return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides:[`${title}\n${learning}`.slice(0,270), facts.slice(0,400),`${cta}\nWhatsApp ${INTEQUITO.phone}\ninteca.com.do`],assetKey:sha(['intequito-v2',date,course.title,kind,variant,catalog.hash]).slice(0,32),catalogHash:catalog.hash,...(['short','promo_video'].includes(kind)?{script:intequitoScript(course,kind==='short'?'short':'long_brief',variant)}:{})};
+  const caption = `${title}\n\nCampaña ${editorialMonth(date)} · edición ${editorialNumber}.\n${learning.slice(0,650)}\n\n${course.title}\n${facts}\n\n${cta}\n${contact}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud`.slice(0,1950);
+  return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides:[`${title}\n${learning}`.slice(0,270), facts.slice(0,400),`${cta}\nWhatsApp ${INTEQUITO.phone}\ninteca.com.do`],assetKey:sha(['intequito-v3',date,course.title,kind,variant,catalog.hash]).slice(0,32),catalogHash:catalog.hash,editorialDate:date,campaignMonth:editorialMonth(date),designSeed:editorialNumber+variant*31,...(['short','promo_video'].includes(kind)?{script:intequitoScript(course,kind==='short'?'short':'long_brief',variant)}:{})};
 }
 /**
  * 9 obras creativas por día, reutilizables entre plataformas:
@@ -68,11 +85,11 @@ export function planMonth(catalog: Catalog, start: string) {
       ['promo_video',0,20,7],
     ];
     for(const [kind,variant,hour,offset] of slots) {
-      const course=catalog.courses[(day+offset)%catalog.courses.length];
+      const course=featuredCourseForDate(catalog,d);
       const payload=makeContent(course,catalog,d,kind,variant);
       const channels:SocialChannel[]=kind==='flyer'?['facebook','instagram']:[...SOCIAL_CHANNELS];
       for(const channel of channels) result.push({
-        slot:`v2:${d}:${kind}:${variant}:${channel}`,
+        slot:`v3:${d}:${kind}:${variant}:${channel}`,
         channel,
         scheduled_at:new Date(`${d}T${String(hour).padStart(2,'0')}:00:00-04:00`).toISOString(),
         payload,
