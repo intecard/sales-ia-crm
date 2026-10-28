@@ -5,11 +5,13 @@ import { makeContent, planMonth, rdDay, sha } from './community-plan.ts';
 import { hasDiscount } from './advertising-agent.ts';
 import type { Catalog } from './whatsapp-catalog.ts';
 const catalog:Catalog={text:'official',hash:'official-hash',generalSchedule:'Un día por semana',specialSchedules:[],payments:'',courses:[{title:'Técnico en Autorizaciones Médicas',text:'',duration:'5 meses',modality:'Virtual',investment:'Inscripción RD$2,500 y mensualidad RD$2,000',schedule:'Sábados',description:'Aprende validación de coberturas y atención al afiliado.'}]};
-test('30-day plan uses unique slots, official facts and four human long-video briefs',()=>{
- const jobs=planMonth(catalog,'2026-10-25');assert.equal(jobs.length,334);assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
- assert.equal(jobs.filter(j=>j.channel==='youtube'&&j.payload.kind==='long_brief').length,4);
- assert.equal(jobs.filter(j=>j.channel==='instagram'&&j.payload.kind==='story').length,90);
- assert.equal(jobs.filter(j=>j.channel==='facebook'&&j.payload.kind==='short').length,60);
+test('30-day plan allocates 1 post, 7 reel scripts and 1 promo script per day',()=>{
+ const jobs=planMonth(catalog,'2026-10-25');assert.equal(jobs.length,780);assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
+ assert.equal(jobs.filter(j=>j.channel==='youtube'&&j.payload.kind==='promo_video').length,30);
+ assert.equal(jobs.filter(j=>j.channel==='instagram'&&j.payload.kind==='flyer').length,30);
+ assert.equal(jobs.filter(j=>j.channel==='facebook'&&j.payload.kind==='short').length,210);
+ assert.equal(jobs.filter(j=>j.payload.kind==='short').every(j=>j.payload.script?.actor==='INTEQUITO'),true);
+ assert.equal(jobs.every(j=>j.payload.caption.includes('809-643-5502')),true);
  assert.equal(jobs.every(j=>!hasDiscount(j.payload)&&j.payload.caption.includes('5 meses')&&j.payload.caption.includes('RD$2,500')),true);
  assert.equal(rdDay(new Date('2026-10-26T02:00:00Z')),'2026-10-25');
 });
