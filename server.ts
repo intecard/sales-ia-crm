@@ -5,6 +5,8 @@ import { voiceAdminRouter, voiceProviderRouter, attachVoiceRelay } from './voice
 import { CommunityManager } from './community-manager';
 import { CommunityPublisher } from './community-publisher';
 import { IntequitoVideoProvider } from './intequito-video-provider';
+import { HeyGenVideoProvider } from './heygen-video-provider';
+import { contentHash } from './community-plan';
 import { createTeamStudio } from './team/routes';
 import { createAccountingRouter } from './accounting/routes';
 import { probeMetaClient } from './meta-oauth-diagnostics';
@@ -47,6 +49,8 @@ const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
 const communityManager = new CommunityManager(salesStore, whatsAppCatalog, new CommunityPublisher(advertisingAgent));
+const intequitoVideoProvider = new IntequitoVideoProvider();
+const heygenVideoProvider = new HeyGenVideoProvider();
 const voiceSalesAgent = new VoiceSalesAgent(salesStore, whatsAppCatalog, new VoiceProvider(), async prompt => { const r=await generateGeminiContentWithFallback(prompt,{responseMimeType:'application/json',httpOptions:{timeout:12000,retryOptions:{attempts:1}},maxOutputTokens:512},true); return r.text||''; });
 const voiceTimer=setInterval(()=>void voiceSalesAgent.tick(),60000);voiceTimer.unref();
 const communityTimer = setInterval(() => { void communityManager.tick().then(() => communityManager.observe()); }, 60000);
@@ -1352,7 +1356,108 @@ app.use('/api/advertising/oauth', createIntegrationOAuth({
 }));
 app.use('/api/voice/provider',voiceProviderRouter(voiceSalesAgent));
 app.use('/api/advertising/voice',voiceAdminRouter(voiceSalesAgent));
-app.get('/api/advertising/community/video-provider', async (_req,res)=>{try{res.json(await intequitoVideoProvider.status());}catch{res.status(503).json({error:'No se pudo verificar el proveedor audiovisual.'});}});
+
+app.get('/api/advertising/community/video-provider', async (_req,res)=>{
+  try {
+    const runway=await intequitoVideoProvider.status();
+    const heygen=heygenVideoProvider.status();
+    res.json({
+      providers:{heygen,runway},
+      renderReady:heygen.ready||runway.renderReady,
+      automaticSpending:false,
+      note:'HeyGen genera un avatar hablante completo; Runway genera un plano animado de 5 segundos. Las combinaciones necesitan edición y control de calidad.'
+    });
+  } catch {res.status(503).json({error:'No se pudo verificar los proveedores audiovisuales.'});}
+});
+const videoGenerationSchema=z.object({
+  communityJobId:z.string().uuid(),
+  provider:z.enum(['heygen','runway']),
+  requestId:z.string().uuid(),
+  confirmSpend:z.literal(true),
+  maxRunwayCredits:z.number().int().min(60).max(240).optional(),
+}).strict();
+// Approval is a per-request human action in an authenticated admin session.
+// Each (community job, provider) has at most one start request: unknown outcomes are never automatically repeated.
+app.post('/api/advertising/community/video/generate',async(req,res)=>{
+  const parsed=videoGenerationSchema.safeParse(req.body);
+  if(!parsed.success)return res.status(400).json({error:'Confirma el gasto y selecciona un video válido y un proveedor.'});
+  const {communityJobId,provider,requestId,maxRunwayCredits}=parsed.data;
+  let registeredId:string|null=null;
+  try{
+    const jobs=await salesStore.request(`crm_community_jobs?id=eq.${communityJobId}&limit=1`);
+    const source=jobs?.[0];
+    if(!source||source.state!=='brief'||!source.payload?.script||source.payload.script.actor!=='INTEQUITO'||contentHash(source.payload)!==source.content_hash){
+      return res.status(409).json({error:'El guion no está aprobado o ha cambiado. Revisa el calendario.'});
+    }
+    const catalog=await whatsAppCatalog.get();
+    if(!catalog||catalog.hash!==source.payload.catalogHash||!catalog.courses.some(course=>course.title===source.payload.courseTitle)){
+      return res.status(409).json({error:'El catálogo cambió; revisa el guion y la información comercial antes de producir.'});
+    }
+    const runnable=provider==='heygen'?heygenVideoProvider.status().ready:(await intequitoVideoProvider.status()).renderReady;
+    if(!runnable) return res.status(409).json({error:'Falta configurar las claves o la identidad oficial de INTEQUITO para ese proveedor.'});
+    if(provider==='runway' && (maxRunwayCredits??0)<60) return res.status(400).json({error:'Un plano de 5 segundos en Runway necesita al menos 60 créditos autorizados.'});
+    const reservation=await salesStore.request('crm_community_video_generations','POST',{
+      job_id:communityJobId,provider,request_id:requestId,state:'starting',
+      approved_runway_credits:provider==='runway'?maxRunwayCredits:null,
+      result:{acknowledged:true,output:'pending',character:'INTEQUITO'},
+    });
+    registeredId=String(reservation?.[0]?.id||'');
+    if(!z.string().uuid().safeParse(registeredId).success)throw Error('VIDEO_RESERVATION_FAILED');
+    let submitted;
+    if(provider==='heygen') {
+      submitted=await heygenVideoProvider.createVideo(source.payload.script,{confirmed:true,requestId});
+    }else {
+      submitted=await intequitoVideoProvider.createScene(source.payload.script.scenes[0],{
+        confirmed:true,maxCreditsApproved:maxRunwayCredits!,
+      });
+    }
+    await salesStore.request(`crm_community_video_generations?id=eq.${registeredId}&state=eq.starting`,'PATCH',{
+      state:'submitted',provider_job_id:submitted.id,result:{...submitted,output:'awaiting_provider',origin:'inteca_admin_manual'},
+      updated_at:new Date().toISOString(),
+    });
+    return res.json({id:registeredId,provider,providerJobId:submitted.id,state:'submitted',
+      note:provider==='runway'?'Plano inicial de 5 segundos; aún no es el anuncio final.':'Video solicitado a HeyGen; requiere revisión antes de publicar.'});
+  }catch(e){
+    // Unknown provider outcomes remain manual-review only, preventing duplicate charges.
+    if(registeredId)await salesStore.request(`crm_community_video_generations?id=eq.${registeredId}&state=eq.starting`,'PATCH',{
+      state:'review_required',result:{reason:'VIDEO_PROVIDER_OUTCOME_UNKNOWN',output:'manual_reconciliation_required'},
+      updated_at:new Date().toISOString(),
+    }).catch(()=>{});
+    return res.status(409).json({error:registeredId?'Resultado desconocido: revisa el proveedor antes de repetir. No se cobrará automáticamente otra generación.':'No se pudo registrar la autorización en Supabase. No se inició ninguna generación.'});
+  }
+});
+app.get('/api/advertising/community/video/generations',async(_req,res)=>{
+  try{
+    const jobs=await salesStore.request('crm_community_video_generations?order=updated_at.desc&limit=100');
+    res.json(jobs);
+  }catch{res.status(503).json({error:'No se pudieron leer las generaciones audiovisuales.'});}
+});
+app.get('/api/advertising/community/video/generations/:id/status',async(req,res)=>{
+  if(!z.string().uuid().safeParse(req.params.id).success)return res.status(400).json({error:'Identificador inválido.'});
+  try{
+    const rows=await salesStore.request(`crm_community_video_generations?id=eq.${req.params.id}&limit=1`);
+    const generation=rows?.[0];
+    if(!generation)return res.status(404).json({error:'Generación no encontrada.'});
+    if(generation.state!=='submitted'||!generation.provider_job_id)
+      return res.json({id:generation.id,provider:generation.provider,state:generation.state,result:generation.result});
+    const providerResult=generation.provider==='heygen'
+      ?await heygenVideoProvider.getVideo(generation.provider_job_id)
+      :await intequitoVideoProvider.sceneStatus(generation.provider_job_id);
+    const complete=generation.provider==='heygen'
+      ?providerResult.status==='completed'
+      :providerResult.status==='SUCCEEDED';
+    const failed=generation.provider==='heygen'
+      ?providerResult.status==='failed'
+      :providerResult.status==='FAILED';
+    const state=complete?'review_required':failed?'failed':'submitted';
+    const updated=await salesStore.request(`crm_community_video_generations?id=eq.${generation.id}&state=eq.submitted`,'PATCH',{
+      state,result:providerResult,updated_at:new Date().toISOString(),
+    });
+    return res.json({id:generation.id,provider:generation.provider,state,result:providerResult,needsHumanApproval:complete,
+      note:complete?'Revisa la identidad visual y duración; publicar requiere aprobación separada.':'No se publica automáticamente.'});
+  }catch{return res.status(503).json({error:'No se pudo consultar el proveedor audiovisual. Conservamos el estado anterior; no se repetirán cargos.'});}
+});
+
 app.get('/api/advertising/community', async (_req,res)=>{try{res.json(await communityManager.snapshot());}catch{res.status(503).json({error:'No se pudo leer la memoria de Lisa en Supabase.'});}});
 app.post('/api/advertising/community/settings',async(req,res)=>{const b=z.object({enabled:z.boolean()}).strict().safeParse(req.body);if(!b.success)return res.status(400).json({error:'Revisa la configuración.'});try{await communityManager.setEnabled(b.data.enabled);res.json({success:true});}catch{res.status(503).json({error:'No se pudo guardar la configuración.'});}});
 app.post('/api/advertising/community/run',async(_req,res)=>{void communityManager.tick();res.json({accepted:true,message:'Procesamiento solicitado. Consulta el estado real en el calendario.'});});
