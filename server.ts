@@ -8,6 +8,7 @@ import { CommunityDiagnostics } from './community-diagnostics';
 import { GatewayPrecontract } from './payment-gateway-precontract';
 import { gatewayAdminRouter, gatewayPublicRouter } from './payment-gateway-routes';
 import { LocalVideoEngine } from './local-video-engine';
+import { integratedReadiness } from './advertising-operational-readiness';
 import { localVideoAdminRouter, localVideoWorkerRouter } from './local-video-routes';
 import { IntequitoVideoProvider } from './intequito-video-provider';
 import { HeyGenVideoProvider } from './heygen-video-provider';
@@ -1295,18 +1296,21 @@ async function triggerRenderDeploy(serviceId: string, apiKey: string) {
   return body;
 }
 
-function buildIntegrationEnvironmentStatus() {
-  return INTEGRATION_ENVIRONMENT_GROUPS.map((group) => {
-    const configuredEnvVars = group.requiredEnvVars.filter((envVar) =>
-      Boolean(process.env[envVar]),
-    );
-    const missingEnvVars = group.requiredEnvVars.filter((envVar) => !process.env[envVar]);
-
+function buildIntegrationEnvironmentStatus(){
+  return INTEGRATION_ENVIRONMENT_GROUPS.map(group=>{
+    // Advertising cards are linked with Meta/Google directly. These legacy
+    // synthetic wallet credentials are NOT required for payment in either
+    // platform. The creative suite has dedicated HeyGen/Runway/local adapters.
+    const special=group.id==='int_ad_payment_wallet'||group.id==='int_creative_ai';
+    const configuredEnvVars=special?[]:group.requiredEnvVars.filter(k=>Boolean(process.env[k]));
+    const missingEnvVars=special?[]:group.requiredEnvVars.filter(k=>!process.env[k]);
     return {
       ...group,
-      configured: missingEnvVars.length === 0,
-      configuredEnvVars,
-      missingEnvVars,
+      configured:special?false:missingEnvVars.length===0,
+      configuredEnvVars,missingEnvVars,
+      verificationMode:group.id==='int_ad_payment_wallet'?'provider_managed_billing':
+        group.id==='int_creative_ai'?'specialized_creative_engines':'environment',
+      setupRequired:special,
     };
   });
 }
@@ -1319,10 +1323,12 @@ function buildAgentRuntimeManifest() {
     const requiredIntegrations = agent.requiredIntegrationIds.map((id) => integrationById.get(id));
     const optionalIntegrations = agent.optionalIntegrationIds.map((id) => integrationById.get(id));
     const missingRequired = requiredIntegrations.flatMap((integration) =>
-      integration ? integration.missingEnvVars.map((envVar) => `${integration.name}:${envVar}`) : [],
+      integration ? (integration.setupRequired ? [integration.name+':comprobar conexión externa'] :
+        integration.missingEnvVars.map(envVar => `${integration.name}:${envVar}`)) : [],
     );
     const missingOptional = optionalIntegrations.flatMap((integration) =>
-      integration ? integration.missingEnvVars.map((envVar) => `${integration.name}:${envVar}`) : [],
+      integration ? (integration.setupRequired ? [integration.name+':comprobar conexión externa'] :
+        integration.missingEnvVars.map(envVar => `${integration.name}:${envVar}`)) : [],
     );
     const status =
       missingRequired.length === 0
@@ -1526,6 +1532,22 @@ app.post('/api/advertising/verify', async (req, res) => {
 
 // All agent workspaces use the same server-side adapters and sanitized evidence.
 // This check only reads provider identities; it cannot publish, charge or grant scopes.
+// Read-only owner diagnostics. No charging, provider mutations, secret disclosure,
+// invented card vault or publication. Authenticated by /api/advertising middleware.
+app.get('/api/advertising/operational-readiness',async(_req,res)=>{
+  try{
+    const [accounts,runway,local]=await Promise.all([
+      agentConnections.ensureFresh(),
+      intequitoVideoProvider.status(),
+      localVideoEngine.status(),
+    ]);
+    return res.json(integratedReadiness(accounts,{
+      heygen:heygenVideoProvider.status(),runway,local,
+    }));
+  }catch{
+    return res.status(503).json({error:'No fue posible comprobar las integraciones. Inténtalo de nuevo sin modificar credenciales.'});
+  }
+});
 app.get('/api/advertising/shared-connections', async (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ scope: 'platform_owner', connections: await agentConnections.ensureFresh(), billingVerified: false, conversionsVerified: false });
