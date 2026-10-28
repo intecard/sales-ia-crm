@@ -4,8 +4,7 @@
  * no external video API is required. Never mark self-hosted output as published.
  */
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { access } from 'node:fs/promises';
-import path from 'node:path';
+import { IntequitoReferenceStore } from './intequito-reference-store.ts';
 import { contentHash, communityPublicCopy, sha, type CommunityPayload } from './community-plan.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
 import type { CatalogStore } from './whatsapp-catalog.ts';
@@ -28,33 +27,51 @@ const safeUuid=(value:string)=>uuidPattern.test(value);
 const safeEnv=(env:NodeJS.ProcessEnv)=>Boolean(env.SUPABASE_URL?.startsWith('https://')&&env.SUPABASE_SERVICE_ROLE_KEY&&env.INTECA_LOCAL_VIDEO_WORKER_TOKEN&&env.INTECA_LOCAL_VIDEO_WORKER_TOKEN.length>=32);
 const bucket='crm-local-videos';
 export class LocalVideoEngine {
-  constructor(private store:Store,private catalog:Pick<CatalogStore,'get'>,private env:NodeJS.ProcessEnv=process.env,private fetcher:typeof fetch=fetch){}
+  private reference:IntequitoReferenceStore;
+  constructor(private store:Store,private catalog:Pick<CatalogStore,'get'>,private env:NodeJS.ProcessEnv=process.env,private fetcher:typeof fetch=fetch){
+    this.reference=new IntequitoReferenceStore(store,env,fetcher);
+  }
   isConfigured(){return safeEnv(this.env);}
   async status(){
-    const image=await access(path.join(process.cwd(),'public/intequito-oficial.png')).then(()=>true).catch(()=>false);
     const configured=this.isConfigured();
+    const [reference,storage]=await Promise.all([
+      this.reference.referenceStatus(),
+      this.reference.storageStatus(),
+    ]);
     let settings:any=null;
     let queued=0,rendering=0,ready=0;
-    if(configured){
-      try{
-        const [s,jobs]=await Promise.all([
-          this.store.request('crm_local_video_settings?id=eq.inteca&limit=1'),
-          this.store.request('crm_local_video_jobs?select=state&order=created_at.desc&limit=1000')
-        ]);
-        settings=s[0]||null;
-        for(const j of jobs){if(j.state==='queued')queued++;if(j.state==='rendering')rendering++;if(j.state==='ready_for_review')ready++;}
-      }catch{/* Migrations may not be installed. Do not claim readiness. */}
-    }
+    try{
+      const [s,jobs]=await Promise.all([
+        this.store.request('crm_local_video_settings?id=eq.inteca&limit=1'),
+        this.store.request('crm_local_video_jobs?select=state&order=created_at.desc&limit=1000'),
+      ]);
+      settings=s[0]||null;
+      for(const j of jobs){if(j.state==='queued')queued++;if(j.state==='rendering')rendering++;if(j.state==='ready_for_review')ready++;}
+    }catch{/* A disconnected database is never presented as available. */}
+    const databaseReady=Boolean(settings);
+    const storageReady=databaseReady&&storage.videoBucketReady&&storage.referenceBucketReady;
     const seen=settings?.last_worker_seen_at;
     const workerConnected=Boolean(seen&&Date.now()-Date.parse(seen)<5*60_000);
-    return {provider:'inteca-local',engine:'Wan 2.2 / ComfyUI + Piper + FFmpeg',
-      serverReady:configured,referencePresent:image,
-      storageReady:!!settings,workerConnected,workerLastSeen:seen||null,
+    const referencePresent=reference.referencePresent;
+    return {
+      provider:'inteca-local',engine:'Wan 2.2 / ComfyUI + Piper + FFmpeg',
+      serverReady:configured,referencePresent,referenceSource:reference.source,
+      databaseReady,videoBucketReady:storage.videoBucketReady,
+      referenceBucketReady:storage.referenceBucketReady,storageReady,
+      workerConnected,workerLastSeen:seen||null,
       autoEnabled:settings?.auto_enabled===true,maxDailyCreatives:settings?.max_daily_creatives||8,
       queued,rendering,readyForReview:ready,externalGenerationFees:false,
-      readyForProduction:configured&&image&&Boolean(settings)&&workerConnected,
-      message:!configured?'Configurar clave interna del trabajador y Supabase.':!image?'Instalar la imagen oficial de INTEQUITO.':!settings?'Aplicar la migración del motor local en Supabase.':!workerConnected?'Encender el trabajador en una GPU propia; Render no genera los cuadros de video.':null};
+      readyForProduction:configured&&referencePresent&&storageReady&&workerConnected,
+      message:!configured?'Configurar el token privado de la GPU y la conexión de Supabase.':
+        !databaseReady?'Verificar migración de la cola local en Supabase.':
+        !storageReady?'Comprobar los buckets privados de almacenamiento de referencias y videos.':
+        !referencePresent?'Cargar la imagen PNG oficial de INTEQUITO desde este panel.':
+        !workerConnected?'El CRM está preparado. Falta conectar una GPU real con ComfyUI, Wan 2.2, Piper y FFmpeg.':
+        null,
+    };
   }
+  async uploadReference(bytes:Buffer){return this.reference.save(bytes);}
+  async readReference(){return this.reference.read();}
   async jobs(){
     if(!this.isConfigured())return [];
     return this.store.request('crm_local_video_jobs?order=created_at.desc&limit=100');
