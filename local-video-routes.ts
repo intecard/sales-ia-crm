@@ -1,5 +1,4 @@
 import express,{Router} from 'express';
-import path from 'node:path';
 import { Readable } from 'node:stream';
 import { z } from 'zod';
 import { LocalVideoEngine, localWorkerTokenValid } from './local-video-engine.ts';
@@ -18,6 +17,31 @@ export function localVideoAdminRouter(engine:LocalVideoEngine){
   const router=Router();
   router.get('/status',async(_req,res)=>{
     try{return res.json(await engine.status());}catch{return fail(res,'No se pudo consultar el motor local.',503);}
+  });
+  router.post('/reference',express.raw({type:'image/png',limit:'6mb'}),async(req,res)=>{
+    if(!Buffer.isBuffer(req.body))return fail(res,'Sube el archivo PNG oficial de INTEQUITO.',400);
+    try{
+      const result=await engine.uploadReference(req.body);
+      return res.status(201).json(result);
+    }catch(error){
+      const code=error instanceof Error?error.message:'LOCAL_REFERENCE_UPLOAD_FAILED';
+      const message:Record<string,string>={
+        LOCAL_REFERENCE_INVALID:'El archivo no es un PNG válido o supera el tamaño permitido.',
+        LOCAL_REFERENCE_DIMENSIONS:'Imagen PNG inválida: usa la referencia oficial con al menos 400 píxeles por lado.',
+        LOCAL_REFERENCE_STORAGE_NOT_CONFIGURED:'Faltan las credenciales de almacenamiento del servidor.',
+        LOCAL_REFERENCE_UPLOAD_FAILED:'No se pudo almacenar la imagen privada en Supabase.',
+        LOCAL_REFERENCE_RECORD_FAILED:'Se guardó el archivo, pero no pudo registrarse. No se activó la producción.',
+      };
+      return fail(res,message[code]||'No se pudo registrar la referencia oficial.',409);
+    }
+  });
+  router.get('/reference',async(_req,res)=>{
+    try{
+      const bytes=await engine.readReference();
+      res.set('Content-Type','image/png');
+      res.set('Cache-Control','private, no-store');
+      return res.send(bytes);
+    }catch{return fail(res,'No se ha instalado una imagen oficial verificada.',404);}
   });
   router.get('/jobs',async(_req,res)=>{
     try{
@@ -66,10 +90,13 @@ export function localVideoWorkerRouter(engine:LocalVideoEngine,env:NodeJS.Proces
     if(!localWorkerTokenValid(req.get('Authorization'),env.INTECA_LOCAL_VIDEO_WORKER_TOKEN))return fail(res,'Acceso de trabajador no autorizado.',401);
     next();
   });
-  router.get('/reference',(_req,res)=>{
-    res.sendFile(path.join(process.cwd(),'public/intequito-oficial.png'),(err)=>{
-      if(err&&!res.headersSent)fail(res,'Falta la referencia oficial de INTEQUITO.',404);
-    });
+  router.get('/reference',async(_req,res)=>{
+    try{
+      const bytes=await engine.readReference();
+      res.set('Content-Type','image/png');
+      res.set('Cache-Control','private, no-store');
+      return res.send(bytes);
+    }catch{return fail(res,'Falta la referencia oficial de INTEQUITO.',404);}
   });
   router.post('/claim',async(req,res)=>{
     const b=claimSchema.safeParse(req.body);
