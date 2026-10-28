@@ -187,3 +187,73 @@ test('Resend persists acknowledgement, uses idempotency, and holds ambiguous fai
     globalThis.fetch = original;
   }
 });
+
+test('Firebase remains read-only detectable before paid campus enrollment activation',async()=>{
+  let writes=0;
+  const store={
+    request:async()=>{writes++;return []},
+    get:async()=>undefined,
+  } as unknown as SalesStore;
+  const agent=new EnrollmentAgent(store,{
+    INTECA_FIREBASE_PROJECT_ID:'gen-lang-client-0415952714',
+    INTECA_FIRESTORE_DATABASE_ID:'ai-studio-campusvirtualint-dbc5e5fa-0c2e-4740-85d5-91566cdb7d70',
+  });
+  const result=await agent.campusReadiness();
+  assert.equal(result.campusConfigured,false);
+  assert.equal(result.campusSyncEnabled,false);
+  assert.equal(result.readyForEnrollment,false);
+  assert.equal(result.errorCode,'CAMPUS_NOT_CONFIGURED');
+  assert.equal(writes,0);
+  await assert.rejects(agent.provision(row()),/CAMPUS_SYNC_NOT_ACTIVATED/);
+  assert.equal(writes,0);
+});
+test('exact single course match may be saved once; mismatched or ambiguous catalog never auto-enrolled',async()=>{
+  const title='Farmacología Aplicada para Visitadores Médicos';
+  const documents=[{id:'course-pharma',get:(field:string)=>field==='title'?title:undefined}];
+  const db={
+    collection:(name:string)=>{
+      assert.equal(name,'courses');
+      return {get:async()=>({docs:documents})};
+    }
+  };
+  const mappings:any[]=[];
+  const store={
+    request:async(path:string,method='GET',body?:any)=>{
+      if(path.startsWith('crm_campus_course_mapping?course_title='))return mappings;
+      if(path==='crm_campus_course_mapping'&&method==='POST'){
+        mappings.push(body);return [body];
+      }
+      throw Error('UNEXPECTED '+path);
+    }
+  } as unknown as SalesStore;
+  const agent=new EnrollmentAgent(store,{});
+  const got=await agent.resolveCourseMapping(db as any,title);
+  assert.equal(got.campus_course_id,'course-pharma');
+  assert.equal(got.verified_by,'auto_exact_live');
+  assert.equal(mappings.length,1);
+  const again=await agent.resolveCourseMapping(db as any,title);
+  assert.equal(again.campus_course_id,'course-pharma');
+  assert.equal(mappings.length,1);
+  // Similar course titles are NOT proof of equivalence.
+  mappings.length=0;
+  await assert.rejects(agent.resolveCourseMapping(db as any,'Técnico en Farmacología Aplicada para Visitadores Médicos'),/COURSE_MAPPING_REQUIRED/);
+  documents.push({id:'duplicated',get:(field:string)=>field==='title'?title:undefined});
+  await assert.rejects(agent.resolveCourseMapping(db as any,title),/COURSE_MAPPING_REQUIRED/);
+  assert.equal(mappings.length,0);
+});
+test('an academic course map conflict cannot be overwritten by a background worker',async()=>{
+  const title='Técnico en Pre-Certificaciones Médicas';
+  const docs=[{id:'c_111',get:(field:string)=>field==='title'?title:undefined}];
+  let calls=0;
+  const agent=new EnrollmentAgent({
+    request:async(path:string,method?:string)=>{
+      if(path.startsWith('crm_campus_course_mapping?')){
+        calls++;
+        return calls===1?[]:[{campus_course_id:'different-course',campus_course_title:'Other'}];
+      }
+      if(path==='crm_campus_course_mapping'&&method==='POST')throw Error('duplicate primary key');
+      throw Error('unexpected route');
+    }
+  } as unknown as SalesStore,{});
+  await assert.rejects(agent.resolveCourseMapping({collection:()=>({get:async()=>({docs})})} as any,title),/COURSE_MAPPING_REQUIRED/);
+});
