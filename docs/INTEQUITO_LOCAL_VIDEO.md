@@ -45,15 +45,30 @@ La web es el **plano de control**; el cómputo lo hace la máquina GPU dedicada.
 1. Revisar y aplicar en la instancia correcta de Supabase la migración
    `supabase/migrations/20261027233000_local_video_engine.sql`.
    Antes debe existir el esquema del Community Manager.
-2. Crear `public/intequito-oficial.png` con **la imagen original suministrada por el propietario**.
-   Esta rama no contiene todavía la imagen binaria. No descargar sustitutos.
-3. En Render, configurar `INTECA_LOCAL_VIDEO_WORKER_TOKEN` como secreto robusto:
+2. Aplicar también `supabase/migrations/20261028165000_local_video_official_reference.sql`.
+   Esta migración crea el bucket privado `crm-local-reference` para el personaje
+   oficial, sin permitir lectura anónima, y campos de integridad SHA-256.
+3. En Render, guardar `INTECA_LOCAL_VIDEO_WORKER_TOKEN` como secreto robusto,
+   distinto de las claves de WhatsApp, Firebase o del administrador.
    `openssl rand -hex 32` genera uno. No incluirlo en Git ni mensajes.
-4. Confirmar las variables Supabase del servidor y la política de bucket privado
-   `crm-local-videos`, gestionado exclusivamente por `service_role`.
-5. Desplegar el código **solo cuando las pruebas y los recursos sean validados**.
-6. Iniciar la GPU y el trabajador en una PC gestionada por INTECA; luego revisar
-   `/api/advertising/community/video/local/status` desde la cuenta administradora.
+4. Abrir **Agentes IA Autónomos → Community Manager → Motor propio INTECA**.
+   En «Referencia oficial de INTEQUITO», seleccionar el PNG **original del usuario**
+   y pulsar «Instalar imagen oficial». El CRM verifica dimensiones, formato e integridad
+   y lo guarda en Supabase privado. La imagen no se publica a redes ni se envía
+   a servicios de video externos. No crear personajes sustitutos.
+5. Comprobar en «Verificar conexiones»: servidor, tablas, dos buckets privados y
+   referencia oficial deben quedar listos. Si una conexión está pendiente, corregir
+   ese punto concreto; las migraciones ya instaladas no se deben repetir.
+6. La GPU debe operar desde un ordenador o estación de trabajo NVIDIA propia,
+   porque Render Free solamente aloja el plano de control. Instalar en esa máquina
+   ComfyUI, modelo Wan 2.2, Piper y FFmpeg, comprobar licencias comerciales.
+7. Poner en el entorno privado del trabajador el **mismo token** generado en
+   Render; no usar contraseña de usuario ni clave service_role de Supabase.
+8. Iniciar una prueba con `--once`. Confirmar estado «GPU conectada», generar un
+   MP4 de prueba y revisarlo; **solo después** considerar la producción automática.
+   El estado «Conectada» significa que el trabajador contacta al CRM, no garantiza
+   que su GPU, modelos y workflow hayan superado las pruebas.
+
 
 ## Instalación del trabajador en una GPU propia
 
@@ -136,3 +151,11 @@ Solo el trabajador GPU conoce el secreto `Authorization: Bearer <token>`:
 - Benchmark: medir minutos por clip y utilización GPU antes de prometer 8 videos diarios.
 
 Si la calidad no alcanza los criterios, mantener la generación automática desactivada.
+
+## Nuevos endpoints protegidos de referencia oficial
+
+- Administrador autenticado: `POST /api/advertising/community/video/local/reference`, cuerpo `image/png`, cabecera `X-CRM-Action: advertising`, tamaño 1 KB–6 MB, dimensión mínima 400×400. No admite JPEG disfrazado de PNG.
+- Administrador autenticado: `GET /api/advertising/community/video/local/reference` para previsualización.
+- Trabajador con token: `GET /api/local-video/worker/reference`; lee la misma imagen desde el bucket privado, verificando SHA-256.
+- `GET /api/advertising/community/video/local/status` distingue `databaseReady`, `videoBucketReady`, `referenceBucketReady`, `referencePresent`, `workerConnected` y `readyForProduction`.
+- La sustitución de una imagen **desactiva automáticamente** la generación automática. Los videos pasan siempre a revisión manual. No se publica en redes desde este motor.
