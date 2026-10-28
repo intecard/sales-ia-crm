@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
 import sharp from 'sharp';
 import {IntequitoReferenceStore} from './intequito-reference-store.ts';
 import {LocalVideoEngine} from './local-video-engine.ts';
@@ -79,7 +79,7 @@ test('Invalid files are rejected before upload and cannot replace a valid refere
  await f.reference.save(good);
  const previous=f.state.reference_sha256;
  await assert.rejects(f.reference.save(Buffer.from('not an image')),/LOCAL_REFERENCE_INVALID/);
- const tiny=await sharp({create:{width:20,height:25,channels:4,background:'red'}}).png().toBuffer();
+ const tiny=await sharp(randomBytes(399*600*3),{raw:{width:399,height:600,channels:3}}).png().toBuffer();
  await assert.rejects(f.reference.save(tiny),/LOCAL_REFERENCE_DIMENSIONS/);
  const fake=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),Buffer.alloc(1100)]);
  await assert.rejects(f.reference.save(fake),/LOCAL_REFERENCE_INVALID/);
