@@ -4,6 +4,7 @@ import { VoiceProvider } from './voice/provider';
 import { voiceAdminRouter, voiceProviderRouter, attachVoiceRelay } from './voice/routes';
 import { CommunityManager } from './community-manager';
 import { CommunityPublisher } from './community-publisher';
+import { CommunityDiagnostics } from './community-diagnostics';
 import { LocalVideoEngine } from './local-video-engine';
 import { localVideoAdminRouter, localVideoWorkerRouter } from './local-video-routes';
 import { IntequitoVideoProvider } from './intequito-video-provider';
@@ -50,7 +51,9 @@ const enrollmentAgent = new EnrollmentAgent(salesStore);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
-const communityManager = new CommunityManager(salesStore, whatsAppCatalog, new CommunityPublisher(advertisingAgent));
+const communityPublisher = new CommunityPublisher(advertisingAgent);
+const communityManager = new CommunityManager(salesStore, whatsAppCatalog, communityPublisher);
+const communityDiagnostics = new CommunityDiagnostics(whatsAppCatalog,communityPublisher);
 const localVideoEngine = new LocalVideoEngine(salesStore, whatsAppCatalog);
 const intequitoVideoProvider = new IntequitoVideoProvider();
 const heygenVideoProvider = new HeyGenVideoProvider();
@@ -1467,6 +1470,24 @@ app.get('/api/advertising/community/video/generations/:id/status',async(req,res)
   }catch{return res.status(503).json({error:'No se pudo consultar el proveedor audiovisual. Conservamos el estado anterior; no se repetirán cargos.'});}
 });
 
+app.get('/api/advertising/community/diagnostics', async (_req,res)=>{
+  try{res.json(await communityDiagnostics.config());}
+  catch{res.status(503).json({error:'No se pudieron verificar los archivos y el almacenamiento.'});}
+});
+app.post('/api/advertising/community/diagnostics/test', async (_req,res)=>{
+  try{
+    const [media,channels]=await Promise.all([
+      communityDiagnostics.testRenderAndStorage(),
+      communityDiagnostics.verifyChannels(),
+    ]);
+    return res.json({media,channels});
+  }catch(e){
+    const raw=e instanceof Error?e.message:'';
+    const code=/^CM_[A-Z_0-9]+$/.test(raw)?raw:'CM_DIAGNOSTIC_FAILED';
+    console.warn('community_diagnostics_failed',code);
+    return res.status(409).json({error:code,note:'No se ha publicado ninguna pieza en redes. Revisa los archivos y la configuración de Supabase.'});
+  }
+});
 app.get('/api/advertising/community', async (_req,res)=>{try{res.json(await communityManager.snapshot());}catch{res.status(503).json({error:'No se pudo leer la memoria de Lisa en Supabase.'});}});
 app.post('/api/advertising/community/settings',async(req,res)=>{const b=z.object({enabled:z.boolean()}).strict().safeParse(req.body);if(!b.success)return res.status(400).json({error:'Revisa la configuración.'});try{await communityManager.setEnabled(b.data.enabled);res.json({success:true});}catch{res.status(503).json({error:'No se pudo guardar la configuración.'});}});
 app.post('/api/advertising/community/run',async(_req,res)=>{void communityManager.tick();res.json({accepted:true,message:'Procesamiento solicitado. Consulta el estado real en el calendario.'});});
