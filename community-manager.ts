@@ -3,6 +3,7 @@ import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
 import { makeContent, planMonth, featuredCourseForDate, rdDay, sha, contentHash, communityPublicCopy, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from './community-media.ts';
+import { isPublishableFlyer } from './community-flyer-offer.ts';
 import type { CommunityPublisher } from './community-publisher.ts';
 type Store={request:(r:string,m?:string,b?:unknown)=>Promise<any>};
 export type CommunityJob={id:string;slot:string;channel:SocialChannel;state:string;scheduled_at:string;payload:CommunityPayload;content_hash:string;media_url:string|null;result:any;last_error:string|null;updated_at:string};
@@ -67,16 +68,17 @@ export class CommunityManager {
     const settings=await this.settings();if(!settings)throw Error('CM_SETTINGS');
     const catalog=await this.catalog.get();if(!catalog)throw Error('CM_CATALOG');
     const now=new Date(),today=rdDay(now);
-    // Migration is deployed separately. Never destroy legacy plans if calendar v3 is unavailable.
+    // Calendar v4 migration must land before the new jobs can replace queued v3 slots.
     let record:any;
     try{record=(await this.store.request('crm_community_calendar_state?id=eq.inteca&limit=1'))?.[0];}
     catch{if(settings.plan_started_at)return;throw Error('CM_CALENDAR_MIGRATION_MISSING');}
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash)return;
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v4')return;
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
     const jobs=planMonth(catalog,today).map(item=>({
       ...item,
       state:['short','promo_video','long_brief'].includes(item.payload.kind)?'brief':
+        item.payload.kind==='flyer'&&item.payload.editorialDate===today?'queued':
         new Date(item.scheduled_at)<now?'missed':'queued',
       content_hash:contentHash(item.payload),
     }));
@@ -89,7 +91,7 @@ export class CommunityManager {
     const rows=await this.store.request(`crm_community_jobs?id=eq.${id}&state=eq.blocked`);
     if(!rows.length)throw Error('CM_STATE');
     const candidate=rows[0] as CommunityJob;
-    if(!candidate.slot.startsWith('v3:')||candidate.result?.id||candidate.result?.containerId)
+    if(!candidate.slot.startsWith('v4:')||candidate.result?.id||candidate.result?.containerId)
       throw Error('CM_LEGACY_OR_UNCERTAIN');
     if(Date.now()-Date.parse(candidate.scheduled_at)>90*60_000)
       throw Error('CM_SLOT_MISSED');
@@ -120,6 +122,9 @@ export class CommunityManager {
           const catalog=await this.catalog.get();if(!catalog||catalog.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
           const course=catalog.courses.find(c=>c.title===row.payload.courseTitle);
           if(!course||contentHash(row.payload)!==row.content_hash||hasDiscount(communityPublicCopy(row.payload))||hasUnlistedPrice(communityPublicCopy(row.payload),course.investment))throw Error('CM_CONTENT_REVIEW');
+          if(row.payload.kind==='flyer' && (!row.slot.startsWith('v4:')||
+             !row.payload.flyerOffer||!isPublishableFlyer(row.payload.flyerOffer)))
+            throw Error('CM_FLYER_PRICE_OR_CONTENT_MISSING');
           // Identity must be valid before generating or sending anything to this channel.
           phase='verify';
           await this.publisher.verify(row.channel);
