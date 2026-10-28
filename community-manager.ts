@@ -75,13 +75,19 @@ export class CommunityManager {
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
     if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v4')return;
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
-    const jobs=planMonth(catalog,today).map(item=>({
-      ...item,
-      state:['short','promo_video','long_brief'].includes(item.payload.kind)?'brief':
-        item.payload.kind==='flyer'&&item.payload.editorialDate===today?'queued':
-        new Date(item.scheduled_at)<now?'missed':'queued',
-      content_hash:contentHash(item.payload),
-    }));
+    const jobs=planMonth(catalog,today).map(item=>{
+      const incomplete=item.payload.kind==='flyer'&&
+        (!item.payload.flyerOffer||!isPublishableFlyer(item.payload.flyerOffer));
+      return {
+        ...item,
+        state:incomplete?'blocked':
+          ['short','promo_video','long_brief'].includes(item.payload.kind)?'brief':
+          item.payload.kind==='flyer'&&item.payload.editorialDate===today?'queued':
+          new Date(item.scheduled_at)<now?'missed':'queued',
+        ...(incomplete?{last_error:'CM_FLYER_PRICE_OR_CONTENT_MISSING'}:{}),
+        content_hash:contentHash(item.payload),
+      };
+    });
     await this.store.request('rpc/crm_community_roll_plan','POST',{
       p_jobs:jobs,p_destinations:destinations,p_day:today,p_catalog_hash:catalog.hash,
     });
