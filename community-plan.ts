@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import type { Catalog, CatalogCourse } from './whatsapp-catalog.ts';
 import { intequitoScript, INTEQUITO, type Script } from './intequito-studio.ts';
+import { flyerOffer, type FlyerOffer } from './community-flyer-offer.ts';
 export const SOCIAL_CHANNELS = ['facebook','instagram','youtube'] as const;
 export type SocialChannel = typeof SOCIAL_CHANNELS[number];
-export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'|'promo_video'; pillar: string; slides: string[]; assetKey: string; catalogHash: string; editorialDate?:string;campaignMonth?:string;designSeed?:number; script?: Script };
+export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'|'promo_video'; pillar: string; slides: string[]; assetKey: string; catalogHash: string; editorialDate?:string;campaignMonth?:string;designSeed?:number; flyerOffer?:FlyerOffer; script?: Script };
 export const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 // PostgreSQL jsonb reorders object keys. Keep the original field order when
 // checking persisted pieces, including the first plan already saved in production.
@@ -18,6 +19,7 @@ export const contentHash = (p: CommunityPayload) => sha({
   ...(p.editorialDate?{editorialDate:p.editorialDate}:{}),
   ...(p.campaignMonth?{campaignMonth:p.campaignMonth}:{}),
   ...(p.designSeed!==undefined?{designSeed:p.designSeed}:{}),
+  ...(p.flyerOffer?{flyerOffer:normalizeJson(p.flyerOffer)}:{}),
   ...(p.script?{script:normalizeJson(p.script)}:{}),
 });
 /** Text actually spoken or printed for viewers; excludes production metadata and numeric resolutions. */
@@ -51,7 +53,8 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
   ];
   const seed = Number(date.slice(-2))*3+variant+(kind==='story'?2:kind==='flyer'?1:0);
   const editorialNumber=Number(date.slice(8,10));
-  const title = hooks[seed%hooks.length];
+  const offer=kind==='flyer'?flyerOffer(course,date,variant):undefined;
+  const title = offer?.focus ? `Aprende sobre ${offer.focus}` : hooks[seed%hooks.length];
   const url = new URL('https://www.inteca.com.do/'); url.searchParams.set('utm_source','community');url.searchParams.set('utm_medium','organic');url.searchParams.set('utm_campaign','lisa_crecimiento');url.searchParams.set('utm_content',`${date}_${kind}_${variant}`);
   const learning = course.description || course.text.split('\n').find(l=>l.startsWith('Aprender')) || 'Consulta el contenido del programa en INTECA.';
   const facts = `Duración: ${course.duration}\nModalidad: ${course.modality || 'Consulta con INTECA'}\n${course.investment}\nHorario: ${course.schedule || catalog.generalSchedule || 'Consulta disponibilidad con INTECA'}`;
@@ -64,8 +67,10 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
   ];
   const cta = actions[seed%actions.length];
   const contact = `Escríbenos al WhatsApp ${INTEQUITO.phone} para solicitar información e inscribirte: ${INTEQUITO.whatsapp}`;
-  const caption = `${title}\n\nCampaña ${editorialMonth(date)} · edición ${editorialNumber}.\n${learning.slice(0,650)}\n\n${course.title}\n${facts}\n\n${cta}\n${contact}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud`.slice(0,1950);
-  return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides:[`${title}\n${learning}`.slice(0,270), facts.slice(0,400),`${cta}\nWhatsApp ${INTEQUITO.phone}\ninteca.com.do`],assetKey:sha(['intequito-v3',date,course.title,kind,variant,catalog.hash]).slice(0,32),catalogHash:catalog.hash,editorialDate:date,campaignMonth:editorialMonth(date),designSeed:editorialNumber+variant*31,...(['short','promo_video'].includes(kind)?{script:intequitoScript(course,kind==='short'?'short':'long_brief',variant)}:{})};
+  const flyerCaption=offer?
+    `${course.title}\n\n📚 Tema de hoy: ${offer.focus}.\n${offer.benefits.slice(1).map(x=>'✓ '+x).join('\n')}\n\n⏳ Duración: ${offer.duration}${offer.modality?'\n💻 Modalidad: '+offer.modality:''}\n💳 Inscripción: ${offer.registration||'Por confirmar'}\n📅 Mensualidad: ${offer.monthly||'Por confirmar'}\n\n${offer.cta}\n📲 WhatsApp: ${INTEQUITO.phone}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud` : null;
+  const caption=(flyerCaption || `${title}\n\nCampaña ${editorialMonth(date)} · edición ${editorialNumber}.\n${learning.slice(0,650)}\n\n${course.title}\n${facts}\n\n${cta}\n${contact}\n${url}\n\n#INTECA #FormaciónTécnica #SectorSalud`).slice(0,1950);
+  return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides:[`${title}\n${learning}`.slice(0,270), facts.slice(0,400),`${cta}\nWhatsApp ${INTEQUITO.phone}\ninteca.com.do`],assetKey:sha(['intequito-v4',date,course.title,kind,variant,catalog.hash]).slice(0,32),catalogHash:catalog.hash,editorialDate:date,campaignMonth:editorialMonth(date),designSeed:editorialNumber+variant*31,...(offer?{flyerOffer:offer}:{}),...(['short','promo_video'].includes(kind)?{script:intequitoScript(course,kind==='short'?'short':'long_brief',variant)}:{})};
 }
 /**
  * 9 obras creativas por día, reutilizables entre plataformas:
@@ -89,7 +94,7 @@ export function planMonth(catalog: Catalog, start: string) {
       const payload=makeContent(course,catalog,d,kind,variant);
       const channels:SocialChannel[]=kind==='flyer'?['facebook','instagram']:[...SOCIAL_CHANNELS];
       for(const channel of channels) result.push({
-        slot:`v3:${d}:${kind}:${variant}:${channel}:${catalog.hash.slice(0,12)}`,
+        slot:`v4:${d}:${kind}:${variant}:${channel}:${catalog.hash.slice(0,12)}`,
         channel,
         scheduled_at:new Date(`${d}T${String(hour).padStart(2,'0')}:00:00-04:00`).toISOString(),
         payload,
