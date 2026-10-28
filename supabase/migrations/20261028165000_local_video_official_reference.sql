@@ -10,7 +10,7 @@ alter table public.crm_local_video_settings
 alter table public.crm_local_video_settings
  add constraint crm_local_video_reference_pair check (
   (reference_path is null and reference_sha256 is null)
-  or (reference_path ~ '^intequito/official-[a-f0-9]{64}\\.png$'
+  or (reference_path ~ '^intequito/official-[a-f0-9]{64}[.]png$'
       and reference_sha256 ~ '^[a-f0-9]{64}$'
       and reference_path=('intequito/official-'||reference_sha256||'.png'))
  );
