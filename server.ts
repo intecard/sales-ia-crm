@@ -1641,6 +1641,11 @@ app.post('/api/sales/integration-value', rateLimit({ windowMs: 60000, limit: 10 
   recordServerAudit({ actorType: 'Usuario', actorName: admin.email || '', module: 'Integraciones', action: 'Consultó', entityType: 'ProductionConfig', summary: 'Administrador consultó una variable guardada.', details: parsed.data.key, sourceChannel: 'Web', severity: 'Info', status: 'Registrado' });
   return res.json({ value: process.env[parsed.data.key] || '' });
 });
+// Read-only Firebase Auth/Firestore health: never returns account keys or student PII.
+app.get('/api/sales/campus-health', rateLimit({windowMs:60_000,limit:10}), async (_req,res)=>{
+  try{return res.json(await enrollmentAgent.campusReadiness());}
+  catch{return res.status(503).json({error:'No se pudo comprobar la conexión del campus.'});}
+});
 app.get('/api/sales/campus-courses', async (_req, res) => {
   try { return res.json(await enrollmentAgent.courses()); } catch (error) { return salesError(res, new Error(enrollmentError(error))); }
 });
