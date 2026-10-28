@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 from urllib import parse, request
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 PNG_SIGNATURE=b"\x89PNG\r\n\x1a\n"
 ID_RE=re.compile(r"^[0-9a-f-]{36}$",re.I)
@@ -66,6 +66,8 @@ def http_bytes(url:str,method:str="GET",body:bytes|None=None,headers:dict|None=N
             return data
     except HTTPError as exc:
         raise WorkerError("LOCAL_HTTP_ERROR",f"HTTP {exc.code} for {parse.urlparse(url).path}") from exc
+    except (URLError,TimeoutError,OSError) as exc:
+        raise WorkerError("LOCAL_HTTP_UNAVAILABLE",parse.urlparse(url).path) from exc
 
 
 def request_json(url:str,token:str|None=None,method:str="GET",payload:dict|None=None)->dict:
@@ -275,10 +277,12 @@ def process_job(job:dict,cfg:dict)->None:
             result=request_json_upload(base+"/jobs/"+jid+"/upload",cfg["token"],claim,media)
             if result.get("state")!="ready_for_review":raise WorkerError("LOCAL_OUTPUT_UNCONFIRMED")
             print("Completed (needs review):",jid,flush=True)
-    except WorkerError as exc:
-        print("Worker error:",exc.code,str(exc),file=sys.stderr,flush=True)
+    except Exception as exc:
+        # Avoid a crash leaving a job forever 'rendering' when ComfyUI or FFmpeg returns an unexpected error.
+        code=exc.code if isinstance(exc,WorkerError) else "LOCAL_UNEXPECTED_ERROR"
+        print("Worker error:",code,str(exc)[:150],file=sys.stderr,flush=True)
         # A possible upload-result ambiguity must never trigger another video generation automatically.
-        try:request_json(base+"/jobs/"+jid+"/progress",cfg["token"],"POST",{"claimToken":claim,"progress":98,"errorCode":exc.code})
+        try:request_json(base+"/jobs/"+jid+"/progress",cfg["token"],"POST",{"claimToken":claim,"progress":98,"errorCode":code})
         except Exception:pass
 
 
@@ -297,7 +301,9 @@ def main():
             response=request_json(cfg["crm"]+"/api/local-video/worker/claim",cfg["token"],"POST",{"workerId":cfg["worker_id"]})
             job=response.get("job")
             if job:process_job(job,cfg)
-        except WorkerError as exc:print("Polling error:",exc.code,file=sys.stderr,flush=True)
+        except Exception as exc:
+            code=exc.code if isinstance(exc,WorkerError) else "LOCAL_UNEXPECTED_ERROR"
+            print("Polling error:",code,file=sys.stderr,flush=True)
         if once:break
         time.sleep(cfg["poll"])
 
