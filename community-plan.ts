@@ -89,7 +89,7 @@ export function planMonth(catalog: Catalog, start: string) {
       const payload=makeContent(course,catalog,d,kind,variant);
       const channels:SocialChannel[]=kind==='flyer'?['facebook','instagram']:[...SOCIAL_CHANNELS];
       for(const channel of channels) result.push({
-        slot:`v3:${d}:${kind}:${variant}:${channel}`,
+        slot:`v3:${d}:${kind}:${variant}:${channel}:${catalog.hash.slice(0,12)}`,
         channel,
         scheduled_at:new Date(`${d}T${String(hour).padStart(2,'0')}:00:00-04:00`).toISOString(),
         payload,
