@@ -23,6 +23,9 @@ export interface Enrollment {
 }
 export const ENROLLMENT_ERRORS: Record<string, string> = {
   CAMPUS_NOT_CONFIGURED: 'Falta conectar la cuenta de servicio de Firebase del campus.',
+  CAMPUS_SYNC_NOT_ACTIVATED: 'Antes de matricular automáticamente, instala en el campus el parche de protección de cursos y autoriza la sincronización en Render.',
+  CAMPUS_PERMISSION_DENIED: 'La cuenta de servicio no tiene acceso a Firebase Authentication o Firestore. Revisa sus permisos.',
+  COURSE_MAPPING_STALE: 'El curso del campus fue renombrado o eliminado desde que se vinculó. Revisa la equivalencia antes de matricular.',
   CAMPUS_CREDENTIALS_INVALID: 'Revisa la credencial y el proyecto de Firebase.',
   COURSE_MAPPING_REQUIRED: 'Falta asociar el curso vendido con el curso real del campus.',
   COURSE_NOT_FOUND: 'El curso asociado ya no existe en el campus.',
@@ -119,6 +122,9 @@ export class EnrollmentAgent {
       storage: 'supabase',
       paymentGate: 'receipt_and_bank_validation',
       campusConfigured: Boolean(this.env.INTECA_FIREBASE_SERVICE_ACCOUNT_JSON),
+      campusSyncEnabled: this.env.INTECA_CAMPUS_SYNC_ENABLED === 'true',
+      campusProjectId: this.env.INTECA_FIREBASE_PROJECT_ID || 'gen-lang-client-0415952714',
+      campusDatabaseId: this.env.INTECA_FIRESTORE_DATABASE_ID || 'ai-studio-campusvirtualint-dbc5e5fa-0c2e-4740-85d5-91566cdb7d70',
       emailConfigured: Boolean(
         this.env.EMAIL_FROM &&
         (this.env.RESEND_API_KEY ||
@@ -178,6 +184,71 @@ export class EnrollmentAgent {
     const snapshot = await db.collection('courses').get();
     return snapshot.docs.map((doc) => ({ id: doc.id, title: String(doc.get('title') || doc.id) }));
   }
+  /**
+   * Read-only connection check. It performs no student creation, email or payment.
+   * Never returns service-account JSON, user records, private keys or access tokens.
+   */
+  async campusReadiness(){
+    const base=this.status();
+    let verified=false,courseCount=0,authReady=false,databaseReady=false;
+    let errorCode:string|null=null;
+    if(!base.campusConfigured)errorCode='CAMPUS_NOT_CONFIGURED';
+    else {
+      try {
+        const {auth,db}=await this.campus();
+        // A minimal user-list check verifies Firebase Auth API permission, without returning user data.
+        await auth.listUsers(1);
+        authReady=true;
+        const courses=await db.collection('courses').get();
+        courseCount=courses.size;
+        databaseReady=true;
+        verified=authReady&&databaseReady;
+        if(!courseCount)errorCode='COURSE_NOT_FOUND';
+      }catch(error){
+        if(error instanceof Error &&
+           ['CAMPUS_NOT_CONFIGURED','CAMPUS_CREDENTIALS_INVALID'].includes(error.message))
+          errorCode=error.message;
+        else errorCode='CAMPUS_PERMISSION_DENIED';
+      }
+    }
+    return {
+      ...base, authReady,databaseReady,courseCount,verified,
+      errorCode,
+      readyForEnrollment:verified&&courseCount>0&&base.campusSyncEnabled,
+      checkedAt:new Date().toISOString()
+    };
+  }
+  /** Only exact canonical course titles are mapped automatically.
+   * Different courses (e.g. "Autorizaciones Médicas" vs "Técnico en Autorizaciones Médicas")
+   * still require the academic administrator's explicit mapping.
+   */
+  async resolveCourseMapping(db:import('firebase-admin/firestore').Firestore,courseTitle:string){
+    const rows=await this.store.request(
+      `crm_campus_course_mapping?course_title=eq.${encodeURIComponent(courseTitle)}&select=*`
+    );
+    if(rows?.[0])return rows[0] as {campus_course_id:string;campus_course_title:string};
+    const courses=await db.collection('courses').get();
+    const normal=(s:string)=>s.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('es');
+    const exact=courses.docs.filter(doc=>normal(String(doc.get('title')||''))===normal(courseTitle));
+    if(exact.length!==1)throw Error('COURSE_MAPPING_REQUIRED');
+    const doc=exact[0],body={
+      course_title:courseTitle,campus_course_id:doc.id,
+      campus_course_title:String(doc.get('title')),verified_by:'auto_exact_live',
+      updated_at:new Date().toISOString()
+    };
+    try{await this.store.request('crm_campus_course_mapping','POST',body);}
+    catch{
+      // Another worker may have created the same mapping concurrently.
+      // Never overwrite its academic choice.
+      const current=await this.store.request(
+        `crm_campus_course_mapping?course_title=eq.${encodeURIComponent(courseTitle)}&select=*`
+      );
+      if(!current?.[0]||current[0].campus_course_id!==doc.id)
+        throw Error('COURSE_MAPPING_REQUIRED');
+      return current[0];
+    }
+    return body;
+  }
   async ensure(key: string) {
     return this.store.request('rpc/crm_ensure_student_enrollment', 'POST', { p_key: key });
   }
@@ -198,15 +269,16 @@ export class EnrollmentAgent {
     Object.assign(row, patch);
   }
   async provision(row: Enrollment) {
+    // Campus repository must first be patched to stop destructive reseeding of courses.
+    if (this.env.INTECA_CAMPUS_SYNC_ENABLED !== 'true') throw Error('CAMPUS_SYNC_NOT_ACTIVATED');
     const { auth, db } = await this.campus();
-    const mapping = (
-      await this.store.request(
-        `crm_campus_course_mapping?course_title=eq.${encodeURIComponent(row.course_title)}&select=*`,
-      )
-    )[0];
-    if (!mapping) throw Error('COURSE_MAPPING_REQUIRED');
-    const courseRef = db.collection('courses').doc(mapping.campus_course_id);
-    if (!(await courseRef.get()).exists) throw Error('COURSE_NOT_FOUND');
+    const mapping=await this.resolveCourseMapping(db,row.course_title);
+    const courseRef=db.collection('courses').doc(mapping.campus_course_id);
+    const doc=await courseRef.get();
+    if(!doc.exists)throw Error('COURSE_NOT_FOUND');
+    const canonical=(s:string)=>s.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('es');
+    if(canonical(String(doc.get('title')||''))!==canonical(mapping.campus_course_title))
+      throw Error('COURSE_MAPPING_STALE');
     let user;
     try {
       user = await auth.getUserByEmail(row.email);
@@ -419,6 +491,10 @@ export class EnrollmentAgent {
       ...(errors.some((code) =>
         [
           'CAMPUS_NOT_CONFIGURED',
+          'CAMPUS_SYNC_NOT_ACTIVATED',
+          'CAMPUS_PERMISSION_DENIED',
+          'CAMPUS_CREDENTIALS_INVALID',
+          'COURSE_MAPPING_STALE',
           'EMAIL_NOT_CONFIGURED',
           'COURSE_MAPPING_REQUIRED',
           'WHATSAPP_WINDOW_CLOSED',
