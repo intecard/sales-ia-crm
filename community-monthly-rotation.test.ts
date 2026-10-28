@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { featuredCourseForDate, planMonth, contentHash, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, editorialVisualSignature } from './community-media.ts';
+import { shouldMissCampaignSlot } from './community-manager.ts';
 import type { Catalog } from './whatsapp-catalog.ts';
 
 const course=(name:string)=>({
@@ -78,4 +79,14 @@ test('flyer still renders without optional PNG mascot, stock photos or image fil
  assert.equal(image[0],0xff);
  assert.equal(image[1],0xd8);
  assert.ok(image.length>8_000);
+});
+
+test('Render waking up late can publish the same-day flyer without replaying previous days',()=>{
+ const now=new Date('2026-10-27T23:00:00-04:00');
+ const flyer={scheduled_at:'2026-10-27T09:00:00-04:00',payload:{kind:'flyer'} as any};
+ const previousDay={scheduled_at:'2026-10-26T09:00:00-04:00',payload:{kind:'flyer'} as any};
+ const oldVideo={scheduled_at:'2026-10-27T10:00:00-04:00',payload:{kind:'short'} as any};
+ assert.equal(shouldMissCampaignSlot(flyer,now),false);
+ assert.equal(shouldMissCampaignSlot(previousDay,now),true);
+ assert.equal(shouldMissCampaignSlot(oldVideo,now),true);
 });
