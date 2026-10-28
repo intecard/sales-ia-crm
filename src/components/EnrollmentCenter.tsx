@@ -9,11 +9,19 @@ type State = {
   }>;
   configuration: {
     campusConfigured: boolean;
+    campusSyncEnabled:boolean;
+    campusProjectId:string;
+    campusDatabaseId:string;
     emailConfigured: boolean;
     whatsappConfigured: boolean;
     whatsappTemplateConfigured: boolean;
   };
   errors: Record<string, string>;
+};
+type CampusReadiness={
+  campusConfigured:boolean;campusSyncEnabled:boolean;campusProjectId:string;campusDatabaseId:string;
+  authReady:boolean;databaseReady:boolean;courseCount:number;verified:boolean;readyForEnrollment:boolean;
+  errorCode:string|null;checkedAt:string;
 };
 const btn =
   'rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-700 disabled:opacity-40';
@@ -40,6 +48,8 @@ export function EnrollmentCenter() {
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false);
+  const [campusHealth,setCampusHealth]=useState<CampusReadiness|null>(null);
+  const [checkingCampus,setCheckingCampus]=useState(false);
   const [catalog, setCatalog] = useState<Array<{ id: string; title: string }>>([]),
     [courseTitle, setCourseTitle] = useState(''),
     [campusCourseId, setCampusCourseId] = useState('');
@@ -51,7 +61,7 @@ export function EnrollmentCenter() {
         setCourseTitle(data.courses[0]?.title || '');
       })
       .catch((e) => setError(e.message));
-    void loadCourses();
+    void verifyCampus();
   }, []);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const refresh = useCallback(async () => {
@@ -71,6 +81,15 @@ export function EnrollmentCenter() {
       clearInterval(interval);
     };
   }, [refresh]);
+  async function verifyCampus(){
+    setCheckingCampus(true);setError('');
+    try{
+      const health=await api<CampusReadiness>('/campus-health');
+      setCampusHealth(health);
+      if(health.authReady&&health.databaseReady)await loadCourses();
+    }catch(e){setError((e as Error).message);}
+    finally{setCheckingCampus(false);}
+  }
   async function loadCourses() {
     setBusy(true);
     setError('');
@@ -132,6 +151,28 @@ export function EnrollmentCenter() {
           {notice}
         </p>
       )}
+      <div className="rounded-xl border border-cyan-800 bg-slate-900 p-4 space-y-3 text-sm">
+        <div className="flex flex-wrap justify-between gap-2 items-center">
+          <div>
+            <h3 className="font-semibold text-white">Estado real de la conexión CRM ↔ Campus Firebase</h3>
+            <p className="text-xs text-slate-400">Proyecto {campusHealth?.campusProjectId||'pendiente'} · Base Firestore {campusHealth?.campusDatabaseId||'pendiente'}</p>
+          </div>
+          <button className={btn} disabled={checkingCampus||busy} onClick={()=>void verifyCampus()}>Verificar Firebase y cursos</button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          <p className="rounded bg-slate-800 p-3">Cuenta de servicio: <strong>{campusHealth?.campusConfigured?'Detectada':'Pendiente'}</strong></p>
+          <p className="rounded bg-slate-800 p-3">Firebase Auth: <strong>{campusHealth?.authReady?'Verificado':'Sin verificar'}</strong></p>
+          <p className="rounded bg-slate-800 p-3">Firestore y cursos: <strong>{campusHealth?.databaseReady?'Conectados ('+campusHealth.courseCount+')':'Sin verificar'}</strong></p>
+          <p className="rounded bg-slate-800 p-3">Matrícula autónoma: <strong>{campusHealth?.readyForEnrollment?'Lista':'Bloqueada por seguridad'}</strong></p>
+        </div>
+        {campusHealth?.errorCode&&<p className="text-amber-300">Conexión pendiente: {state?.errors[campusHealth.errorCode]||'Revisa los permisos y la configuración.'}</p>}
+        {campusHealth?.verified&&!campusHealth.campusSyncEnabled&&<p className="text-amber-300">
+          Firebase responde, pero la matrícula automática permanece desactivada hasta instalar el parche del Campus que impide eliminar cursos existentes al iniciar y verificar sus accesos.
+        </p>}
+        <p className="text-xs text-slate-400">
+          El sistema intenta vincular automáticamente solo nombres de curso exactamente equivalentes y sin ambigüedad. Cuando los nombres difieran, se requiere seleccionar el curso académico correcto. Nunca crea cursos ficticios para completar una venta.
+        </p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           ['Campus Firebase', state?.configuration.campusConfigured],
@@ -159,8 +200,8 @@ export function EnrollmentCenter() {
         <div className="rounded-xl border border-amber-500/40 bg-slate-900 p-4 text-sm">
           <p className="font-semibold">Conexiones pendientes</p>
           <p className="mt-1">
-            Para completar el proceso, conecta la cuenta de servicio del Firebase de INTECA y el
-            correo institucional mediante Resend por HTTPS en{' '}
+            Para completar el proceso, crea una cuenta de servicio autorizada exclusivamente para
+            el Firebase del campus y configura el correo institucional mediante Resend por HTTPS en{' '}
             <a
               className="text-indigo-300 underline"
               href="https://dashboard.render.com/web/srv-damn5dpmirbc73amt2l0/env"
@@ -169,15 +210,15 @@ export function EnrollmentCenter() {
             >
               la configuración segura de Render
             </a>
-            . No pegues claves en mensajes al estudiante. Las operaciones pendientes se conservan.
+            . No pegues claves en el chat ni en el frontend. Instala primero la corrección del campus que preserva los cursos. Las operaciones pendientes se conservan.
           </p>
         </div>
       )}
       <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
         <h3 className="font-semibold">Asociar cada curso vendido con su curso del campus</h3>
         <p className="text-xs text-slate-400">
-          Selecciona el curso real; el agente no adivina equivalencias ni cambia el programa
-          elegido.
+          El agente asigna automáticamente una equivalencia solo cuando el nombre del programa
+          coincide exactamente con un único curso de Firestore. Las demás equivalencias requieren revisión académica.
         </p>
         <button className={btn} disabled={busy} onClick={() => void loadCourses()}>
           Consultar cursos del campus
