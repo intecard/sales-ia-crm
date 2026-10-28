@@ -12,7 +12,7 @@ export type FlyerOffer = {
   dailyVariant: number;
 };
 
-const clean=(s:string)=>s.replace(/\s+/g,' ').replace(/^[\s\-•*0-9.)]+/,'').trim();
+const clean=(s:string)=>s.replace(/\s+/g,' ').trim().replace(/^(?:[-•*]\s*|\d+[.)]\s+)/,'').trim();
 const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
 function amountFromInvestment(text:string,kind:'inscripcion'|'mensualidad'):string|null {
