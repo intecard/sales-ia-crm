@@ -98,8 +98,14 @@ export class CommunityManager {
       const rows:CommunityJob[]=await this.store.request(`crm_community_jobs?state=eq.queued&scheduled_at=lte.${encodeURIComponent(now)}&order=scheduled_at.asc&limit=12`);
       for(const row of rows){
         let phase='validate';
-        // Do not flood a channel with a backlog after a prolonged sleep.
-        if(Date.now()-Date.parse(row.scheduled_at)>90*60_000){await this.update(row.id,{state:'missed',last_error:'CM_SLOT_MISSED'});continue;}
+        // For a daily flyer, preserve the opportunity to publish later on the SAME
+        // Dominican calendar day after Render Free wakes up. Never flood past days.
+        const isTodaysFlyer=row.payload.kind==='flyer' &&
+          rdDay(new Date(row.scheduled_at))===rdDay(new Date());
+        if(!isTodaysFlyer&&Date.now()-Date.parse(row.scheduled_at)>90*60_000){
+          await this.update(row.id,{state:'missed',last_error:'CM_SLOT_MISSED'});
+          continue;
+        }
         let claimed=false,external=false;
         try{
           if(!SOCIAL_CHANNELS.includes(row.channel))throw Error('CM_CHANNEL');
