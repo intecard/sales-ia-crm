@@ -71,3 +71,11 @@ test('actual exported JPEG bytes differ by day even for same monthly course',asy
  assert.notEqual(cryptoHash(a),cryptoHash(b),'two dates may never render identical pixels');
  assert.notEqual(cryptoHash(b),cryptoHash(c));
 });
+
+test('flyer still renders without optional PNG mascot, stock photos or image files',async()=>{
+ const sample=planMonth(catalog,'2026-10-28').find(j=>j.channel==='instagram'&&j.payload.kind==='flyer')!;
+ const image=await renderCommunityImage(sample.payload,undefined,'/nonexistent/inteca-assets-unit-test');
+ assert.equal(image[0],0xff);
+ assert.equal(image[1],0xd8);
+ assert.ok(image.length>8_000);
+});
