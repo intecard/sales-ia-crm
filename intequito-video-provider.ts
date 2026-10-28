@@ -1,5 +1,5 @@
 /**
- * Proveedor real Runway + ElevenLabs, sin operaciones pagadas implícitas.
+ * Proveedor audiovisual Runway + ElevenLabs (sin eliminar el motor HeyGen separado), sin operaciones pagadas implícitas.
  * Las claves se leen SOLO del servidor. No se realizan llamadas pagadas desde
  * el planificador de comunidad ni desde el endpoint de diagnóstico.
  * Los vídeos resultantes exigen QA y edición antes de publicarse.
@@ -42,7 +42,8 @@ export class IntequitoVideoProvider {
     return `data:image/png;base64,${file.toString('base64')}`;
   }
   async createScene(scene:Scene,approval:{confirmed:boolean;maxCreditsApproved:number}){
-    if(!approval.confirmed||!Number.isFinite(approval.maxCreditsApproved)||approval.maxCreditsApproved<=0)throw Error('VIDEO_APPROVAL_REQUIRED');
+    // Gen-4.5 costs 12 Runway API credits per second. A single 5-second shot needs 60 credits.
+    if(!approval.confirmed||!Number.isFinite(approval.maxCreditsApproved)||approval.maxCreditsApproved<60)throw Error('VIDEO_APPROVAL_REQUIRED');
     const {renderReady}=await this.status();
     if(!renderReady)throw Error('VIDEO_PROVIDER_NOT_READY');
     const prompt=[
@@ -63,7 +64,7 @@ export class IntequitoVideoProvider {
     });
     const result=await json(r);
     if(!/^[a-f0-9-]{36}$/i.test(String(result.id||'')))throw Error('VIDEO_TASK_INVALID');
-    return {id:String(result.id),status:'PENDING',estimatedCost:result.estimatedCost??null};
+    return {provider:'runway' as const,id:String(result.id),status:'PENDING',estimatedCredits:60,estimatedCost:result.estimatedCost??null,reviewRequired:true,scope:'one_5_second_scene'};
   }
   async sceneStatus(id:string){
     if(!/^[a-f0-9-]{36}$/i.test(id))throw Error('VIDEO_TASK_INVALID');
@@ -74,7 +75,7 @@ export class IntequitoVideoProvider {
     });
     const d=await json(r);
     // Output URLs are ephemeral. They must be imported into private/object storage.
-    return {id,status:d.status,output:d.status==='SUCCEEDED'?d.output??[]:[],failure:d.failure??null};
+    return {provider:'runway' as const,id,status:d.status,output:d.status==='SUCCEEDED'?d.output??[]:[],failure:d.failure??null,reviewRequired:true,scope:'one_5_second_scene'};
   }
   async synthesize(text:string,approval:{confirmed:boolean}):Promise<Buffer>{
     if(!approval.confirmed)throw Error('VIDEO_APPROVAL_REQUIRED');
