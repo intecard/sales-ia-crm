@@ -5,6 +5,8 @@ import { voiceAdminRouter, voiceProviderRouter, attachVoiceRelay } from './voice
 import { CommunityManager } from './community-manager';
 import { CommunityPublisher } from './community-publisher';
 import { CommunityDiagnostics } from './community-diagnostics';
+import { GatewayPrecontract } from './payment-gateway-precontract';
+import { gatewayAdminRouter, gatewayPublicRouter } from './payment-gateway-routes';
 import { LocalVideoEngine } from './local-video-engine';
 import { localVideoAdminRouter, localVideoWorkerRouter } from './local-video-routes';
 import { IntequitoVideoProvider } from './intequito-video-provider';
@@ -46,6 +48,7 @@ dotenv.config();
 const whatsAppCatalog = new CatalogStore();
 void whatsAppCatalog.get();
 const salesStore = new SalesStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const gatewayPrecontract=new GatewayPrecontract(salesStore);
 void salesStore.verify();
 const enrollmentAgent = new EnrollmentAgent(salesStore);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
@@ -1578,6 +1581,8 @@ const teamStudio=createTeamStudio(salesStore,req=>{const c=getConfiguredAdminCre
 app.use('/api/team',teamStudio.router);
 
 // Sales APIs require the real administrator's signed, HttpOnly session.
+// Public student checkout-status routes expose no personal customer data, card fields or charge operations.
+app.use('/api/payments/checkout',gatewayPublicRouter(gatewayPrecontract));
 app.use('/api/sales', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   const credentials = getConfiguredAdminCredentials();
@@ -1601,6 +1606,8 @@ function salesError(res: express.Response, error: unknown) {
   };
   return res.status(messages[code] ? 409 : 503).json({ error: messages[code] || 'No se pudo guardar o consultar Supabase. Vuelve a intentarlo; el CRM no confirmó esta operación.' });
 }
+// Payment-gateway administration inherits the existing signed CRM owner session.
+app.use('/api/sales/gateway',gatewayAdminRouter(gatewayPrecontract));
 app.get('/api/sales/enrollments', async (_req, res) => {
   try {
     const [enrollments, mappings, paid] = await Promise.all([
