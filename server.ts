@@ -4,6 +4,7 @@ import { VoiceProvider } from './voice/provider';
 import { voiceAdminRouter, voiceProviderRouter, attachVoiceRelay } from './voice/routes';
 import { CommunityManager } from './community-manager';
 import { CommunityPublisher } from './community-publisher';
+import { IntequitoVideoProvider } from './intequito-video-provider';
 import { createTeamStudio } from './team/routes';
 import { createAccountingRouter } from './accounting/routes';
 import { probeMetaClient } from './meta-oauth-diagnostics';
@@ -1351,6 +1352,7 @@ app.use('/api/advertising/oauth', createIntegrationOAuth({
 }));
 app.use('/api/voice/provider',voiceProviderRouter(voiceSalesAgent));
 app.use('/api/advertising/voice',voiceAdminRouter(voiceSalesAgent));
+app.get('/api/advertising/community/video-provider', async (_req,res)=>{try{res.json(await intequitoVideoProvider.status());}catch{res.status(503).json({error:'No se pudo verificar el proveedor audiovisual.'});}});
 app.get('/api/advertising/community', async (_req,res)=>{try{res.json(await communityManager.snapshot());}catch{res.status(503).json({error:'No se pudo leer la memoria de Lisa en Supabase.'});}});
 app.post('/api/advertising/community/settings',async(req,res)=>{const b=z.object({enabled:z.boolean()}).strict().safeParse(req.body);if(!b.success)return res.status(400).json({error:'Revisa la configuración.'});try{await communityManager.setEnabled(b.data.enabled);res.json({success:true});}catch{res.status(503).json({error:'No se pudo guardar la configuración.'});}});
 app.post('/api/advertising/community/run',async(_req,res)=>{void communityManager.tick();res.json({accepted:true,message:'Procesamiento solicitado. Consulta el estado real en el calendario.'});});
