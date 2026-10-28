@@ -1,7 +1,7 @@
 name: Verify INTEQUITO CRM changes
 on:
   pull_request:
-    branches: [main, feat/intequito-community-daily-studio-20261027]
+    branches: [main, feat/intequito-community-daily-studio-20261027, feat/intequito-selfhosted-video-engine-20261027]
   workflow_dispatch:
 jobs:
   validate:
@@ -19,6 +19,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Unit tests for providers and calendar
-        run: node --import tsx --test heygen-video-provider.test.ts community-manager.test.ts local-video-engine.test.ts
+        run: node --import tsx --test heygen-video-provider.test.ts community-manager.test.ts community-monthly-rotation.test.ts local-video-engine.test.ts
       - name: Test local GPU worker (no models downloaded)
         run: python3 -m unittest discover -s workers/intequito_local_video -p 'test_*.py'
