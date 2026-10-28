@@ -91,7 +91,7 @@ export class IntequitoReferenceStore{
  async save(bytes:Buffer){
   if(!Buffer.isBuffer(bytes)||bytes.length<1024||bytes.length>maxSize||!bytes.subarray(0,8).equals(pngSignature))
     throw Error('LOCAL_REFERENCE_INVALID');
-  let metadata:sharp.Metadata;
+  let metadata:{width?:number;height?:number;format?:string};
   try{metadata=await sharp(bytes,{limitInputPixels:18_000_000}).metadata();}
   catch{throw Error('LOCAL_REFERENCE_INVALID');}
   const w=metadata.width||0,h=metadata.height||0;
