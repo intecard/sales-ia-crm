@@ -10,7 +10,40 @@ export class CommunityManager {
   private running=false;
   constructor(private store:Store,private catalog:Pick<CatalogStore,'get'>,private publisher:Pick<CommunityPublisher,'destination'|'verify'|'publish'|'metrics'>){}
   async settings(){return (await this.store.request('crm_community_settings?id=eq.inteca&limit=1'))[0];}
-  async snapshot(){const jobs=await this.store.request('crm_community_jobs?order=scheduled_at.asc&limit=1000'),observations=await this.store.request('crm_community_observations?order=checked_at.desc&limit=100');return {settings:await this.settings(),jobs,observations,growth:growthSummary(jobs,observations),scope:'org_inteca_main',capabilities:{flyers:'Flyer diario distinto por diseño, fecha y mensaje. Imagen oficial INTEQUITO si se instala en public/intequito-oficial.png; si falta no se inventa una mascota',verticalVideo:'7 guiones diarios de reels protagonizados por INTEQUITO; sin motor 3D/lip-sync conectado, quedan pendientes de renderizar, no publicados',stories:'La cuota nueva prioriza reels; los formatos existentes se conservan en historial',longVideo:'Un guion diario promocional/informativo, pendiente de animación 3D, voz y revisión',communityReplies:'Optimización de ganchos, preguntas y CTA al 809-643-5502; respuestas públicas requieren integración y permisos',paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',monthlyRotation:'Un solo curso protagonista por mes, rotación continua de todo el catálogo, una creatividad diaria distinta por fecha',growth:'Ganchos educativos, series, preguntas relevantes y CTA alternados para seguir, guardar, compartir, comentar y visitar el sitio. Se aplican a piezas futuras todavía sin producir.',metrics:'Últimas 20 publicaciones cada 12 horas: interacciones Meta, estadísticas YouTube y seguidores cuando los permisos lo permitan. Visitas web, alcance y retención no se infieren.',continuousOperation:'Mientras Render esté activo; el plan gratuito puede suspenderse'}};}
+  async snapshot(){
+    // Display due/next works first instead of hiding them behind years of old archived jobs.
+    const since=new Date(Date.now()-24*60*60*1000).toISOString();
+    const [upcoming,recent,settings,observations,catalog]=await Promise.all([
+      this.store.request(`crm_community_jobs?scheduled_at=gte.${encodeURIComponent(since)}&order=scheduled_at.asc&limit=550`),
+      this.store.request('crm_community_jobs?state=in.(published,blocked,review_required,missed)&order=updated_at.desc&limit=120'),
+      this.settings(),
+      this.store.request('crm_community_observations?order=checked_at.desc&limit=100'),
+      this.catalog.get(),
+    ]);
+    const jobs:Array<CommunityJob>=[...new Map(([] as CommunityJob[]).concat(upcoming,recent).map(j=>[j.id,j])).values()]
+      .sort((a,b)=>Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at));
+    const day=rdDay(new Date());
+    return {
+      settings,jobs,observations,growth:growthSummary(jobs,observations),
+      featuredCourse:catalog?featuredCourseForDate(catalog,day).title:null,
+      campaignMonth:day.slice(0,7),
+      totalCatalogCourses:catalog?.courses.length||0,
+      scope:'org_inteca_main',
+      capabilities:{
+        flyers:'Una creatividad distinta cada día (fecha, diseño, titular y composición); reutilizada únicamente entre redes el mismo día',
+        verticalVideo:'7 guiones diarios de reels con INTEQUITO; solo publicar videos cuando exista un MP4 revisado',
+        stories:'Se conserva el historial anterior; la nueva prioridad es 1 post + 7 reels + 1 video',
+        longVideo:'1 guion diario informativo/promocional, sujeto a producción y aprobación',
+        communityReplies:'Ganchos y CTA al 809-643-5502; moderación y respuestas públicas requieren permisos',
+        paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',
+        monthlyRotation:'Un solo curso protagonista por mes; todos los cursos del catálogo rotan sucesivamente',
+        growth:'Ganchos educativos, preguntas, seguidores y conversaciones reales, sin interacciones artificiales',
+        metrics:'Métricas disponibles de Facebook, Instagram y YouTube, sin estimar valores inexistentes',
+        continuousOperation:'Sujeto a disponibilidad de Render, red social y almacenamiento; no garantiza 24/7 con infraestructura Free',
+        diagnostics:'Registrar el paso de fallo (cuenta, render, storage o API) en lugar de error genérico',
+      }
+    };
+  }
   async observe(){
     if(this.running)return;
     try{const s=await this.settings();if(!s?.enabled||s.metrics_checked_at&&Date.now()-Date.parse(s.metrics_checked_at)<12*3600000)return;
