@@ -60,3 +60,20 @@ test('HeyGen cannot substitute a generic avatar when INTEQUITO identity is missi
   assert.equal(p.status().ready,false);
   await assert.rejects(()=>p.createVideo(script,{confirmed:true,requestId:'test-1'}),/HEYGEN_NOT_CONFIGURED/);
 });
+
+test('HeyGen can use verified INTEQUITO image asset as fallback when private-avatar plan is unavailable',async()=>{
+  const e={HEYGEN_API_KEY:'private-test-only',HEYGEN_INTEQUITO_IMAGE_ASSET_ID:'c40fadd5503f4bafbded470980e37d24',HEYGEN_INTEQUITO_VOICE_ID:'spanish_voice_intequito_01'} as NodeJS.ProcessEnv;
+  let body:any;
+  const p=new HeyGenVideoProvider(e,async(_url,init)=>{
+    body=JSON.parse(String(init?.body));
+    return good({data:{video_id:'v_fallback_01',status:'pending'}});
+  });
+  assert.equal(p.status().ready,true);
+  assert.equal(p.status().avatarConfigured,false);
+  assert.equal(p.status().officialImageConfigured,true);
+  const result=await p.createVideo(script,{confirmed:true,requestId:'manual-request-02'});
+  assert.equal(result.id,'v_fallback_01');
+  assert.equal(body.image_asset_id,e.HEYGEN_INTEQUITO_IMAGE_ASSET_ID);
+  assert.equal(body.avatar_id,undefined);
+  assert.equal(body.voice_id,e.HEYGEN_INTEQUITO_VOICE_ID);
+});
