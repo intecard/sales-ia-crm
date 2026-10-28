@@ -38,13 +38,13 @@ begin
  if exists(
    select 1 from jsonb_to_recordset(p_jobs) as j(
      slot text,channel text,payload jsonb,content_hash text,
-     scheduled_at timestamptz,state text
+     scheduled_at timestamptz,state text,last_error text
    )
    where j.slot not like 'v4:%'
      or j.channel not in('facebook','instagram','youtube')
      or j.payload->>'catalogHash' is distinct from p_catalog_hash
      or j.content_hash !~ '^[a-f0-9]{64}$'
-     or j.state not in('queued','missed','brief')
+     or j.state not in('queued','missed','brief','blocked')
      or j.scheduled_at>now()+interval '32 days'
      or (
         j.payload->>'kind'='flyer' and
@@ -52,6 +52,7 @@ begin
          or j.payload->'flyerOffer'->>'registration' is null
          or j.payload->'flyerOffer'->>'monthly' is null
          or j.payload->'flyerOffer'->'benefits' is null)
+        and j.state<>'blocked'
      )
  ) then
    -- Prevent rows with unfinished prices from reaching published state.
@@ -60,7 +61,7 @@ begin
  end if;
 
  insert into public.crm_community_jobs(
-   slot,channel,payload,content_hash,scheduled_at,state
+   slot,channel,payload,content_hash,scheduled_at,state,last_error
  )
  select j.slot,j.channel,j.payload,j.content_hash,j.scheduled_at,
    case when j.payload->>'kind'='flyer' and exists(
@@ -71,10 +72,11 @@ begin
            (j.scheduled_at at time zone 'America/Santo_Domingo')::date
        and old.state in('published','preparing','executing','review_required')
    ) then 'missed'
-   else j.state end
+   else j.state end,
+   case when j.state='blocked' then 'CM_FLYER_PRICE_OR_CONTENT_MISSING' else null end
  from jsonb_to_recordset(p_jobs) as j(
    slot text,channel text,payload jsonb,content_hash text,
-   scheduled_at timestamptz,state text
+   scheduled_at timestamptz,state text,last_error text
  )
  on conflict(slot) do nothing;
  get diagnostics inserted=row_count;
