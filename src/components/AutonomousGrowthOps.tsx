@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Bot,
@@ -70,6 +70,39 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
   const [dailyGoal, setDailyGoal] = useState(5);
   const [preparedPlan, setPreparedPlan] = useState<string[] | null>(null);
 
+  const [runtimeStatus,setRuntimeStatus]=useState<{groups:Array<{id:string;configured:boolean;missingEnvVars:string[]}>;checkedAt:string}|null>(null);
+  const [readStates,setReadStates]=useState<Record<string,string>>({});
+  const [checkError,setCheckError]=useState('');
+  const refresh=async(signal?:AbortSignal)=>{
+    const r=await fetch('/api/integrations/status',{cache:'no-store',signal});
+    if(!r.ok)throw Error('No se pudo consultar la configuración real del CRM.');
+    const data=await r.json();
+    if(!Array.isArray(data.groups))throw Error('Diagnóstico no disponible.');
+    if(!signal?.aborted){setRuntimeStatus(data);setCheckError('');}
+    try{
+      const a=await fetch('/api/advertising/shared-connections',{cache:'no-store',signal});
+      if(a.ok){
+        const state=await a.json();
+        if(!signal?.aborted)setReadStates(Object.fromEntries((state.connections||[]).map((x:{channel:string;state:string})=>[x.channel,x.state])));
+      }
+    }catch{/* Las lecturas requieren sesión: nunca declarar acceso verificado sin respuesta. */}
+  };
+  useEffect(()=>{
+    const controller=new AbortController();
+    void refresh(controller.signal).catch(e=>{if(!controller.signal.aborted)setCheckError(e.message);});
+    return ()=>controller.abort();
+  },[]);
+  const runtimeFor=(id:string)=>runtimeStatus?.groups.find(x=>x.id===id);
+  const dynamicStatus=(item:ExternalIntegration)=>{
+    const env=runtimeFor(item.id);
+    if(!env)return 'Pendiente de consulta';
+    const readChannels:Record<string,string[]>={int_meta_social:['facebook','instagram'],int_google_ads:['google_ads'],int_youtube:['youtube']};
+    const verified=readChannels[item.id]?.every(k=>readStates[k]==='verified_read')===true;
+    if(verified)return 'Lectura verificada';
+    return env.configured?'Variables presentes':'Faltan parámetros';
+  };
+
+
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) || courses[0];
   const agentById = useMemo(
     () => Object.fromEntries(agents.map((agent) => [agent.id, agent])),
@@ -80,12 +113,8 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
     [courses],
   );
 
-  const connectedLikeCount = integrations.filter((item) =>
-    ['Conectado', 'Webhook preparado', 'Listo para conectar'].includes(item.status),
-  ).length;
-  const pendingCredentialCount = integrations.filter(
-    (item) => item.status === 'Requiere credenciales',
-  ).length;
+  const connectedLikeCount = runtimeStatus?.groups.filter(x=>x.configured).length??0;
+  const pendingCredentialCount = runtimeStatus?.groups.filter(x=>!x.configured).length??0;
 
   const prepareLaunchPlan = () => {
     const title = selectedCourse?.title || 'Curso seleccionado';
@@ -107,29 +136,36 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
             <span>Operación Autónoma Omnicanal</span>
           </div>
           <h1 className="text-2xl font-extrabold text-white">
-            CRM listo para redes, anuncios, creativos, cobros y lanzamientos
+            Conexiones y operación autónoma · Estado real
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-3xl">
-            Esta cabina deja preparados los conectores y agentes para que el sistema responda,
-            promueva, venda, facture en modo controlado y te notifique solo pagos, llamadas o
-            bloqueos importantes.
+            Consulta la configuración real del servidor. Tener variables no implica permisos para publicar, cobrar o emitir comprobantes fiscales.
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 text-xs w-full lg:w-auto">
           <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
-            <span className="text-slate-500 uppercase font-black text-[10px]">Preparados</span>
-            <p className="text-xl font-black text-emerald-400 mt-1">{connectedLikeCount}</p>
+            <span className="text-slate-500 uppercase font-black text-[10px]">Variables presentes</span>
+            <p className="text-xl font-black text-emerald-400 mt-1">{runtimeStatus?connectedLikeCount:'—'}</p>
           </div>
           <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
             <span className="text-slate-500 uppercase font-black text-[10px]">
               Por credenciales
             </span>
-            <p className="text-xl font-black text-amber-300 mt-1">{pendingCredentialCount}</p>
+            <p className="text-xl font-black text-amber-300 mt-1">{runtimeStatus?pendingCredentialCount:'—'}</p>
           </div>
         </div>
       </div>
 
+      <div className="rounded-xl border border-cyan-800 bg-slate-900 p-4 space-y-2 text-sm text-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <strong>Estado de credenciales del CRM, sin mostrar valores secretos</strong>
+          <button type="button" className="rounded border border-cyan-600 px-3 py-2 text-cyan-200" onClick={()=>void refresh().catch(e=>setCheckError(e.message))}>Actualizar</button>
+        </div>
+        {runtimeStatus?.checkedAt&&<p className="text-xs text-slate-400">Consultado: {new Date(runtimeStatus.checkedAt).toLocaleString('es-DO')}</p>}
+        {checkError&&<p className="text-amber-300">{checkError}</p>}
+        <p className="text-xs text-slate-400">Esta vista no valida cobros, facturación electrónica ni publicación; las integraciones que requieren tarjetas, certificados o proveedores deben conectarse y probarse en sus plataformas correspondientes.</p>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
           {
@@ -196,17 +232,15 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-sm font-bold text-white">{integration.name}</h3>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusTone(
-                            integration.status,
-                          )}`}
-                        >
-                          {integration.status}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${dynamicStatus(integration)==='Lectura verificada'?'bg-cyan-500/20 border-cyan-500/30 text-cyan-300':dynamicStatus(integration)==='Variables presentes'?'bg-blue-500/20 border-blue-500/30 text-blue-300':'bg-amber-500/20 border-amber-500/30 text-amber-300'}`}>
+                          {dynamicStatus(integration)}
                         </span>
                       </div>
                       <p className="text-xs text-slate-300 mt-1">
                         {integration.outboundCapability}
                       </p>
+                      {runtimeFor(integration.id)?.missingEnvVars?.length? <p className="text-[11px] text-amber-200 mt-2">Faltan: {runtimeFor(integration.id)?.missingEnvVars.join(', ')}</p>:null}
+                      <p className="text-[11px] text-slate-400 mt-1">{dynamicStatus(integration)==='Lectura verificada'?'Lectura autorizada: no confirma permiso para publicar.':dynamicStatus(integration)==='Variables presentes'?'Variables presentes; falta verificar funcionamiento operativo.':'La etiqueta anterior era descriptiva; verifica el servicio real.'}</p>
                       {integration.inboundWebhookPath && (
                         <p className="text-[11px] text-cyan-300 font-mono mt-2">
                           {integration.inboundWebhookPath}
