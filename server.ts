@@ -4,6 +4,8 @@ import { VoiceProvider } from './voice/provider';
 import { voiceAdminRouter, voiceProviderRouter, attachVoiceRelay } from './voice/routes';
 import { CommunityManager } from './community-manager';
 import { CommunityPublisher } from './community-publisher';
+import { LocalVideoEngine } from './local-video-engine';
+import { localVideoAdminRouter, localVideoWorkerRouter } from './local-video-routes';
 import { IntequitoVideoProvider } from './intequito-video-provider';
 import { HeyGenVideoProvider } from './heygen-video-provider';
 import { contentHash } from './community-plan';
@@ -49,12 +51,15 @@ const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
 const communityManager = new CommunityManager(salesStore, whatsAppCatalog, new CommunityPublisher(advertisingAgent));
+const localVideoEngine = new LocalVideoEngine(salesStore, whatsAppCatalog);
 const intequitoVideoProvider = new IntequitoVideoProvider();
 const heygenVideoProvider = new HeyGenVideoProvider();
 const voiceSalesAgent = new VoiceSalesAgent(salesStore, whatsAppCatalog, new VoiceProvider(), async prompt => { const r=await generateGeminiContentWithFallback(prompt,{responseMimeType:'application/json',httpOptions:{timeout:12000,retryOptions:{attempts:1}},maxOutputTokens:512},true); return r.text||''; });
 const voiceTimer=setInterval(()=>void voiceSalesAgent.tick(),60000);voiceTimer.unref();
 const communityTimer = setInterval(() => { void communityManager.tick().then(() => communityManager.observe()); }, 60000);
 communityTimer.unref();
+const localVideoTimer = setInterval(() => { void localVideoEngine.autoTick().catch(() => {}); }, 60_000);
+localVideoTimer.unref();
 setTimeout(() => void communityManager.tick(), 20000).unref();
 const advertisingTimer = setInterval(() => void advertisingAgent.tick(), 60000);
 advertisingTimer.unref();
@@ -1357,6 +1362,10 @@ app.use('/api/advertising/oauth', createIntegrationOAuth({
 app.use('/api/voice/provider',voiceProviderRouter(voiceSalesAgent));
 app.use('/api/advertising/voice',voiceAdminRouter(voiceSalesAgent));
 
+// CRM admin endpoints inherit the /api/advertising session and CSRF-action protection.
+app.use('/api/advertising/community/video/local',localVideoAdminRouter(localVideoEngine));
+// GPU worker uses a separate constant-time checked bearer token (never a CRM user cookie).
+app.use('/api/local-video/worker',localVideoWorkerRouter(localVideoEngine));
 app.get('/api/advertising/community/video-provider', async (_req,res)=>{
   try {
     const runway=await intequitoVideoProvider.status();
