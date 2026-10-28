@@ -28,6 +28,23 @@ import {
   OwnerActionNotification,
 } from '../types';
 
+type OperationalReadiness={
+ checkedAt:string;
+ advertising:{
+  mode:'provider_managed';
+  meta:{accountReadVerified:boolean;billingMethodVerified:boolean;link:string;instruction:string};
+  google:{accountReadVerified:boolean;billingMethodVerified:boolean;link:string;instruction:string};
+  cardDataStoredInCrm:boolean;billingVerified:boolean;campaignSpendingAuthorized:boolean;note:string;
+ };
+ creatives:{
+  internalFlyers:{configured:boolean;renderTestVerified:boolean;note:string};
+  heygen:{configured:boolean;reason:string|null;verifiedRendering:boolean;requiresExplicitSpendApproval:boolean};
+  runway:{configured:boolean;reason:string|null;verifiedRendering:boolean;requiresExplicitSpendApproval:boolean};
+  localVideo:{configured:boolean;referencePresent:boolean;workerConnected:boolean;readyForProduction:boolean;autoEnabled:boolean;requiresGpu:boolean;requiresVideoReview:boolean};
+  genericImageVideoEnvKeysRequired:boolean;
+ };
+ mediaReadVerified:{facebook:boolean;instagram:boolean;youtube:boolean};
+};
 interface AutonomousGrowthOpsProps {
   integrations: ExternalIntegration[];
   creativeAssets: CreativeAsset[];
@@ -73,12 +90,20 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
   const [runtimeStatus,setRuntimeStatus]=useState<{groups:Array<{id:string;configured:boolean;missingEnvVars:string[]}>;checkedAt:string}|null>(null);
   const [readStates,setReadStates]=useState<Record<string,string>>({});
   const [checkError,setCheckError]=useState('');
+  const [operational,setOperational]=useState<OperationalReadiness|null>(null);
   const refresh=async(signal?:AbortSignal)=>{
     const r=await fetch('/api/integrations/status',{cache:'no-store',signal});
     if(!r.ok)throw Error('No se pudo consultar la configuración real del CRM.');
     const data=await r.json();
     if(!Array.isArray(data.groups))throw Error('Diagnóstico no disponible.');
     if(!signal?.aborted){setRuntimeStatus(data);setCheckError('');}
+    try{
+      const readiness=await fetch('/api/advertising/operational-readiness',{cache:'no-store',signal});
+      if(readiness.ok){
+        const evidence:OperationalReadiness=await readiness.json();
+        if(!signal?.aborted)setOperational(evidence);
+      }else if(!signal?.aborted)setOperational(null);
+    }catch{if(!signal?.aborted)setOperational(null);}
     try{
       const a=await fetch('/api/advertising/shared-connections',{cache:'no-store',signal});
       if(a.ok){
@@ -95,6 +120,14 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
   const runtimeFor=(id:string)=>runtimeStatus?.groups.find(x=>x.id===id);
   const dynamicStatus=(item:ExternalIntegration)=>{
     const env=runtimeFor(item.id);
+    if(item.id==='int_ad_payment_wallet')return 'Facturación externa sin verificar';
+    if(item.id==='int_creative_ai'){
+      if(!operational)return 'Verificación pendiente';
+      if(operational.creatives.localVideo.readyForProduction)return 'Motor local preparado, sin prueba MP4';
+      if(operational.creatives.heygen.configured||operational.creatives.runway.configured)
+        return 'Proveedor presente, sin prueba de video';
+      return 'Flyers locales; video pendiente';
+    }
     if(!env)return 'Pendiente de consulta';
     const readChannels:Record<string,string[]>={int_meta_social:['facebook','instagram'],int_google_ads:['google_ads'],int_youtube:['youtube']};
     const verified=readChannels[item.id]?.every(k=>readStates[k]==='verified_read')===true;
@@ -240,7 +273,15 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
                         {integration.outboundCapability}
                       </p>
                       {runtimeFor(integration.id)?.missingEnvVars?.length? <p className="text-[11px] text-amber-200 mt-2">Faltan: {runtimeFor(integration.id)?.missingEnvVars.join(', ')}</p>:null}
-                      <p className="text-[11px] text-slate-400 mt-1">{dynamicStatus(integration)==='Lectura verificada'?'Lectura autorizada: no confirma permiso para publicar.':dynamicStatus(integration)==='Variables presentes'?'Variables presentes; falta verificar funcionamiento operativo.':'La etiqueta anterior era descriptiva; verifica el servicio real.'}</p>
+                      <p className="text-[11px] text-slate-400 mt-1">{integration.id==='int_ad_payment_wallet'
+ ?'Meta y Google administran sus propias tarjetas; no existe una pasarela de anuncios que se active completando esas seis variables ficticias.'
+ :integration.id==='int_creative_ai'
+ ?'Los flyers usan el motor integrado. HeyGen, Runway y el motor GPU tienen configuraciones independientes: una clave presente no acredita producción real.'
+ :dynamicStatus(integration)==='Lectura verificada'
+ ?'Lectura autorizada: no confirma permiso para publicar.'
+ :dynamicStatus(integration)==='Variables presentes'
+ ?'Variables presentes; falta verificar funcionamiento operativo.'
+ :'La etiqueta anterior era descriptiva; verifica el servicio real.'}</p>
                       {integration.inboundWebhookPath && (
                         <p className="text-[11px] text-cyan-300 font-mono mt-2">
                           {integration.inboundWebhookPath}
@@ -256,7 +297,7 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {integration.requiredEnvVars.map((envVar) => (
+                    {(integration.id==='int_ad_payment_wallet'||integration.id==='int_creative_ai' ? []:integration.requiredEnvVars).map((envVar) => (
                       <span
                         key={envVar}
                         className="text-[10px] bg-slate-950 border border-slate-800 text-slate-300 px-2 py-1 rounded font-mono"
@@ -264,6 +305,29 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
                         {envVar}
                       </span>
                     ))}
+                  {integration.id==='int_ad_payment_wallet'&&(
+                    <div className="mt-3 space-y-2 rounded-lg border border-amber-700 bg-slate-950 p-3 text-xs text-slate-200">
+                      <p><strong>Meta Ads:</strong> {operational?.advertising.meta.accountReadVerified?'Identidad de cuenta verificada (solo lectura)':'Verifica los permisos de la cuenta de anuncios'} · <span className="text-amber-200">Tarjeta no verificada desde CRM</span></p>
+                      <p><strong>Google Ads:</strong> {operational?.advertising.google.accountReadVerified?'Identidad de cuenta verificada (solo lectura)':'Verifica los permisos de la cuenta de anuncios'} · <span className="text-amber-200">Tarjeta no verificada desde CRM</span></p>
+                      <p>Introduce cualquier tarjeta, CVC y datos bancarios <strong>solamente</strong> en la plataforma elegida. La tarjeta de publicidad es distinta de la pasarela de cobros de estudiantes.</p>
+                      <div className="flex flex-wrap gap-2">
+                        <a href="https://business.facebook.com/billing_hub/payment_settings" target="_blank" rel="noopener noreferrer"
+                          className="rounded border border-cyan-600 px-3 py-2 text-cyan-200">Configurar pago en Meta</a>
+                        <a href="https://ads.google.com/" target="_blank" rel="noopener noreferrer"
+                          className="rounded border border-cyan-600 px-3 py-2 text-cyan-200">Configurar pago en Google Ads</a>
+                      </div>
+                      <p>El CRM conserva sus límites de presupuesto y autorización expresa; no cobra ni activa anuncios desde esta comprobación.</p>
+                    </div>
+                  )}
+                  {integration.id==='int_creative_ai'&&(
+                    <div className="mt-3 space-y-1 rounded-lg border border-cyan-800 bg-slate-950 p-3 text-xs text-slate-200">
+                      <p>Flyers INTECA: <strong>{operational?.creatives.internalFlyers.configured?'Motor interno instalado':'Comprobación pendiente'}</strong> · publicación no confirmada por esta pantalla.</p>
+                      <p>HeyGen + INTEQUITO: <strong>{operational?.creatives.heygen.configured?'Configurado, pendiente de prueba':'Sin configurar'}</strong>.</p>
+                      <p>Runway: <strong>{operational?.creatives.runway.configured?'Configurado, pendiente de prueba':'Sin configurar'}</strong>.</p>
+                      <p>Motor propio 3D: <strong>{operational?.creatives.localVideo.workerConnected?'Trabajador detectado':'GPU desconectada'}</strong>. {operational?.creatives.localVideo.referencePresent?'Imagen de INTEQUITO detectada.':'Instala la imagen oficial de INTEQUITO en Community Manager.'}</p>
+                      <p>La generación paga requiere aprobación. Ningún video experimental se publica automáticamente.</p>
+                    </div>
+                  )}
                   </div>
                 </div>
               );
