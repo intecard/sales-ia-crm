@@ -44,7 +44,7 @@ export async function renderCommunityImage(p:CommunityPayload,slide?:number) {
  const logoPng=await sharp(logo).resize(115,115,{fit:'inside'}).png().toBuffer();
  const mascotPng=intequito?await sharp(intequito).resize(230,350,{fit:'inside'}).png().toBuffer():null;
  const date=p.editorialDate||'';
- const displayDate=/^\\d{4}-\\d{2}-\\d{2}$/.test(date)?new Intl.DateTimeFormat('es-DO',{day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(`${date}T12:00:00Z`)):`Serie ${p.assetKey.slice(0,8)}`;
+ const displayDate=/^\d{4}-\d{2}-\d{2}$/.test(date)?new Intl.DateTimeFormat('es-DO',{day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(`${date}T12:00:00Z`)):`Serie ${p.assetKey.slice(0,8)}`;
  const topic=slide===undefined?p.slides[0]:(p.slides[slide]||p.slides[0]);
  const details=slide===undefined?p.slides[1]:(p.slides[slide]||p.slides[1]);
  const headline=lines(topic,32).slice(0,3);
