@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 type Creative={id:string;scheduled_at:string;state:string;payload:{title:string;courseTitle:string;kind:string;script?:unknown}};
 type LocalStatus={
- provider:string;engine:string;serverReady:boolean;referencePresent:boolean;storageReady:boolean;
+ provider:string;engine:string;serverReady:boolean;referencePresent:boolean;referenceSource?:string;storageReady:boolean;databaseReady?:boolean;videoBucketReady?:boolean;referenceBucketReady?:boolean;
  workerConnected:boolean;workerLastSeen:string|null;autoEnabled:boolean;
  maxDailyCreatives:number;queued:number;rendering:number;readyForReview:number;
  externalGenerationFees:boolean;readyForProduction:boolean;message:string|null;
@@ -14,6 +14,7 @@ export function LocalVideoPanel({calendar}: {calendar:Creative[]}) {
  const [status,setStatus]=useState<LocalStatus|null>(null);
  const [jobs,setJobs]=useState<LocalJob[]>([]);
  const [busy,setBusy]=useState(false);
+ const [referenceFile,setReferenceFile]=useState<File|null>(null);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  async function refresh(signal?:AbortSignal){
@@ -42,6 +43,27 @@ export function LocalVideoPanel({calendar}: {calendar:Creative[]}) {
    }catch(e){setError((e as Error).message);}
    finally{setBusy(false);}
  }
+ async function uploadOfficialReference(){
+   if(!referenceFile)return;
+   if(referenceFile.type!=='image/png'||referenceFile.size<1024||referenceFile.size>6*1024*1024){
+     setError('La imagen oficial debe ser PNG y pesar entre 1 KB y 6 MB.');
+     return;
+   }
+   setBusy(true);setError('');setMessage('');
+   try{
+     const r=await fetch('/api/advertising/community/video/local/reference',{
+       method:'POST',
+       headers:{'Content-Type':'image/png','X-CRM-Action':'advertising'},
+       body:referenceFile,
+     });
+     const data=await r.json();
+     if(!r.ok)throw Error(data.error||'No fue posible instalar la imagen.');
+     setMessage('Referencia oficial INTEQUITO almacenada en Supabase privado y disponible para el trabajador de video. La producción automática sigue desactivada.');
+     setReferenceFile(null);
+     await refresh();
+   }catch(e){setError((e as Error).message);}
+   finally{setBusy(false);}
+ }
  const draftJobs=calendar.filter(j=>j.state==='brief'&&(j.payload.kind==='short'||j.payload.kind==='promo_video')&&j.payload.script);
  const unique=Array.from(new Map(draftJobs.map(j=>[j.payload.courseTitle+'|'+j.scheduled_at.slice(0,13)+'|'+j.payload.kind,j])).values()).slice(0,12);
  const existing=new Set(jobs.map(j=>j.community_job_id));
@@ -50,12 +72,33 @@ export function LocalVideoPanel({calendar}: {calendar:Creative[]}) {
   <h3 className="font-bold text-white">Motor propio INTECA · videos autónomos sin tarifa externa por clip</h3>
   <p className="text-sm text-slate-300">ComfyUI + Wan 2.2 (escenas), Piper (narración española) y FFmpeg (montaje, subtítulos y WhatsApp 809-643-5502). Trabaja en una GPU que pertenece a INTECA, mientras este CRM guarda guiones, estado y resultados. No necesita credenciales de HeyGen o Runway.</p>
   <div className="grid gap-2 text-xs text-slate-100 sm:grid-cols-2 md:grid-cols-4">
-    <div className="rounded bg-slate-800 p-3">Conexión CRM: <strong>{status?.serverReady?'Configurada':'Pendiente'}</strong></div>
+    <div className="rounded bg-slate-800 p-3">Conexión CRM: <strong>{status?.serverReady?'Token y Supabase listos':'Pendiente'}</strong></div>
     <div className="rounded bg-slate-800 p-3">Imagen INTEQUITO: <strong>{status?.referencePresent?'Instalada':'Pendiente'}</strong></div>
-    <div className="rounded bg-slate-800 p-3">Base de datos: <strong>{status?.storageReady?'Preparada':'Migración pendiente'}</strong></div>
+    <div className="rounded bg-slate-800 p-3">Base de datos: <strong>{status?.databaseReady?'Lista':'Pendiente'}</strong></div>
     <div className="rounded bg-slate-800 p-3">GPU de INTECA: <strong>{status?.workerConnected?'Conectada':'Desconectada'}</strong></div>
   </div>
   {status?.message&&<p className="text-sm text-amber-200">{status.message}</p>}
+  <div className="rounded-xl border border-slate-600 bg-slate-900/60 p-3 space-y-2">
+    <h4 className="font-semibold text-white text-sm">Referencia oficial de INTEQUITO (solo administrador)</h4>
+    <p className="text-xs text-slate-300">Selecciona el PNG original del personaje, sin cambiar su rostro, uniforme ni logotipo. Se almacena en un bucket privado de Supabase. Nunca se publica como archivo público ni se envía a HeyGen o Runway desde este módulo.</p>
+    <div className="flex flex-wrap items-center gap-3">
+      <input type="file" accept="image/png" aria-label="Seleccionar imagen PNG oficial de INTEQUITO" disabled={busy}
+        onChange={e=>setReferenceFile(e.target.files?.[0]||null)}
+        className="block max-w-full text-xs text-slate-200 file:mr-2 file:rounded file:bg-slate-700 file:px-3 file:py-2 file:text-white"/>
+      <button type="button" onClick={()=>void uploadOfficialReference()} disabled={busy||!referenceFile}
+        className="rounded bg-cyan-700 px-3 py-2 text-white text-sm font-semibold disabled:opacity-40">
+        Instalar imagen oficial
+      </button>
+      <button type="button" onClick={()=>void refresh().catch(e=>setError(e.message))}
+        className="rounded border border-slate-500 px-3 py-2 text-slate-200 text-sm">Verificar conexiones</button>
+    </div>
+    {status?.referencePresent&&<div className="flex items-start gap-3">
+       <img src="/api/advertising/community/video/local/reference" alt="Referencia oficial de INTEQUITO"
+         className="h-24 w-20 rounded bg-white object-contain"/>
+       <p className="text-xs text-emerald-300">Imagen de referencia instalada. Fuente: {status.referenceSource==='private_storage'?'Supabase privado':'archivo oficial del servidor'}. Esta imagen no acredita que exista una GPU conectada.</p>
+    </div>}
+    <p className="text-xs text-slate-400">Almacenamiento videos: {status?.videoBucketReady?'Verificado':'Pendiente'} · Almacenamiento del personaje: {status?.referenceBucketReady?'Verificado':'Pendiente'}. La imagen solo puede sustituirla el administrador autenticado.</p>
+  </div>
   <p className="text-xs text-slate-400">Trabajos en cola: {status?.queued??'—'} · Procesando: {status?.rendering??'—'} · Pendientes de revisión: {status?.readyForReview??'—'}. Los modelos no garantizan identidad perfecta ni sincronización labial. La publicación final requiere aprobación; la generación local no genera cobros de proveedores de video, pero sí consume electricidad y GPU.</p>
   <div className="flex flex-wrap items-center gap-3">
     <button type="button" disabled={busy||(!ready&&!status?.autoEnabled)} onClick={()=>void post('settings',{enabled:!status?.autoEnabled})}
