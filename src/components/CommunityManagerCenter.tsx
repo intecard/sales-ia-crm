@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 import { LocalVideoPanel } from './LocalVideoPanel';
-type Job={id:string;channel:string;scheduled_at:string;state:string;payload:{title:string;courseTitle:string;kind:string;pillar:string;caption:string;slides:string[];script?:{actor:string;duration:number;format:string;scenes:Array<{from:number;to:number;location:string;action:string;camera:string;dialogue:string;subtitle:string;audio:string}>;requirements:string[];state:string}};media_url:string|null;result:{id?:string;url?:string;containerId?:string};last_error:string|null};
+type Job={id:string;channel:string;scheduled_at:string;state:string;payload:{title:string;courseTitle:string;kind:string;pillar:string;caption:string;slides:string[];editorialDate?:string;campaignMonth?:string;designSeed?:number;script?:{actor:string;duration:number;format:string;scenes:Array<{from:number;to:number;location:string;action:string;camera:string;dialogue:string;subtitle:string;audio:string}>;requirements:string[];state:string}};media_url:string|null;result:{id?:string;url?:string;containerId?:string};last_error:string|null};
 type Growth={leaders?:Array<{jobId:string;title:string;format:string;interactions:number;checkedAt:string}>;channel:string;observedPosts:number;views:number|null;likes:number|null;comments:number|null;shares:number|null;followers:number|null;followersChange:number|null;baselineAt:string|null;checkedAt:string|null;websiteVisits:null;recommendation:string};
 type VideoProviderStatus={providers:{heygen:{provider:string;ready:boolean;apiKeyConfigured:boolean;avatarConfigured:boolean;officialImageConfigured:boolean;voiceConfigured:boolean;reason:string|null};runway:{provider:string;referencePresent:boolean;runwayConfigured:boolean;elevenConfigured:boolean;renderReady:boolean;reason:string|null}};renderReady:boolean;automaticSpending:boolean;note:string};
 type VideoGeneration={id:string;job_id:string;provider:'heygen'|'runway';state:string;provider_job_id:string|null;result:Record<string,unknown>;updated_at:string};
-type Snapshot={growth?:Growth[];settings:{enabled:boolean;plan_started_at:string|null;destinations:Record<string,string>};jobs:Job[];observations:Array<{job_id:string;checked_at:string;metrics:Record<string,unknown>;recommendation:string}>;capabilities:Record<string,string|boolean>};
+type Diagnostics={storageStatus:string;assets:Record<string,boolean>;channelsConfigured:Record<string,boolean>;reasons:Record<string,string>};
+type Snapshot={featuredCourse:string|null;campaignMonth:string;totalCatalogCourses:number;growth?:Growth[];settings:{enabled:boolean;plan_started_at:string|null;destinations:Record<string,string>};jobs:Job[];observations:Array<{job_id:string;checked_at:string;metrics:Record<string,unknown>;recommendation:string}>;capabilities:Record<string,string|boolean>};
 const states:Record<string,string>={queued:'Programado',preparing:'Produciendo',executing:'Enviando al proveedor',published:'Publicado',uploaded_private:'Subido; revisar visibilidad',blocked:'Bloqueado',review_required:'Revisar resultado antes de repetir',missed:'Horario omitido',brief:'Guion pendiente de animación 3D'};
 export function CommunityManagerCenter(){
  const [provider,setProvider]=useState<VideoProviderStatus|null>(null);
+ const [diagnostics,setDiagnostics]=useState<Diagnostics|null>(null);
+ const [diagnosticResult,setDiagnosticResult]=useState<string>('');
+ const [diagnosing,setDiagnosing]=useState(false);
  const [engine,setEngine]=useState<'heygen'|'runway'>('heygen');
  const [approvedSpend,setApprovedSpend]=useState(false);
  const [generations,setGenerations]=useState<VideoGeneration[]>([]);
@@ -37,11 +41,57 @@ export function CommunityManagerCenter(){
    catch(e){setError((e as Error).message);}
    finally{setBusy(false);}
  }
+ async function diagnose(test=false){
+   setDiagnosing(true);setError('');setDiagnosticResult('');
+   try{
+     const base='/api/advertising/community/diagnostics';
+     const r=await fetch(test?base+'/test':base,test?{
+       method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:'{}',
+     }:{cache:'no-store'});
+     const data=await r.json();
+     if(!r.ok)throw Error(data.error||'No se pudo realizar el diagnóstico.');
+     if(test){
+       setDiagnosticResult('JPEG y almacenamiento verificados sin publicar en redes. Canales: '+
+         Object.entries(data.channels||{}).map(([name,value])=>name+': '+((value as {ok?:boolean}).ok?'conectado':'requiere revisión')).join(', '));
+     }else setDiagnostics(data);
+   }catch(e){setError((e as Error).message);}
+   finally{setDiagnosing(false);}
+ }
+ const errorExplanations:Record<string,string>={
+   CM_CONNECTION_OR_STORAGE:'Error histórico genérico; antes no se guardaba la fase del fallo.',
+   CM_SLOT_MISSED:'Hora omitida: no se recupera automáticamente para evitar saturar las redes.',
+   CM_CALENDAR_SUPERSEDED:'Trabajo del calendario antiguo sustituido sin reenviarlo.',
+   CM_STORAGE_FAILED:'Error al subir el flyer a Supabase; revisar conexión y permisos.',
+   CM_MEDIA_ASSET_MISSING:'Falta una imagen o el logo en los archivos de Render.',
+   CM_IMAGE_RENDER_FAILED:'Fallo al crear el JPEG.',
+   CM_RENDER_FAILED:'Fallo en el generador multimedia del servidor.',
+   CM_ACCOUNT_VERIFY_FAILED:'La conexión de la red social no pudo verificarse.',
+   CM_PUBLISH_UNCERTAIN:'Resultado externo incierto; revisar la red antes de intentar otra vez.',
+ };
  const jobs=data?.jobs||[],visible=jobs.filter(j=>filter==='all'||j.state===filter);
  return <section className="rounded-2xl border border-slate-700 bg-slate-900 p-5 space-y-5">
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-white">Lisa Parkerd · Community Manager</h2><p className="text-sm text-slate-300">INTECA · INTEQUITO protagonista · Calendario, guiones y publicación orgánica</p></div><span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-cyan-300">{data?.settings.enabled?'Operación habilitada':'En pausa'}</span></div>
   {error&&<p role="alert" className="text-amber-300">{error}</p>}
   <div className="flex flex-wrap gap-2"><button disabled={busy||!data} onClick={()=>void act('settings',{enabled:!data?.settings.enabled})} className="rounded bg-blue-600 px-3 py-2 text-white">{data?.settings.enabled?'Pausar publicaciones':'Reanudar publicaciones'}</button><button disabled={busy} onClick={()=>void act('run')} className="rounded border border-slate-500 px-3 py-2 text-slate-100">Procesar siguiente publicación</button><button disabled={busy} onClick={()=>void load().catch(e=>setError(e.message))} className="rounded border border-slate-500 px-3 py-2 text-slate-100">Actualizar estado</button></div>
+  <div className="rounded-lg border border-cyan-700 bg-slate-800 p-3">
+    <p className="font-semibold text-cyan-200">Curso protagonista · {data?.campaignMonth||'Mes actual'}</p>
+    <p className="text-lg font-bold text-white">{data?.featuredCourse||'Consultando catálogo académico de INTECA…'}</p>
+    <p className="text-xs text-slate-300">Rotación de {data?.totalCatalogCourses||'todos los'} programas del catálogo: un curso por mes, 1 flyer visualmente distinto cada día. El siguiente mes continúa con el siguiente curso.</p>
+  </div>
+  <div className="rounded-lg border border-slate-600 p-3 space-y-2">
+    <p className="text-sm text-white font-semibold">Diagnóstico de publicación y almacenamiento</p>
+    <div className="flex flex-wrap gap-2">
+      <button disabled={diagnosing} onClick={()=>void diagnose()} className="rounded border border-slate-500 px-3 py-2 text-sm text-slate-100 disabled:opacity-50">Revisar configuración</button>
+      <button disabled={diagnosing} onClick={()=>void diagnose(true)} className="rounded border border-cyan-500 px-3 py-2 text-sm text-cyan-200 disabled:opacity-50">Probar flyer y almacenamiento (sin publicar)</button>
+    </div>
+    {diagnostics&&<div className="text-xs text-slate-300 space-y-1">
+      <p>Supabase Storage: {diagnostics.storageStatus} · Logo: {diagnostics.assets.logo?'Disponible':'Falta'} · Fotografías: {['callCenter','nursing','pharmacy'].every(k=>diagnostics.assets[k])?'Disponibles':'Faltan archivos'}</p>
+      <p>Imagen oficial de INTEQUITO: {diagnostics.assets.intequitoOfficial?'Instalada':'No instalada (el flyer puede generarse con la marca de INTECA, sin inventar mascota)'}</p>
+      <p>Renderizador de video FFmpeg: {diagnostics.assets.ffmpeg?'Disponible':'No encontrado'} · Destinos configurados: {Object.entries(diagnostics.channelsConfigured).map(([name,configured])=>name+': '+(configured?'sí':'no')).join(' · ')}</p>
+    </div>}
+    {diagnosticResult&&<p className="text-sm text-cyan-200">{diagnosticResult}</p>}
+    <p className="text-xs text-slate-400">Los bloqueos históricos no indican su causa exacta porque el código anterior los agrupaba. La versión corregida registra si falló la cuenta, el renderizado, el almacenamiento o la publicación.</p>
+  </div>
   <p className="text-sm text-slate-300">Plan de 30 días (hora de República Dominicana): 1 post diario a las 09:00; 7 reels diarios a las 10:00, 11:00, 12:00, 13:00, 15:00, 17:00 y 19:00; 1 video promocional o informativo diario a las 20:00. Cada pieza audiovisual tendrá guion con INTEQUITO como protagonista, escenarios, voz y subtítulos. Los videos no se publicarán hasta disponer de animación 3D real, audio, revisión y autorización. CTA: WhatsApp 809-643-5502.</p>
   <LocalVideoPanel calendar={jobs}/>
   <div className="rounded-xl border border-cyan-800 p-4 space-y-3">
@@ -84,7 +134,7 @@ export function CommunityManagerCenter(){
         <button disabled={busy||g.state!=='submitted'} onClick={()=>void checkGeneration(g.id)} className="ml-2 rounded border border-slate-500 px-2 py-1 text-xs text-slate-100 disabled:opacity-40">Consultar resultado</button>
         {typeof g.result.videoUrl==='string'&&<a href={g.result.videoUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 underline">Ver video para revisión</a>}{Array.isArray(g.result.output)&&typeof g.result.output[0]==='string'&&g.result.output[0].startsWith('https://')&&<a href={g.result.output[0]} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 underline">Ver clip Runway para revisión</a>}
       </div>)}
-    </div>}{j.media_url&&(j.payload.kind==='short'?<video controls preload="none" src={j.media_url} className="max-h-96 rounded"/>:<img loading="lazy" src={j.media_url} alt={j.payload.courseTitle} className="max-h-96 rounded"/>)}{j.result.id&&<p className="break-all text-xs text-slate-300">ID del proveedor: {j.result.id}</p>}{j.result.url&&<a className="block text-blue-300 underline" href={j.result.url} target="_blank" rel="noreferrer">Ver publicación en la plataforma</a>}{data?.observations?.find(o=>o.job_id===j.id)&&<details><summary className="text-sm text-cyan-300">Últimas métricas observadas</summary><pre className="whitespace-pre-wrap text-xs text-slate-300">{JSON.stringify(data.observations.find(o=>o.job_id===j.id),null,2)}</pre></details>}{j.last_error&&<p className="text-xs text-amber-300">{j.last_error}</p>}{j.state==='blocked'&&<button disabled={busy} onClick={()=>void act(`jobs/${j.id}/retry`)} className="rounded border border-slate-500 px-3 py-2 text-sm text-white">Reintentar tras corregir el bloqueo</button>}</article>)}</div>
-  <p className="text-xs text-slate-400">Mostrando {Math.min(100,visible.length)} de {visible.length} piezas del filtro. Las consultas y matrículas se gestionan en Ventas, WhatsApp y Matrícula. El chat de Lisa conserva la conversación y permite coordinar tareas con Marketing.</p>
+    </div>}{j.media_url&&(j.payload.kind==='short'?<video controls preload="none" src={j.media_url} className="max-h-96 rounded"/>:<img loading="lazy" src={j.media_url} alt={j.payload.courseTitle} className="max-h-96 rounded"/>)}{j.result.id&&<p className="break-all text-xs text-slate-300">ID del proveedor: {j.result.id}</p>}{j.result.url&&<a className="block text-blue-300 underline" href={j.result.url} target="_blank" rel="noreferrer">Ver publicación en la plataforma</a>}{data?.observations?.find(o=>o.job_id===j.id)&&<details><summary className="text-sm text-cyan-300">Últimas métricas observadas</summary><pre className="whitespace-pre-wrap text-xs text-slate-300">{JSON.stringify(data.observations.find(o=>o.job_id===j.id),null,2)}</pre></details>}{j.last_error&&<p className="text-xs text-amber-300">{j.last_error} · {errorExplanations[j.last_error]||'Revisar diagnóstico y conexiones.'}</p>}{j.state==='blocked'&&j.payload.editorialDate&&<button disabled={busy} onClick={()=>void act(`jobs/${j.id}/retry`)} className="rounded border border-slate-500 px-3 py-2 text-sm text-white">Reintentar tras corregir el bloqueo</button>}</article>)}</div>
+  <p className="text-xs text-slate-400">Mostrando {Math.min(100,visible.length)} de {visible.length} trabajos de la ventana reciente y futura. Las consultas y matrículas se gestionan en Ventas, WhatsApp y Matrícula. El chat de Lisa conserva la conversación y permite coordinar tareas con Marketing.</p>
  </section>;
 }
