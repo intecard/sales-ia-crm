@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommunityManager } from './community-manager.ts';
-import { makeContent, planMonth, rdDay, sha, communityPublicCopy } from './community-plan.ts';
+import { makeContent, planMonth, rdDay, sha, contentHash, communityPublicCopy } from './community-plan.ts';
 import { hasDiscount } from './advertising-agent.ts';
 import type { Catalog } from './whatsapp-catalog.ts';
 const catalog:Catalog={text:'official',hash:'official-hash',generalSchedule:'Un día por semana',specialSchedules:[],payments:'',courses:[{title:'Técnico en Autorizaciones Médicas',text:'',duration:'5 meses',modality:'Virtual',investment:'Inscripción RD$2,500 y mensualidad RD$2,000',schedule:'Sábados',description:'Aprende validación de coberturas y atención al afiliado.'}]};
@@ -20,8 +20,11 @@ test('30-day plan allocates 1 post, 7 reel scripts and 1 promo script per day',(
 function harness(fail=false){
  const payload=makeContent(catalog.courses[0],catalog,rdDay(new Date()),'flyer',0);
  const settings={enabled:true,plan_started_at:'started',destinations:{facebook:'111'}};
- const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'test',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:sha(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
+ const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v4:test',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
  const store={request:async(resource:string,method='GET',body?:any)=>{
+  if(resource.startsWith('crm_community_calendar_state'))return [{
+    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v4'
+  }];
   if(resource.startsWith('crm_community_settings')){if(method==='PATCH')Object.assign(settings,body);return [structuredClone(settings)];}
   const q=new URLSearchParams(resource.split('?')[1]);
   const state=q.get('state');if(state?.startsWith('in.')&&!state.slice(4,-1).split(',').includes(row.state))return [];
