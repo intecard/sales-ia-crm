@@ -7,7 +7,16 @@ export type CommunityPayload = { title: string; caption: string; courseTitle: st
 export const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 // PostgreSQL jsonb reorders object keys. Keep the original field order when
 // checking persisted pieces, including the first plan already saved in production.
-export const contentHash = (p: CommunityPayload) => sha({...{title:p.title,caption:p.caption,courseTitle:p.courseTitle,kind:p.kind,pillar:p.pillar,slides:p.slides,assetKey:p.assetKey,catalogHash:p.catalogHash},...(p.script?{script:p.script}:{})});
+const normalizeJson = (value:unknown):unknown => Array.isArray(value)
+  ? value.map(normalizeJson)
+  : value&&typeof value==='object'
+    ? Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b,'en')).map(([key,v])=>[key,normalizeJson(v)]))
+    : value;
+export const contentHash = (p: CommunityPayload) => sha({
+  title:p.title,caption:p.caption,courseTitle:p.courseTitle,kind:p.kind,pillar:p.pillar,
+  slides:p.slides,assetKey:p.assetKey,catalogHash:p.catalogHash,
+  ...(p.script?{script:normalizeJson(p.script)}:{}),
+});
 export function rdDay(now: Date) { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(now); }
 export function makeContent(course: CatalogCourse, catalog: Catalog, date: string, kind: CommunityPayload['kind'], variant: number): CommunityPayload {
   const pillars = ['Educación','Educación','Educación','Educación','Educación','Educación','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Empleabilidad','Demostración','Demostración','Demostración','Demostración','Confianza','Confianza','Confianza','Promoción','Promoción'];
