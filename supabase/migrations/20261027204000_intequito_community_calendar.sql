@@ -1,9 +1,8 @@
 -- INTEQUITO / Lisa: preserva historial publicado y cambia únicamente pendientes del calendario anterior.
 -- No ejecuta gasto ni publica guiones que todavía no tienen render audiovisual 3D.
 begin;
-update public.crm_community_jobs
-set state='missed', last_error='CM_REPLACED_BY_INTEQUITO_SCHEDULE',updated_at=now()
-where state='queued' and scheduled_at >= now() and slot not like 'v2:%';
+-- No retire aquí publicaciones pendientes. El nuevo RPC mensual v3 retirará
+-- las anteriores atómicamente tras crear un calendario sustituto válido.
 
 -- El plan nuevo puede tener hasta 30*(2 posts canales + 7*3 reels canales + 1*3 vídeo canales) = 780 filas.
 create or replace function public.crm_community_plan(p_jobs jsonb,p_destinations jsonb)
@@ -26,7 +25,7 @@ end $$;
 revoke all on function public.crm_community_plan(jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.crm_community_plan(jsonb,jsonb) to service_role;
 update public.crm_community_settings
-set plan_started_at=null,updated_at=now(),
+set updated_at=now(),
  authorization_note=authorization_note||' | Nueva solicitud 2026-10-27: 1 post, 7 reels y 1 guion de video diario; INTEQUITO; 809-643-5502. Video sin render no se publica.'
 where id='inteca';
 commit;
