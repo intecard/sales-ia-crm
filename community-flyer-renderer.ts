@@ -98,7 +98,6 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  const theme=fitFlyerText(o.hook,940,2,30,22);
  const topics=o.benefits.slice(0,3);
  const topicLines=topics.map(t=>fitFlyerText(t,810,1,31,23));
- const question=fitFlyerText(o.question,900,2,23,19);
  const cta=fitFlyerText(o.cta,890,1,29,21);
  const note=fitFlyerText(o.context,500,2,24,20);
  const logoPng=logo?await sharp(logo).resize(120,102,{fit:'contain'}).png().toBuffer():null;
@@ -115,7 +114,7 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  const titleY=270;
  const titleEnd=titleY+(title.lines.length-1)*(title.fontSize+6);
  if(titleEnd>495)throw Error('CM_FLYER_TEXT_TOO_LONG');
- const issueTag='NO. '+(p.editorialDate?.slice(-2)||'01')+' · '+issue.toUpperCase();
+ const issueTag='INTECA · '+issue.toUpperCase();
  const backgroundDots=Array.from({length:9},(_,i)=>{
    const x=565+((seed*73+i*161)%470),y=188+((seed*37+i*79)%330);
    return '<circle cx="'+x+'" cy="'+y+'" r="'+(6+(i*seed+29)%15)+'" fill="'+pal.green+'" opacity=".035"/>';
@@ -136,6 +135,7 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
    :txt('INTECA',42,89,45,pal.navy,true))+
  txt('INTECA',171,73,41,pal.navy,true)+
  txt('INSTITUTO TÉCNICO DEL CARIBE',172,111,20,pal.green,true)+
+ txt(issueTag,740,110,17,pal.green,true)+
  '<path d="M53 145 H1028" stroke="'+pal.green+'" stroke-width="2" opacity=".35"/>'+
  '<rect x="47" y="175" width="480" height="48" rx="14" fill="'+pal.green+'"/>'+
  txt(label,63,207,21,'#ffffff',true)+
@@ -148,8 +148,8 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  txt('LO QUE APRENDERÁS',74,622,35,'#ffffff',true)+
  txt('CONTENIDOS DEL PROGRAMA',75,647,18,pal.accent,true)+
  outcomeBars+
- '<rect x="45" y="904" width="990" height="48" rx="12" fill="'+pal.green+'"/>'+
- lines(theme.lines,70,935,theme.fontSize,32,'#ffffff',true)+
+ '<rect x="45" y="899" width="990" height="65" rx="12" fill="'+pal.green+'"/>'+
+ lines(theme.lines,70,theme.lines.length>1?925:938,theme.fontSize,31,'#ffffff',true)+
  '<rect x="0" y="971" width="'+W+'" height="149" fill="'+pal.light+'"/>'+
  '<path d="M353 986 V1106 M709 986 V1106" stroke="'+pal.navy+'" opacity=".2" stroke-width="2"/>'+
  txt('DURACIÓN',49,1014,23,pal.navy,true)+
