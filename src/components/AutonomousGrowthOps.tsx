@@ -47,6 +47,7 @@ type OperationalReadiness={
 };
 type ActivationAudit={checkedAt:string;allOperational:boolean;checks:Array<{id:string;name:string;state:'ready'|'partial'|'blocked'|'unverified';reason:string;facts:string[];nextActions:string[];verifiedAt:string}>;};
 interface AutonomousGrowthOpsProps {
+ organization:{id:string;name:string};
   integrations: ExternalIntegration[];
   creativeAssets: CreativeAsset[];
   launchPlans: LaunchCampaignPlan[];
@@ -74,6 +75,7 @@ const priorityTone = (priority: OwnerActionNotification['priority']) => {
 };
 
 export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
+  organization,
   integrations,
   creativeAssets,
   launchPlans,
@@ -108,7 +110,7 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
       }else if(!signal?.aborted)setOperational(null);
     }catch{if(!signal?.aborted)setOperational(null);}
     try{
-      const response=await fetch('/api/advertising/activation-audit',{cache:'no-store',signal});
+      const response=await fetch('/api/advertising/activation-audit?org='+encodeURIComponent(organization.id),{cache:'no-store',signal});
       if(!response.ok)throw Error('No se pudo verificar el estado operativo de las integraciones.');
       const detail=await response.json();
       if(!Array.isArray(detail.checks)||detail.checks.length!==5)throw Error('Diagnóstico de integraciones incompleto.');
@@ -126,7 +128,7 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
     const controller=new AbortController();
     void refresh(controller.signal).catch(e=>{if(!controller.signal.aborted)setCheckError(e.message);});
     return ()=>controller.abort();
-  },[]);
+  },[organization.id]);
   const runtimeFor=(id:string)=>runtimeStatus?.groups.find(x=>x.id===id);
   const dynamicStatus=(item:ExternalIntegration)=>{
     const env=runtimeFor(item.id);
