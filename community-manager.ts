@@ -85,7 +85,8 @@ export class CommunityManager {
         state:incomplete?'blocked':
           ['short','promo_video','long_brief'].includes(item.payload.kind)?'brief':
           item.payload.kind==='flyer'?
-            (shouldMissCampaignSlot(item,new Date())?'missed':'queued'):
+            (Date.parse(item.scheduled_at)>now.getTime()?'queued':
+              shouldMissCampaignSlot(item,now)?'missed':'queued'):
           new Date(item.scheduled_at)<now?'missed':'queued',
         ...(incomplete?{last_error:'CM_FLYER_PRICE_OR_CONTENT_MISSING'}:{}),
         content_hash:contentHash(item.payload),
