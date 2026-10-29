@@ -153,13 +153,10 @@ export class CommunityManager {
           phase='verify';
           await this.publisher.verify(row.channel);
           const locks=await this.store.request(`crm_community_jobs?id=eq.${row.id}&state=eq.queued`,'PATCH',{state:'preparing',updated_at:new Date().toISOString()});if(!locks.length)continue;claimed=true;
-          // Upgrade only a claimed, unproduced piece. Published, uncertain and rendered jobs remain unchanged.
-          if(!row.media_url&&!row.result?.id&&!row.result?.containerId&&!row.payload.caption.includes('utm_campaign=lisa_crecimiento')){
-            const date=rdDay(new Date(row.scheduled_at));const variant=Number(row.slot.split(':')[2])||0;
-            row.payload=makeContent(course,catalog,date,row.payload.kind,variant);
-            row.content_hash=contentHash(row.payload);
-            await this.update(row.id,{payload:row.payload,content_hash:row.content_hash});
-          }
+          // Preserve the reviewed v5 payload exactly. Earlier automatic
+          // rewrites could silently reset afternoon variant 1 to morning 0
+          // because slot.split(':')[2] is the literal kind, not the variant.
+          // Every change of catalog or contents requires a fresh v5 plan.
           phase='render';
           let mediaUrl=row.media_url;
           if(!mediaUrl){
