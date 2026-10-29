@@ -1552,7 +1552,10 @@ app.get('/api/advertising/operational-readiness',async(_req,res)=>{
 // Read-only evidence audit for ALL five modules on the Operations screen.
 // Requires the existing CRM administrator cookie (advertising router middleware).
 // Never returns payment credentials, tax ID, Firebase user data or raw secrets.
-app.get('/api/advertising/activation-audit',async(_req,res)=>{
+app.get('/api/advertising/activation-audit',async(req,res)=>{
+  const selectedOrganization=String(req.query.org||'org_inteca_main');
+  if(!/^[a-zA-Z0-9_-]{3,120}$/.test(selectedOrganization))
+    return res.status(400).json({error:'INVALID_ORGANIZATION'});
   res.set('Cache-Control','private, no-store');
   try {
     const timeout=<T>(promise:Promise<T>,ms:number):Promise<T>=>
@@ -1565,7 +1568,7 @@ app.get('/api/advertising/activation-audit',async(_req,res)=>{
       communityDiagnostics.config(),
       salesStore.request('crm_campus_course_mapping?select=course_title&limit=1000'),
       salesStore.request('crm_student_enrollments?select=id&limit=1000'),
-      salesStore.request('crm_fiscal_companies?select=organization_id&limit=1000'),
+      salesStore.request('crm_fiscal_companies?organization_id=eq.'+encodeURIComponent(selectedOrganization)+'&select=organization_id&limit=1'),
     ]);
     const val=<T>(r:PromiseSettledResult<T>,fallback:T):T=>r.status==='fulfilled'?r.value:fallback;
     const g=gateway.status==='fulfilled'?gateway.value:null;
