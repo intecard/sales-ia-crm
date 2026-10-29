@@ -96,7 +96,7 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
   const cta = actions[seed%actions.length];
   const contact = `Escríbenos al WhatsApp ${INTEQUITO.phone} para solicitar información e inscribirte: ${INTEQUITO.whatsapp}`;
   const flyerCaption=offer?
-    [offer.hook,'',
+    [course.title,'',offer.hook,'',
       offer.context,
       '📚 Tema destacado: '+offer.focus,
       ...offer.benefits.slice(1).map(x=>'✓ '+x),
