@@ -92,6 +92,16 @@ export function createFiscalRouter(store: Store, actor: () => string) {
       return res.status(400).json({ error: 'Empresa inválida.' });
     next();
   });
+  // Only a preliminary, user-declared RNC. This endpoint never verifies DGII status or issues e-CF.
+  router.get(
+    '/:org/onboarding',
+    action(async (req, res) => {
+      const drafts = await store.request(
+        `crm_fiscal_setup_drafts?organization_id=eq.${encodeURIComponent(String(req.params.org))}&select=organization_id,tax_id,source,registration_verification,e_cf_authorization,environment,emission_enabled&limit=1`,
+      );
+      res.json(drafts[0] || null);
+    }),
+  );
   router.get(
     '/:org',
     action(async (req, res) => {
