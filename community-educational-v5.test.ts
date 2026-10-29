@@ -83,3 +83,27 @@ test('Seven topical INTEQUITO reel briefs are valuable and not falsely presented
   assert.equal(j.payload.script?.course,j.payload.courseTitle);
  }
 });
+
+test('Actual Spanish catalog names map to their own academic families',()=>{
+ assert.equal(courseFamily('Técnico en Promoción de Seguros'),'health_insurance_promoter');
+ assert.equal(courseFamily('Técnico en Promoción de Salud'),'health_promoter');
+ assert.equal(courseFamily('Técnico en Visita Médica'),'pharmacology');
+});
+test('Unconfirmed course duration is not advertised as a real course duration',()=>{
+ const billing=course('Técnico en Facturación Médica',
+   'Procesos de facturación médica, codificación y auditoría.',
+   'pendiente de confirmación');
+ assert.equal(isPublishableFlyer(flyerOffer(billing,'2026-10-29',1)),false);
+});
+test('Afternoon rotation never selects incomplete catalog records',()=>{
+ const eligible=course('Técnico en Promoción de Salud',
+   'Promoción de salud, educación para la salud, trabajo comunitario y prevención.');
+ const excluded=course('Técnico en Farmacia',
+   'Control de inventario y farmacia','pendiente de confirmación');
+ const improved:Catalog={...catalog,courses:[...courses,eligible,excluded]};
+ const days=planMonth(improved,'2026-10-29').filter(j=>j.channel==='instagram'&&j.payload.editorialSlot==='afternoon');
+ assert.equal(days.length,30);
+ assert.ok(days.every(j=>j.payload.courseTitle!==excluded.title));
+ assert.ok(days.some(j=>j.payload.courseTitle===eligible.title));
+ assert.ok(days.every(j=>j.payload.flyerOffer&&isPublishableFlyer(j.payload.flyerOffer)));
+});
