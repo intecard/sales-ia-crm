@@ -17,13 +17,12 @@ export function TaxFormsWorkspace({organization,period}:{organization:{id:string
  const [evidence,setEvidence]=useState<Record<string,boolean>>({
  bank:false,sales:false,purchases:false,cancelledNcf:false,foreignPayments:false,otherSources:false});
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
- const [currentDraft,setCurrentDraft]=useState<Draft|null>(null);
  const refresh=useCallback(async()=>{
   const response=await fetch(base+'/tax-forms?period='+period,{cache:'no-store'});
   const json=await response.json();if(!response.ok)throw Error(json.error||'No se pudieron cargar los formularios');
   setData(json);
  },[base,period]);
- useEffect(()=>{setCurrentDraft(null);setError('');void refresh().catch(e=>setError(e.message));},[refresh]);
+ useEffect(()=>{setError('');void refresh().catch(e=>setError(e.message));},[refresh]);
  const prepare=async(form:Form)=>{
    const response=await fetch(base+'/tax-forms/prepare',{
     method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'accounting'},
@@ -37,7 +36,7 @@ export function TaxFormsWorkspace({organization,period}:{organization:{id:string
   setBusy(true);setError('');setNotice('');
   try{
    const succeeded:Form[]=[];const failures:string[]=[];
-   for(const form of forms){try{const draft=await prepare(form);setCurrentDraft(draft);setSelected(form);succeeded.push(form);}catch(e){failures.push(form+': '+(e as Error).message);}}
+   for(const form of forms){try{const draft=await prepare(form);setSelected(form);succeeded.push(form);}catch(e){failures.push(form+': '+(e as Error).message);}}
    await refresh();
    if(failures.length)setError(failures.join(' · '));
    setNotice(succeeded.length+' borrador(es) interno(s) preparados y guardados. No se ha enviado nada a DGII.');
@@ -46,10 +45,7 @@ export function TaxFormsWorkspace({organization,period}:{organization:{id:string
  };
  const active=data?.forms.find(f=>f.form===selected);
  const draft=active?.latestDraft;
- const shown=currentDraft?.payload&&selected===currentDraft.payload?.period?currentDraft:draft;
- const evidenceFields:[
-   {key:string;label:string}
- ]=[
+ const evidenceFields:Array<{key:string;label:string}>=[
  {key:'bank',label:'Bancos, cajas y conciliación revisados'},
  {key:'sales',label:'Todas las ventas y facturas revisadas'},
  {key:'purchases',label:'Compras, gastos y proveedores revisados'},
@@ -76,7 +72,7 @@ export function TaxFormsWorkspace({organization,period}:{organization:{id:string
       <td>{f.obligation.applicable==='yes'?'Asignada (según registro CRM)':f.obligation.applicable==='no'?'No asignada (según CRM)':'Pendiente de comprobar en DGII'}</td>
       <td>{f.latestDraft?.payload.state==='zero_candidate_requires_human_review'?'Cero: propuesta por verificar':f.latestDraft?'Borrador incompleto':'Sin preparar'}</td>
       <td className="flex gap-2 p-2">
-       <button className={btn} disabled={busy} onClick={()=>{setSelected(f.form);setCurrentDraft(null);void run([f.form]);}}>Preparar</button>
+       <button className={btn} disabled={busy} onClick={()=>{setSelected(f.form);void run([f.form]);}}>Preparar</button>
        <button className="rounded border border-slate-500 px-2" onClick={()=>{setSelected(f.form);setCurrentDraft(null);}}>Ver</button>
       </td>
     </tr>)}
