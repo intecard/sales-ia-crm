@@ -96,6 +96,23 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
   const [operational,setOperational]=useState<OperationalReadiness|null>(null);
  const [activation,setActivation]=useState<ActivationAudit|null>(null);
  const [activationError,setActivationError]=useState('');
+ const [flyerTest,setFlyerTest]=useState<{ok:boolean;message:string}|null>(null);
+ const [flyerTesting,setFlyerTesting]=useState(false);
+ const tryFlyer=async()=>{
+   setFlyerTesting(true);setFlyerTest(null);
+   try{
+     const r=await fetch('/api/advertising/community/diagnostics/test',{
+       method:'POST',headers:{'X-CRM-Action':'advertising'},cache:'no-store'});
+     const d=await r.json();
+     if(!r.ok)throw Error(d.error||'CM_DIAGNOSTIC_FAILED');
+     if(!d.media?.stored||!(d.media?.imageBytes>1000))
+       throw Error('El servidor no confirmó render y almacenamiento.');
+     const verified=Object.entries(d.channels||{}).map(([k,v]:any)=>
+       k+': '+(v?.ok?'cuenta verificada':v?.code||'sin verificar')).join(' · ');
+     setFlyerTest({ok:true,message:'JPEG creado y guardado sin publicar. '+verified});
+   }catch(e){setFlyerTest({ok:false,message:(e as Error).message+'. No se realizó publicación.'});}
+   finally{setFlyerTesting(false);}
+ };
   const refresh=async(signal?:AbortSignal)=>{
     const r=await fetch('/api/integrations/status',{cache:'no-store',signal});
     if(!r.ok)throw Error('No se pudo consultar la configuración real del CRM.');
@@ -218,7 +235,9 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
             <p className="text-xs text-slate-300 mt-1">Distingue código instalado, autenticación real, contratación externa y operaciones probadas. Ninguna comprobación crea cargos, matrículas ni facturas fiscales.</p>
           </div>
           <button type="button" className="rounded border border-cyan-500 px-3 py-2 text-cyan-200" onClick={()=>void refresh().catch(e=>setCheckError(e.message))}>Comprobar las 5 integraciones</button>
+          <button type="button" disabled={flyerTesting} className="rounded border border-emerald-700 px-3 py-2 text-emerald-200 disabled:opacity-50" onClick={()=>void tryFlyer()}>{flyerTesting?'Ejecutando prueba sin publicar...':'Probar flyer y almacenamiento'}</button>
         </div>
+        {flyerTest&&<p role="status" className={flyerTest.ok?'rounded bg-emerald-950 text-emerald-200 p-3 text-xs':'rounded bg-rose-950 text-rose-200 p-3 text-xs'}>{flyerTest.message}</p>}
         {activationError&&<p role="alert" className="rounded bg-amber-950 p-3 text-amber-200 text-xs">{activationError} No se declara ninguna conexión como lista sin evidencia.</p>}
         {activation?.checkedAt&&<p className="text-xs text-slate-400">Verificación: {new Date(activation.checkedAt).toLocaleString('es-DO')} · {activation.allOperational?'Las cinco comprobaciones operativas están listas':'Hay servicios pendientes; abre cada diagnóstico'}</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
