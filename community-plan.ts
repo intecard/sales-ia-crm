@@ -139,9 +139,10 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
 }
 /**
  * 2 original 4:5 flyers daily (9am fixed TAM; 5pm another catalog course),
- * 7 INTEQUITO reel briefs and 1 video brief. Images publish only to verified
- * Meta surfaces; scripts must NOT masquerade as finished videos.
- * 28 jobs/day, 840 jobs/30 days (fits the bounded Supabase RPC).
+ * 8 original vertical reels daily for Facebook and Instagram and one YouTube video.
+ * The video queue is only enabled with CM_AUTOPUBLISH_RENDERED_VIDEOS=true;
+ * rendering uses existing local FFmpeg, never a paid video-generation provider.
+ * 21 jobs/day (two flyer surfaces x 2, eight reels x 2, one YouTube), 630/30 days.
  */
 export function planMonth(catalog:Catalog,start:string){
  const result:Array<{slot:string;channel:SocialChannel;scheduled_at:string;payload:CommunityPayload}>=[];
@@ -155,7 +156,7 @@ export function planMonth(catalog:Catalog,start:string){
    const slots:Array<{kind:CommunityPayload['kind'];variant:number;hour:number;minute:number;course:CatalogCourse|null}>= [
      {kind:'flyer',variant:0,hour:9,minute:0,course:morning},
      {kind:'flyer',variant:1,hour:17,minute:0,course:afternoon},
-     ...[8,10,12,14,16,18,20].map((hour,i)=>({
+     ...[8,10,12,14,16,18,20,22].map((hour,i)=>({
        kind:'short' as const,variant:i,hour,minute:0,
        course:(i<4?morning:afternoon)||afternoon||morning,
      })),
@@ -164,9 +165,9 @@ export function planMonth(catalog:Catalog,start:string){
    for(const {kind,variant,hour,minute,course} of slots){
      if(!course)continue;
      const payload=makeContent(course,catalog,d,kind,variant);
-     const channels:SocialChannel[]=kind==='flyer'?['facebook','instagram']:[...SOCIAL_CHANNELS];
+     const channels:SocialChannel[]=kind==='promo_video'?['youtube']:['facebook','instagram'];
      for(const channel of channels)result.push({
-       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12),
+       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12)+(kind==='short'||kind==='promo_video'?':autorender-20261029':''),
        channel,
        scheduled_at:new Date(
          d+'T'+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00-04:00'
