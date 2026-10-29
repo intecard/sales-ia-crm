@@ -74,9 +74,9 @@ export function CommunityManagerCenter(){
   {error&&<p role="alert" className="text-amber-300">{error}</p>}
   <div className="flex flex-wrap gap-2"><button disabled={busy||!data} onClick={()=>void act('settings',{enabled:!data?.settings.enabled})} className="rounded bg-blue-600 px-3 py-2 text-white">{data?.settings.enabled?'Pausar publicaciones':'Reanudar publicaciones'}</button><button disabled={busy} onClick={()=>void act('run')} className="rounded border border-slate-500 px-3 py-2 text-slate-100">Procesar siguiente publicación</button><button disabled={busy} onClick={()=>void load().catch(e=>setError(e.message))} className="rounded border border-slate-500 px-3 py-2 text-slate-100">Actualizar estado</button></div>
   <div className="rounded-lg border border-cyan-700 bg-slate-800 p-3">
-    <p className="font-semibold text-cyan-200">Curso protagonista · {data?.campaignMonth||'Mes actual'}</p>
+    <p className="font-semibold text-cyan-200">Curso fijo de la mañana · {data?.campaignMonth||'Mes actual'}</p>
     <p className="text-lg font-bold text-white">{data?.featuredCourse||'Consultando catálogo académico de INTECA…'}</p>
-    <p className="text-xs text-slate-300">Rotación de {data?.totalCatalogCourses||'todos los'} programas del catálogo: un curso por mes, 1 flyer visualmente distinto cada día. El siguiente mes continúa con el siguiente curso.</p>
+    <p className="text-xs text-slate-300">Publicación diaria a las 9:00 a. m. de Autorizaciones Médicas. A las 5:00 p. m., un flyer profesional de otro curso del catálogo, rotando sin repetir el mismo curso dos días seguidos. Todos con precios, temas verificados y WhatsApp.</p>
   </div>
   <div className="rounded-lg border border-slate-600 p-3 space-y-2">
     <p className="text-sm text-white font-semibold">Diagnóstico de publicación y almacenamiento</p>
@@ -92,7 +92,7 @@ export function CommunityManagerCenter(){
     {diagnosticResult&&<p className="text-sm text-cyan-200">{diagnosticResult}</p>}
     <p className="text-xs text-slate-400">Los bloqueos históricos no indican su causa exacta porque el código anterior los agrupaba. La versión corregida registra si falló la cuenta, el renderizado, el almacenamiento o la publicación.</p>
   </div>
-  <p className="text-sm text-slate-300">Plan de 30 días (hora de República Dominicana): 1 post diario a las 09:00; 7 reels diarios a las 10:00, 11:00, 12:00, 13:00, 15:00, 17:00 y 19:00; 1 video promocional o informativo diario a las 20:00. Cada pieza audiovisual tendrá guion con INTEQUITO como protagonista, escenarios, voz y subtítulos. Los videos no se publicarán hasta disponer de animación 3D real, audio, revisión y autorización. CTA: WhatsApp 809-643-5502.</p>
+  <p className="text-sm text-slate-300">Plan de 30 días (hora de República Dominicana): 2 flyers por día a las 09:00 y 17:00; 7 guiones de reels a las 08:00, 10:00, 12:00, 14:00, 16:00, 18:00 y 20:00; 1 guion de video promocional o informativo diario a las 19:30. Cada pieza audiovisual tendrá guion con INTEQUITO como protagonista, escenarios, voz y subtítulos. Los videos no se publicarán hasta disponer de animación 3D real, audio, revisión y autorización. CTA: WhatsApp 809-643-5502.</p>
   <LocalVideoPanel calendar={jobs}/>
   <div className="rounded-xl border border-cyan-800 p-4 space-y-3">
     <h3 className="font-bold text-white">Estudio audiovisual INTEQUITO · HeyGen y Runway</h3>
