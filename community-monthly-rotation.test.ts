@@ -25,18 +25,18 @@ const fingerprint=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex
 
 test('fixed 9 AM authorizations and rotating 5 PM non-TAM course every date, 30 days',()=>{
  const jobs=planMonth(catalog,'2026-10-27');
- assert.equal(jobs.length,30*(4+7*3+3));
+ assert.equal(jobs.length,30*(4+8*2+1));
  assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
  const dates=[...new Set(jobs.map(j=>j.payload.editorialDate))];
  assert.equal(dates.length,30);
  const afternoons:string[]=[];
  for(const date of dates){
   const daily=jobs.filter(j=>j.payload.editorialDate===date);
-  assert.equal(daily.length,28);
+  assert.equal(daily.length,21);
   const flyers=daily.filter(j=>j.payload.kind==='flyer');
   assert.equal(flyers.length,4);
-  assert.equal(daily.filter(j=>j.payload.kind==='short').length,21);
-  assert.equal(daily.filter(j=>j.payload.kind==='promo_video').length,3);
+  assert.equal(daily.filter(j=>j.payload.kind==='short').length,16);
+  assert.equal(daily.filter(j=>j.payload.kind==='promo_video').length,1);
   const mornings=flyers.filter(j=>j.payload.editorialSlot==='morning');
   const afternoon=flyers.filter(j=>j.payload.editorialSlot==='afternoon');
   assert.equal(mornings.length,2);
