@@ -1,19 +1,21 @@
 import { growthSummary } from './community-growth.ts';
 import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
-import { makeContent, planMonth, featuredCourseForDate, rdDay, sha, contentHash, communityPublicCopy, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
+import { makeContent, planMonth, rdDay, sha, contentHash, communityPublicCopy, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from './community-media.ts';
-import { isPublishableFlyer } from './community-flyer-offer.ts';
+import { isPublishableFlyer, flyerOffer } from './community-flyer-offer.ts';
+import {courseFamily} from './community-course-topics.ts';
 import type { CommunityPublisher } from './community-publisher.ts';
 type Store={request:(r:string,m?:string,b?:unknown)=>Promise<any>};
 export type CommunityJob={id:string;slot:string;channel:SocialChannel;state:string;scheduled_at:string;payload:CommunityPayload;content_hash:string;media_url:string|null;result:any;last_error:string|null;updated_at:string};
-/** When Render sleeps, flyers remain eligible later on the SAME local calendar day;
- * all other items retain the 90-minute deadline. Never mass-post previous-day flyers.
+/** Allow a modest 2-hour delivery window for each of the 9am and 5pm
+ * flyers when Render Free is waking. NEVER mass-post the morning job at night
+ * or replay flyers from previous local dates.
  */
 export function shouldMissCampaignSlot(row:Pick<CommunityJob,'scheduled_at'|'payload'>,now:Date):boolean{
   const at=Date.parse(row.scheduled_at);
   if(!Number.isFinite(at))return true;
-  if(row.payload.kind==='flyer'&&rdDay(new Date(at))===rdDay(now))return false;
+  if(row.payload.kind==='flyer')return rdDay(new Date(at))!==rdDay(now)||now.getTime()-at>2*60*60_000;
   return now.getTime()-at>90*60_000;
 }
 export class CommunityManager {
@@ -35,18 +37,18 @@ export class CommunityManager {
     const day=rdDay(new Date());
     return {
       settings,jobs,observations,growth:growthSummary(jobs,observations),
-      featuredCourse:catalog?featuredCourseForDate(catalog,day).title:null,
+      featuredCourse:catalog?catalog.courses.find(c=>courseFamily(c.title)==='authorizations')?.title||null:null,
       campaignMonth:day.slice(0,7),
       totalCatalogCourses:catalog?.courses.length||0,
       scope:'org_inteca_main',
       capabilities:{
-        flyers:'Una creatividad distinta cada día (fecha, diseño, titular y composición); reutilizada únicamente entre redes el mismo día',
+        flyers:'Dos flyers premium por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
         verticalVideo:'7 guiones diarios de reels con INTEQUITO; solo publicar videos cuando exista un MP4 revisado',
-        stories:'Se conserva el historial anterior; la nueva prioridad es 1 post + 7 reels + 1 video',
+        stories:'Calendario vigente: 2 flyers + 7 guiones de reels + 1 guion de video. Solo se publican videos MP4 realmente producidos y revisados',
         longVideo:'1 guion diario informativo/promocional, sujeto a producción y aprobación',
         communityReplies:'Ganchos y CTA al 809-643-5502; moderación y respuestas públicas requieren permisos',
         paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',
-        monthlyRotation:'Un solo curso protagonista por mes; todos los cursos del catálogo rotan sucesivamente',
+        monthlyRotation:'Curso fijo de Autorizaciones Médicas por la mañana y alternancia sin repeticiones consecutivas de los otros programas por la tarde',
         growth:'Ganchos educativos, preguntas, seguidores y conversaciones reales, sin interacciones artificiales',
         metrics:'Métricas disponibles de Facebook, Instagram y YouTube, sin estimar valores inexistentes',
         continuousOperation:'Sujeto a disponibilidad de Render, red social y almacenamiento; no garantiza 24/7 con infraestructura Free',
@@ -68,12 +70,12 @@ export class CommunityManager {
     const settings=await this.settings();if(!settings)throw Error('CM_SETTINGS');
     const catalog=await this.catalog.get();if(!catalog)throw Error('CM_CATALOG');
     const now=new Date(),today=rdDay(now);
-    // Calendar v4 migration must land before the new jobs can replace queued v3 slots.
+    // Calendar v5 migration must land before the 9am/5pm plan supersedes unposted v4 tasks.
     let record:any;
     try{record=(await this.store.request('crm_community_calendar_state?id=eq.inteca&limit=1'))?.[0];}
     catch{if(settings.plan_started_at)return;throw Error('CM_CALENDAR_MIGRATION_MISSING');}
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v4')return;
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v5')return;
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
     const jobs=planMonth(catalog,today).map(item=>{
       const incomplete=item.payload.kind==='flyer'&&
@@ -82,7 +84,8 @@ export class CommunityManager {
         ...item,
         state:incomplete?'blocked':
           ['short','promo_video','long_brief'].includes(item.payload.kind)?'brief':
-          item.payload.kind==='flyer'&&item.payload.editorialDate===today?'queued':
+          item.payload.kind==='flyer'?
+            (shouldMissCampaignSlot(item,new Date())?'missed':'queued'):
           new Date(item.scheduled_at)<now?'missed':'queued',
         ...(incomplete?{last_error:'CM_FLYER_PRICE_OR_CONTENT_MISSING'}:{}),
         content_hash:contentHash(item.payload),
@@ -97,9 +100,9 @@ export class CommunityManager {
     const rows=await this.store.request(`crm_community_jobs?id=eq.${id}&state=eq.blocked`);
     if(!rows.length)throw Error('CM_STATE');
     const candidate=rows[0] as CommunityJob;
-    if(!candidate.slot.startsWith('v4:')||candidate.result?.id||candidate.result?.containerId)
+    if(!candidate.slot.startsWith('v5:')||candidate.result?.id||candidate.result?.containerId)
       throw Error('CM_LEGACY_OR_UNCERTAIN');
-    if(Date.now()-Date.parse(candidate.scheduled_at)>90*60_000)
+    if(shouldMissCampaignSlot(candidate,new Date()))
       throw Error('CM_SLOT_MISSED');
     const settings=await this.settings();if(!settings.enabled)throw Error('CM_PAUSED');
     await this.store.request(`crm_community_jobs?id=eq.${id}&state=eq.blocked`,'PATCH',{state:'queued',last_error:null,scheduled_at:new Date().toISOString(),updated_at:new Date().toISOString()});
@@ -128,9 +131,24 @@ export class CommunityManager {
           const catalog=await this.catalog.get();if(!catalog||catalog.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
           const course=catalog.courses.find(c=>c.title===row.payload.courseTitle);
           if(!course||contentHash(row.payload)!==row.content_hash||hasDiscount(communityPublicCopy(row.payload))||hasUnlistedPrice(communityPublicCopy(row.payload),course.investment))throw Error('CM_CONTENT_REVIEW');
-          if(row.payload.kind==='flyer' && (!row.slot.startsWith('v4:')||
-             !row.payload.flyerOffer||!isPublishableFlyer(row.payload.flyerOffer)))
-            throw Error('CM_FLYER_PRICE_OR_CONTENT_MISSING');
+          if(row.payload.kind==='flyer'){
+            const slot=row.payload.editorialSlot;
+            const type=courseFamily(course.title);
+            if(!row.slot.startsWith('v5:')||!slot||
+               (slot==='morning'&&type!=='authorizations')||
+               (slot==='afternoon'&&type==='authorizations')||
+               !row.payload.flyerOffer||!isPublishableFlyer(row.payload.flyerOffer))
+               throw Error('CM_FLYER_COURSE_MISMATCH');
+            const expected=flyerOffer(course,row.payload.editorialDate||rdDay(new Date(row.scheduled_at)),
+              slot==='afternoon'?1:0);
+            const actual=row.payload.flyerOffer;
+            if(actual.course!==course.title||actual.family!==expected.family||
+               actual.focus!==expected.focus||actual.hook!==expected.hook||
+               actual.registration!==expected.registration||actual.monthly!==expected.monthly||
+               actual.duration!==expected.duration||
+               JSON.stringify(actual.benefits)!==JSON.stringify(expected.benefits))
+               throw Error('CM_FLYER_COURSE_MISMATCH');
+          }
           // Identity must be valid before generating or sending anything to this channel.
           phase='verify';
           await this.publisher.verify(row.channel);
