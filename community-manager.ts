@@ -43,9 +43,9 @@ export class CommunityManager {
       scope:'org_inteca_main',
       capabilities:{
         flyers:'Dos flyers premium por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
-        verticalVideo:'7 guiones diarios de reels con INTEQUITO; solo publicar videos cuando exista un MP4 revisado',
-        stories:'Calendario vigente: 2 flyers + 7 guiones de reels + 1 guion de video. Solo se publican videos MP4 realmente producidos y revisados',
-        longVideo:'1 guion diario informativo/promocional, sujeto a producción y aprobación',
+        verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
+        stories:'Calendario: 1 post con arte, 1 imagen promocional, 8 reels en Facebook e Instagram y 1 video diario en YouTube, sujeto a cuenta, permisos y archivo MP4 real',
+        longVideo:'1 video diario en YouTube mediante renderizado local (formato vertical breve); no se confunde el guion con un video publicado',
         communityReplies:'Ganchos y CTA al 809-643-5502; moderación y respuestas públicas requieren permisos',
         paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',
         monthlyRotation:'Curso fijo de Autorizaciones Médicas por la mañana y alternancia sin repeticiones consecutivas de los otros programas por la tarde',
@@ -77,14 +77,16 @@ export class CommunityManager {
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
     if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6')return;
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
+    const autoVideo=process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS==='true';
     const jobs=planMonth(catalog,today).map(item=>{
       const incomplete=item.payload.kind==='flyer'&&
         (!item.payload.flyerOffer||!isPublishableFlyer(item.payload.flyerOffer));
       return {
         ...item,
         state:incomplete?'blocked':
-          ['short','promo_video','long_brief'].includes(item.payload.kind)?'brief':
-          item.payload.kind==='flyer'?
+          item.payload.kind==='long_brief'?'brief':
+          (item.payload.kind==='short'||item.payload.kind==='promo_video')&&!autoVideo?'brief':
+          (item.payload.kind==='flyer'||item.payload.kind==='short'||item.payload.kind==='promo_video')?
             (Date.parse(item.scheduled_at)>now.getTime()?'queued':
               shouldMissCampaignSlot(item,now)?'missed':'queued'):
           new Date(item.scheduled_at)<now?'missed':'queued',
@@ -150,6 +152,8 @@ export class CommunityManager {
                JSON.stringify(actual.benefits)!==JSON.stringify(expected.benefits))
                throw Error('CM_FLYER_COURSE_MISMATCH');
           }
+          // Explicit opt-in is required before any autonomous local video is published.
+          if(['short','promo_video'].includes(row.payload.kind)&&process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS!=='true')throw Error('CM_VIDEO_AUTOPUBLISH_DISABLED');
           // Identity must be valid before generating or sending anything to this channel.
           phase='verify';
           await this.publisher.verify(row.channel);
@@ -164,7 +168,7 @@ export class CommunityManager {
             // Reuse already produced media for the same original piece across platforms.
             const siblings=await this.store.request(`crm_community_jobs?payload->>assetKey=eq.${row.payload.assetKey}&media_url=not.is.null&limit=1`);
             mediaUrl=siblings[0]?.media_url||null;
-            if(!mediaUrl){const video=row.payload.kind==='short';const bytes=video?await renderCommunityVideo(row.payload):await renderCommunityImage(row.payload);phase='storage';mediaUrl=await storeCommunityAsset(row.payload.assetKey,bytes,video);}
+            if(!mediaUrl){const video=row.payload.kind==='short'||row.payload.kind==='promo_video';const bytes=video?await renderCommunityVideo(row.payload):await renderCommunityImage(row.payload);phase='storage';mediaUrl=await storeCommunityAsset(row.payload.assetKey,bytes,video);}
             await this.update(row.id,{media_url:mediaUrl});
           }
           const active=await this.settings();if(!active.enabled||sha(active.destinations)!==sha(settings.destinations))throw Error('CM_PAUSED');
