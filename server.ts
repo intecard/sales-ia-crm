@@ -1594,7 +1594,7 @@ app.get('/api/advertising/activation-audit',async(req,res)=>{
       payments:{
         preferredProvider:g?.preferredProvider||'unselected',merchantStatus:g?.merchantStatus||'contract_pending',
         sandboxCertified:g?.sandboxCertified===true,productionCertified:g?.productionCertified===true,
-        linkInfrastructureReady:g?.linkInfrastructureReady===true,checkoutAvailable:g?.checkoutAvailable===true,
+        linkInfrastructureReady:g?.linkInfrastructureReady===true,checkoutAvailable:Boolean(g?.checkoutAvailable),
       },
       campus:{
         verified:ca?.verified===true,authReady:ca?.authReady===true,databaseReady:ca?.databaseReady===true,
