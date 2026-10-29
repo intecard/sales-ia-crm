@@ -73,9 +73,9 @@ test('Premium posters are 1080×1350 with different program-specific pixels and 
  }
  assert.equal(seen.size,4);
 });
-test('Seven topical INTEQUITO reel briefs are valuable and not falsely presented as published MP4s',()=>{
+test('Eight topical INTEQUITO reel plans are not falsely presented as published MP4s',()=>{
  const jobs=planMonth(catalog,'2026-10-29').filter(j=>j.channel==='instagram'&&j.payload.kind==='short'&&j.payload.editorialDate==='2026-10-29');
- assert.equal(jobs.length,7);
+ assert.equal(jobs.length,8);
  for(const j of jobs){
   assert.equal(j.payload.script?.actor,'INTEQUITO');
   assert.equal(j.payload.script?.state,'guion_pendiente_de_render_3d');
