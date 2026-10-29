@@ -70,12 +70,12 @@ export class CommunityManager {
     const settings=await this.settings();if(!settings)throw Error('CM_SETTINGS');
     const catalog=await this.catalog.get();if(!catalog)throw Error('CM_CATALOG');
     const now=new Date(),today=rdDay(now);
-    // Calendar v5 migration must land before the 9am/5pm plan supersedes unposted v4 tasks.
+    // Calendar v6 migration must land before the 9am/5pm plan supersedes unposted v4 tasks.
     let record:any;
     try{record=(await this.store.request('crm_community_calendar_state?id=eq.inteca&limit=1'))?.[0];}
     catch{if(settings.plan_started_at)return;throw Error('CM_CALENDAR_MIGRATION_MISSING');}
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v5')return;
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6')return;
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
     const jobs=planMonth(catalog,today).map(item=>{
       const incomplete=item.payload.kind==='flyer'&&
@@ -101,7 +101,7 @@ export class CommunityManager {
     const rows=await this.store.request(`crm_community_jobs?id=eq.${id}&state=eq.blocked`);
     if(!rows.length)throw Error('CM_STATE');
     const candidate=rows[0] as CommunityJob;
-    if(!candidate.slot.startsWith('v5:')||candidate.result?.id||candidate.result?.containerId)
+    if(!candidate.slot.startsWith('v6:')||candidate.result?.id||candidate.result?.containerId)
       throw Error('CM_LEGACY_OR_UNCERTAIN');
     if(shouldMissCampaignSlot(candidate,new Date()))
       throw Error('CM_SLOT_MISSED');
@@ -135,7 +135,7 @@ export class CommunityManager {
           if(row.payload.kind==='flyer'){
             const slot=row.payload.editorialSlot;
             const type=courseFamily(course.title);
-            if(!row.slot.startsWith('v5:')||!slot||
+            if(!row.slot.startsWith('v6:')||!slot||
                (slot==='morning'&&type!=='authorizations')||
                (slot==='afternoon'&&type==='authorizations')||
                !row.payload.flyerOffer||!isPublishableFlyer(row.payload.flyerOffer))
@@ -154,10 +154,10 @@ export class CommunityManager {
           phase='verify';
           await this.publisher.verify(row.channel);
           const locks=await this.store.request(`crm_community_jobs?id=eq.${row.id}&state=eq.queued`,'PATCH',{state:'preparing',updated_at:new Date().toISOString()});if(!locks.length)continue;claimed=true;
-          // Preserve the reviewed v5 payload exactly. Earlier automatic
+          // Preserve the reviewed v6 payload exactly. Earlier automatic
           // rewrites could silently reset afternoon variant 1 to morning 0
           // because slot.split(':')[2] is the literal kind, not the variant.
-          // Every change of catalog or contents requires a fresh v5 plan.
+          // Every change of catalog or contents requires a fresh v6 plan.
           phase='render';
           let mediaUrl=row.media_url;
           if(!mediaUrl){

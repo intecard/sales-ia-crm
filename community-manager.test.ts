@@ -20,10 +20,10 @@ test('single-course catalog still schedules a safe daily TAM poster plus video b
 function harness(fail=false){
  const payload=makeContent(catalog.courses[0],catalog,rdDay(new Date()),'flyer',0);
  const settings={enabled:true,plan_started_at:'started',destinations:{facebook:'111'}};
- const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v5:test',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
+ const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
  const store={request:async(resource:string,method='GET',body?:any)=>{
   if(resource.startsWith('crm_community_calendar_state'))return [{
-    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v5'
+    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v6'
   }];
   if(resource.startsWith('crm_community_settings')){if(method==='PATCH')Object.assign(settings,body);return [structuredClone(settings)];}
   const q=new URLSearchParams(resource.split('?')[1]);
@@ -45,7 +45,7 @@ test('pause, changed catalogue and changed destination prevent publication',asyn
  for(const change of ['pause','catalog','destination']){const h=harness();if(change==='pause')h.settings.enabled=false;if(change==='catalog')h.row.payload.catalogHash='changed';if(change==='destination')h.settings.destinations.facebook='other';await h.create().tick();assert.equal(h.publishes(),0);}
 });
 
-test('30-day v5 RPC only marks expired TODAY missed; all future 9am/5pm flyers remain queued',async()=>{
+test('30-day v6 RPC only marks expired TODAY missed; all future 9am/5pm flyers remain queued',async()=>{
  const pair:Catalog={...catalog,courses:[...catalog.courses,{
    title:'Técnico en Atención al Usuario/Paciente',
    text:'Atención al paciente, comunicación efectiva, empatía, orientación al afiliado.',

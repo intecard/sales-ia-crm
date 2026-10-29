@@ -60,12 +60,12 @@ test('only an exact TAM family may become the morning course (not the Master)',(
  assert.equal(morningAuthorizationsCourse(reversed)?.title,courses[0].title);
  assert.notEqual(afternoonCourseForDate(reversed,'2026-10-28')?.title,courses[0].title);
 });
-test('v5 media fingerprints are unique for date and afternoon/morning; network photos optional',async()=>{
+test('v6 media fingerprints are unique for date and afternoon/morning; network photos optional',async()=>{
  const items=planMonth(catalog,'2026-10-28')
   .filter(x=>x.channel==='instagram'&&x.payload.kind==='flyer').slice(0,4);
  const hashes:string[]=[];
  for(const item of items){
-  assert.ok(item.slot.startsWith('v5:'));
+  assert.ok(item.slot.startsWith('v6:'));
   const bytes=await renderCommunityImage(item.payload,undefined,'/missing/inteca-assets');
   assert.equal(bytes[0],255);assert.equal(bytes[1],216);
   hashes.push(fingerprint(bytes));

@@ -1,4 +1,4 @@
-# INTECA: operación de publicaciones orgánicas premium v5
+# INTECA: operación de publicaciones orgánicas premium v6
 
 ## Calendario, hora República Dominicana (UTC-4)
 
@@ -29,7 +29,7 @@ El plan programa 30 días, con hasta 840 trabajos (incluye duplicación por cana
 
 ## Continuidad y protección
 
-- Planificador v5 con slots por separado de 9:00 a. m. y 5:00 p. m.; no vuelve a publicar piezas anteriores verificadas.
+- Planificador v6 con slots por separado de 9:00 a. m. y 5:00 p. m.; no vuelve a publicar piezas anteriores verificadas.
 - GitHub Actions despierta Render Free a las 09:07, 10:07, 17:07 y 18:07 RD. Los cron gratuitos pueden retrasarse.
 - Hasta 2 horas de tolerancia para el flyer correspondiente; no publicar por error a medianoche piezas vencidas.
 - Estados reales: published con URL es publicación comprobada; queued es pendiente; blocked exige corregir datos; review_required exige reconciliar resultado incierto.
@@ -44,4 +44,4 @@ El plan programa 30 días, con hasta 840 trabajos (incluye duplicación por cana
 
 ## Pruebas antes de desplegar
 
-Revisar que GitHub Actions apruebe compilación, coherencia de TAM vs servicio al usuario, rotación sin repeticiones, programación futura, originalidad de JPEG y controles contra la sustitución de temario. Aplicar migración v5 en Supabase y verificar la tabla de trabajos.
+Revisar que GitHub Actions apruebe compilación, coherencia de TAM vs servicio al usuario, rotación sin repeticiones, programación futura, originalidad de JPEG y controles contra la sustitución de temario. Aplicar migración v6 en Supabase y verificar la tabla de trabajos.

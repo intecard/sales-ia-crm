@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Catalog, CatalogCourse } from './whatsapp-catalog.ts';
 import { intequitoScript, INTEQUITO, type Script } from './intequito-studio.ts';
-import { flyerOffer, type FlyerOffer } from './community-flyer-offer.ts';
+import { flyerOffer, isPublishableFlyer, type FlyerOffer } from './community-flyer-offer.ts';
 import { courseFamily } from './community-course-topics.ts';
 export const SOCIAL_CHANNELS = ['facebook','instagram','youtube'] as const;
 export type SocialChannel = typeof SOCIAL_CHANNELS[number];
@@ -54,12 +54,12 @@ export const morningAuthorizationsCourse=(catalog:Catalog):CatalogCourse|null=>
  */
 export function afternoonCourseForDate(catalog:Catalog,date:string):CatalogCourse|null{
   const morning=morningAuthorizationsCourse(catalog);
-  const others=catalog.courses.filter(c=>c.title!==morning?.title);
+  const others=catalog.courses.filter(c=>c.title!==morning?.title&&isPublishableFlyer(flyerOffer(c,date,1)));
   if(!others.length)return null;
   const day=Math.floor(Date.parse(date+'T12:00:00Z')/86400000);
   if(!Number.isFinite(day))throw Error('CM_DATE_OR_CATALOG');
   const cycle=Math.floor(day/others.length);
-  const sorted=(cy:number)=>others.map(course=>({course,weight:sha(['inteca-afternoon-v5',cy,course.title])}))
+  const sorted=(cy:number)=>others.map(course=>({course,weight:sha(['inteca-afternoon-v6',cy,course.title])}))
     .sort((a,b)=>a.weight.localeCompare(b.weight)).map(o=>o.course);
   const ordered=sorted(cycle);
   if(others.length>1&&cycle!==0&&ordered[0].title===sorted(cycle-1).at(-1)?.title)
@@ -129,7 +129,7 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
   const editorialSlot:CommunityPayload['editorialSlot']=
     kind==='flyer'?(variant===0?'morning':'afternoon'):undefined;
   return {title:title.slice(0,95),caption,courseTitle:course.title,kind,pillar,slides,
-    assetKey:sha(['inteca-premium-v5',date,course.title,kind,variant,catalog.hash]).slice(0,32),
+    assetKey:sha(['inteca-premium-v6',date,course.title,kind,variant,catalog.hash]).slice(0,32),
     catalogHash:catalog.hash,editorialDate:date,campaignMonth:editorialMonth(date),
     designSeed:editorialNumber*37+variant*111,
     ...(editorialSlot?{editorialSlot}:{}),
@@ -166,7 +166,7 @@ export function planMonth(catalog:Catalog,start:string){
      const payload=makeContent(course,catalog,d,kind,variant);
      const channels:SocialChannel[]=kind==='flyer'?['facebook','instagram']:[...SOCIAL_CHANNELS];
      for(const channel of channels)result.push({
-       slot:'v5:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12),
+       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12),
        channel,
        scheduled_at:new Date(
          d+'T'+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00-04:00'
