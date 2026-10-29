@@ -54,6 +54,7 @@ const newItem = (tax: FiscalCompany['defaultTax']) => ({
 export function FiscalWorkspace({ organization }: { organization: { id: string; name: string } }) {
   const base = `/api/fiscal/${encodeURIComponent(organization.id)}`;
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
+    [onboarding, setOnboarding] = useState<{tax_id: string; registration_verification: string; e_cf_authorization: string; emission_enabled: boolean} | null>(null),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false),
@@ -140,6 +141,17 @@ export function FiscalWorkspace({ organization }: { organization: { id: string; 
               : data.company.profile.enabledTypes[0],
           );
           setItems([newItem(data.company.profile.defaultTax)]);
+        } else {
+          // Preserve user-declared, unverified RNC without fabricating a complete fiscal profile.
+          void api<{ tax_id: string; registration_verification: string; e_cf_authorization: string; emission_enabled: boolean } | null>('/onboarding')
+            .then((draft) => {
+              if (!active || !draft) return;
+              setOnboarding(draft);
+              setProfile((current) => ({ ...current, taxId: draft.tax_id }));
+            })
+            .catch((e) => {
+              if (active) setError('No se pudo recuperar el RNC preliminar: ' + (e as Error).message);
+            });
         }
       })
       .catch((e) => {
@@ -239,6 +251,13 @@ export function FiscalWorkspace({ organization }: { organization: { id: string; 
       )}
       <details open className="rounded-xl border border-slate-700 bg-slate-900 p-4">
         <summary className="font-bold cursor-pointer">1. Perfil fiscal del emisor</summary>
+        {onboarding && !snapshot?.company && (
+          <p role="status" className="mt-3 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-100">
+            RNC declarado {onboarding.tax_id} guardado como preparación preliminar. 
+            No se ha verificado la razón social, el estado del contribuyente ni la autorización e-CF ante la DGII.
+            La emisión oficial sigue deshabilitada. Completa los datos fiscales verificados antes de guardar el perfil.
+          </p>
+        )}
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           {(
             [
