@@ -1483,6 +1483,7 @@ export function App() {
 
             {activeTab === 'operations' && (
               <AutonomousGrowthOps
+                organization={currentOrg}
                 integrations={EXTERNAL_INTEGRATIONS_READINESS}
                 creativeAssets={creativeAssets}
                 launchPlans={launchPlans}

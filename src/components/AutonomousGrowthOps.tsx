@@ -45,7 +45,9 @@ type OperationalReadiness={
  };
  mediaReadVerified:{facebook:boolean;instagram:boolean;youtube:boolean};
 };
+type ActivationAudit={checkedAt:string;allOperational:boolean;checks:Array<{id:string;name:string;state:'ready'|'partial'|'blocked'|'unverified';reason:string;facts:string[];nextActions:string[];verifiedAt:string}>;};
 interface AutonomousGrowthOpsProps {
+ organization:{id:string;name:string};
   integrations: ExternalIntegration[];
   creativeAssets: CreativeAsset[];
   launchPlans: LaunchCampaignPlan[];
@@ -73,6 +75,7 @@ const priorityTone = (priority: OwnerActionNotification['priority']) => {
 };
 
 export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
+  organization,
   integrations,
   creativeAssets,
   launchPlans,
@@ -91,6 +94,25 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
   const [readStates,setReadStates]=useState<Record<string,string>>({});
   const [checkError,setCheckError]=useState('');
   const [operational,setOperational]=useState<OperationalReadiness|null>(null);
+ const [activation,setActivation]=useState<ActivationAudit|null>(null);
+ const [activationError,setActivationError]=useState('');
+ const [flyerTest,setFlyerTest]=useState<{ok:boolean;message:string}|null>(null);
+ const [flyerTesting,setFlyerTesting]=useState(false);
+ const tryFlyer=async()=>{
+   setFlyerTesting(true);setFlyerTest(null);
+   try{
+     const r=await fetch('/api/advertising/community/diagnostics/test',{
+       method:'POST',headers:{'X-CRM-Action':'advertising'},cache:'no-store'});
+     const d=await r.json();
+     if(!r.ok)throw Error(d.error||'CM_DIAGNOSTIC_FAILED');
+     if(!d.media?.stored||!(d.media?.imageBytes>1000))
+       throw Error('El servidor no confirmó render y almacenamiento.');
+     const verified=Object.entries(d.channels||{}).map(([k,v]:any)=>
+       k+': '+(v?.ok?'cuenta verificada':v?.code||'sin verificar')).join(' · ');
+     setFlyerTest({ok:true,message:'JPEG creado y guardado sin publicar. '+verified});
+   }catch(e){setFlyerTest({ok:false,message:(e as Error).message+'. No se realizó publicación.'});}
+   finally{setFlyerTesting(false);}
+ };
   const refresh=async(signal?:AbortSignal)=>{
     const r=await fetch('/api/integrations/status',{cache:'no-store',signal});
     if(!r.ok)throw Error('No se pudo consultar la configuración real del CRM.');
@@ -105,6 +127,13 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
       }else if(!signal?.aborted)setOperational(null);
     }catch{if(!signal?.aborted)setOperational(null);}
     try{
+      const response=await fetch('/api/advertising/activation-audit?org='+encodeURIComponent(organization.id),{cache:'no-store',signal});
+      if(!response.ok)throw Error('No se pudo verificar el estado operativo de las integraciones.');
+      const detail=await response.json();
+      if(!Array.isArray(detail.checks)||detail.checks.length!==5)throw Error('Diagnóstico de integraciones incompleto.');
+      if(!signal?.aborted){setActivation(detail);setActivationError('');}
+    }catch(e){if(!signal?.aborted){setActivation(null);setActivationError((e as Error).message);}}
+    try{
       const a=await fetch('/api/advertising/shared-connections',{cache:'no-store',signal});
       if(a.ok){
         const state=await a.json();
@@ -116,7 +145,7 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
     const controller=new AbortController();
     void refresh(controller.signal).catch(e=>{if(!controller.signal.aborted)setCheckError(e.message);});
     return ()=>controller.abort();
-  },[]);
+  },[organization.id]);
   const runtimeFor=(id:string)=>runtimeStatus?.groups.find(x=>x.id===id);
   const dynamicStatus=(item:ExternalIntegration)=>{
     const env=runtimeFor(item.id);
@@ -199,6 +228,38 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
         {checkError&&<p className="text-amber-300">{checkError}</p>}
         <p className="text-xs text-slate-400">Esta vista no valida cobros, facturación electrónica ni publicación; las integraciones que requieren tarjetas, certificados o proveedores deben conectarse y probarse en sus plataformas correspondientes.</p>
       </div>
+      <section className="rounded-xl border border-cyan-800 bg-slate-900 p-4 space-y-3 text-sm text-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-base text-white">Activación real de servicios · Verificación segura</h2>
+            <p className="text-xs text-slate-300 mt-1">Distingue código instalado, autenticación real, contratación externa y operaciones probadas. Ninguna comprobación crea cargos, matrículas ni facturas fiscales.</p>
+          </div>
+          <button type="button" className="rounded border border-cyan-500 px-3 py-2 text-cyan-200" onClick={()=>void refresh().catch(e=>setCheckError(e.message))}>Comprobar las 5 integraciones</button>
+          <button type="button" disabled={flyerTesting} className="rounded border border-emerald-700 px-3 py-2 text-emerald-200 disabled:opacity-50" onClick={()=>void tryFlyer()}>{flyerTesting?'Ejecutando prueba sin publicar...':'Probar flyer y almacenamiento'}</button>
+        </div>
+        {flyerTest&&<p role="status" className={flyerTest.ok?'rounded bg-emerald-950 text-emerald-200 p-3 text-xs':'rounded bg-rose-950 text-rose-200 p-3 text-xs'}>{flyerTest.message}</p>}
+        {activationError&&<p role="alert" className="rounded bg-amber-950 p-3 text-amber-200 text-xs">{activationError} No se declara ninguna conexión como lista sin evidencia.</p>}
+        {activation?.checkedAt&&<p className="text-xs text-slate-400">Verificación: {new Date(activation.checkedAt).toLocaleString('es-DO')} · {activation.allOperational?'Las cinco comprobaciones operativas están listas':'Hay servicios pendientes; abre cada diagnóstico'}</p>}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {activation?.checks.map(check=><article key={check.id} className="rounded-lg bg-slate-950 border border-slate-700 p-3 space-y-2">
+            <div className="flex flex-wrap justify-between gap-2 items-start">
+              <h3 className="font-bold text-white">{check.name}</h3>
+              <span className={check.state==='ready'?'text-emerald-300':check.state==='partial'?'text-amber-300':'text-rose-300'}>
+                {check.state==='ready'?'Prueba verificada':check.state==='partial'?'Preparación parcial':check.state==='blocked'?'Bloqueado':'Sin comprobar'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-300">{check.reason}</p>
+            <ul className="text-xs text-slate-400 list-disc pl-4 space-y-1">{check.facts.map(f=><li key={f}>{f}</li>)}</ul>
+            <details>
+              <summary className="cursor-pointer text-cyan-300 text-xs font-semibold">Acciones para habilitarlo</summary>
+              <ol className="list-decimal pl-4 mt-2 text-xs text-slate-200 space-y-1">{check.nextActions.map((action,i)=><li key={i}>{action}</li>)}</ol>
+            </details>
+          </article>)}
+        </div>
+        {!activation&&!activationError&&<p className="text-xs text-slate-400">Consultando Firebase, Supabase, almacenamiento y estado de pasarelas.</p>}
+        <p className="text-xs text-slate-400">«Variables presentes» en la lista inferior confirma únicamente configuración, no permisos de API ni transacciones reales.</p>
+      </section>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
           {
