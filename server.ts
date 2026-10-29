@@ -9,6 +9,7 @@ import { GatewayPrecontract } from './payment-gateway-precontract';
 import { gatewayAdminRouter, gatewayPublicRouter } from './payment-gateway-routes';
 import { LocalVideoEngine } from './local-video-engine';
 import { integratedReadiness } from './advertising-operational-readiness';
+import {activationAudit} from './integration-activation-audit';
 import { localVideoAdminRouter, localVideoWorkerRouter } from './local-video-routes';
 import { IntequitoVideoProvider } from './intequito-video-provider';
 import { HeyGenVideoProvider } from './heygen-video-provider';
@@ -1548,6 +1549,84 @@ app.get('/api/advertising/operational-readiness',async(_req,res)=>{
     return res.status(503).json({error:'No fue posible comprobar las integraciones. Inténtalo de nuevo sin modificar credenciales.'});
   }
 });
+// Read-only evidence audit for ALL five modules on the Operations screen.
+// Requires the existing CRM administrator cookie (advertising router middleware).
+// Never returns payment credentials, tax ID, Firebase user data or raw secrets.
+app.get('/api/advertising/activation-audit',async(_req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try {
+    const timeout=<T>(promise:Promise<T>,ms:number):Promise<T>=>
+      Promise.race([promise,new Promise<T>((_,reject)=>setTimeout(()=>reject(new Error('CHECK_TIMEOUT')),ms))]);
+    const [gateway,campus,local,runway,creative,mappings,enrollments,profiles]=await Promise.allSettled([
+      gatewayPrecontract.status(),
+      timeout(enrollmentAgent.campusReadiness(),10_000),
+      localVideoEngine.status(),
+      intequitoVideoProvider.status(),
+      communityDiagnostics.config(),
+      salesStore.request('crm_campus_course_mapping?select=course_title&limit=1000'),
+      salesStore.request('crm_student_enrollments?select=id&limit=1000'),
+      salesStore.request('crm_fiscal_companies?select=organization_id&limit=1000'),
+    ]);
+    const val=<T>(r:PromiseSettledResult<T>,fallback:T):T=>r.status==='fulfilled'?r.value:fallback;
+    const g=val(gateway,{
+      preferredProvider:'unselected',merchantStatus:'contract_pending',
+      productionCertified:false,sandboxCertified:false,
+      linkInfrastructureReady:false,checkoutAvailable:false,
+    });
+    const ca=val(campus,{
+      verified:false,authReady:false,databaseReady:false,courseCount:0,
+      readyForEnrollment:false,campusSyncEnabled:false,errorCode:'CAMPUS_CHECK_UNAVAILABLE',
+    });
+    const lo=val(local,{
+      readyForProduction:false,workerConnected:false,referencePresent:false,
+      storageReady:false,autoEnabled:false,
+    });
+    const ru=val(runway,{renderReady:false});
+    const im=val(creative,{storageStatus:'unreachable',assets:{logo:false}});
+    const profileRows=val(profiles,[] as any[]);
+    const result=activationAudit({
+      flyers:{
+        configured:Boolean(im.assets?.logo&&im.storageStatus==='available'),
+        renderTestVerified:false,
+      },
+      videos:{
+        heygen:{ready:heygenVideoProvider.status().ready},
+        runway:{renderReady:ru.renderReady},
+        local:{
+          readyForProduction:lo.readyForProduction,workerConnected:lo.workerConnected,
+          referencePresent:lo.referencePresent,storageReady:lo.storageReady,
+          autoEnabled:lo.autoEnabled,
+        },
+      },
+      payments:{
+        preferredProvider:g.preferredProvider,merchantStatus:g.merchantStatus,
+        sandboxCertified:g.sandboxCertified,productionCertified:g.productionCertified,
+        linkInfrastructureReady:g.linkInfrastructureReady,checkoutAvailable:g.checkoutAvailable,
+      },
+      campus:{
+        verified:ca.verified,authReady:ca.authReady,databaseReady:ca.databaseReady,
+        courseCount:ca.courseCount,readyForEnrollment:ca.readyForEnrollment,
+        campusSyncEnabled:ca.campusSyncEnabled,errorCode:ca.errorCode,
+      },
+      counts:{
+        courseMappings:val(mappings,[] as any[]).length,
+        enrollments:val(enrollments,[] as any[]).length,
+        fiscalProfiles:profileRows.length,
+      },
+      fiscal:{
+        companyProfilePresent:profileRows.length>0,
+        // No certified e-CF adapter or official authorization verification is
+        // implemented. These remain false even when a JSON environment key exists.
+        companyAuthorizationVerified:false,
+        emissionAdapterCertified:false,
+      },
+    });
+    return res.json(result);
+  }catch {
+    return res.status(503).json({error:'AUDIT_UNAVAILABLE',allOperational:false});
+  }
+});
+
 app.get('/api/advertising/shared-connections', async (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ scope: 'platform_owner', connections: await agentConnections.ensureFresh(), billingVerified: false, conversionsVerified: false });
