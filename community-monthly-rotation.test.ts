@@ -1,92 +1,86 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { featuredCourseForDate, planMonth, contentHash, type CommunityPayload } from './community-plan.ts';
-import { renderCommunityImage, editorialVisualSignature } from './community-media.ts';
-import { shouldMissCampaignSlot } from './community-manager.ts';
-import type { Catalog } from './whatsapp-catalog.ts';
-
-const course=(name:string)=>({
- title:name,text:'',duration:'4 meses',modality:'Virtual',schedule:'Sábados',
+import {createHash} from 'node:crypto';
+import {planMonth,contentHash,morningAuthorizationsCourse,afternoonCourseForDate,rdDay,type CommunityPayload} from './community-plan.ts';
+import {renderCommunityImage,editorialVisualSignature} from './community-media.ts';
+import {shouldMissCampaignSlot} from './community-manager.ts';
+import type {Catalog,CatalogCourse} from './whatsapp-catalog.ts';
+const create=(title:string,text:string,duration='4 meses'):CatalogCourse=>({
+ title,text,duration,modality:'Virtual',schedule:'Sábados',
  investment:'Inscripción RD$2,500; mensualidad RD$2,000',
- description:'Aprenderás procesos de autorizaciones médicas y atención a los afiliados en servicios de salud.',
+ description:'Programa especializado del Instituto Técnico del Caribe.',
 });
-const courses=Array.from({length:14},(_,i)=>course('Programa técnico INTECA '+(i+1)));
+const courses=[
+ create('Técnico en Oficial de Autorizaciones Médicas','Ley 87-01, PDSS, CIE-10, procesos de autorizaciones médicas.', '5 meses'),
+ create('Técnico en Pre-Certificaciones Médicas','Pre-certificación, documentación, cobertura, procedimientos y PDSS.'),
+ create('Técnico en Atención al Usuario/Paciente','Atención al usuario y paciente, empatía y comunicación efectiva.'),
+ create('Farmacología Aplicada para Visitadores Médicos','Fundamentos de farmacología, medicamentos, visita médica y farmacovigilancia.'),
+ create('Auxiliar de Enfermería','Enfermería, signos vitales, bioseguridad y cuidado del paciente.','12 meses'),
+ create('Promotor de Seguros de Salud','Promotor de seguros de salud, afiliación, coberturas y Ley 87-01.'),
+ create('Promotor de Salud','Promoción de salud, prevención, educación y comunidad.'),
+ create('Máster en Oficial de Autorizaciones Médicas','Procesos de autorizaciones, PDSS, codificación CIE-10 y hospitalización.','12 meses'),
+];
 const catalog:Catalog={text:'source',hash:'a'.repeat(64),generalSchedule:'Un día por semana',specialSchedules:[],payments:'',courses};
-const cryptoHash=(data:Buffer)=>createHash('sha256').update(data).digest('hex');
+const fingerprint=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex');
 
-test('one course per calendar month, rotating through ALL 14 without truncating after 12',()=>{
- const seen=new Set<string>();
- for(let i=0;i<14;i++){
-   const d=new Date(Date.UTC(2026,9+i,15)).toISOString().slice(0,10);
-   seen.add(featuredCourseForDate(catalog,d).title);
- }
- assert.equal(seen.size,14);
- assert.equal(featuredCourseForDate(catalog,'2027-12-01').title,courses[0].title);
-});
-test('one daily poster with 7 reels and a longer video; same course across all 9 daily creatives',()=>{
+test('fixed 9 AM authorizations and rotating 5 PM non-TAM course every date, 30 days',()=>{
  const jobs=planMonth(catalog,'2026-10-27');
- assert.equal(jobs.length,30*(2+7*3+3));
- const dates=new Set(jobs.map(j=>j.payload.editorialDate));
- assert.equal(dates.size,30);
+ assert.equal(jobs.length,30*(4+7*3+3));
+ assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
+ const dates=[...new Set(jobs.map(j=>j.payload.editorialDate))];
+ assert.equal(dates.length,30);
+ const afternoons:string[]=[];
  for(const date of dates){
-   const matching=jobs.filter(j=>j.payload.editorialDate===date);
-   assert.equal(matching.length,26);
-   assert.equal(matching.filter(j=>j.payload.kind==='flyer').length,2);
-   assert.equal(matching.filter(j=>j.payload.kind==='short').length,21);
-   assert.equal(matching.filter(j=>j.payload.kind==='promo_video').length,3);
-   assert.equal(new Set(matching.map(j=>j.payload.courseTitle)).size,1);
-   assert.equal(matching[0].payload.courseTitle,featuredCourseForDate(catalog,date!).title);
+  const daily=jobs.filter(j=>j.payload.editorialDate===date);
+  assert.equal(daily.length,28);
+  const flyers=daily.filter(j=>j.payload.kind==='flyer');
+  assert.equal(flyers.length,4);
+  assert.equal(daily.filter(j=>j.payload.kind==='short').length,21);
+  assert.equal(daily.filter(j=>j.payload.kind==='promo_video').length,3);
+  const mornings=flyers.filter(j=>j.payload.editorialSlot==='morning');
+  const afternoon=flyers.filter(j=>j.payload.editorialSlot==='afternoon');
+  assert.equal(mornings.length,2);
+  assert.equal(afternoon.length,2);
+  assert.equal(mornings[0].payload.courseTitle,courses[0].title);
+  assert.notEqual(afternoon[0].payload.courseTitle,courses[0].title);
+  afternoons.push(afternoon[0].payload.courseTitle);
+  assert.equal(mornings[0].scheduled_at,new Date(date+'T09:00:00-04:00').toISOString());
+  assert.equal(afternoon[0].scheduled_at,new Date(date+'T17:00:00-04:00').toISOString());
+  assert.equal(mornings[0].payload.assetKey,mornings[1].payload.assetKey);
+  assert.equal(afternoon[0].payload.assetKey,afternoon[1].payload.assetKey);
+  assert.notEqual(mornings[0].payload.assetKey,afternoon[0].payload.assetKey);
+  assert.notEqual(contentHash(mornings[0].payload),contentHash(afternoon[0].payload));
+  assert.ok(mornings.every(j=>j.payload.flyerOffer!.duration==='5 meses'));
  }
- assert.equal(featuredCourseForDate(catalog,'2026-10-31').title,courses[0].title);
- assert.equal(featuredCourseForDate(catalog,'2026-11-01').title,courses[1].title);
+ for(let i=1;i<afternoons.length;i++)assert.notEqual(afternoons[i],afternoons[i-1],'no consecutive repeats in afternoon');
+ assert.equal(new Set(afternoons).size,courses.length-1);
 });
-test('unique media fingerprint for every date, preserving shared same-day flyer across channels',()=>{
- const jobs=planMonth(catalog,'2026-10-27').filter(j=>j.payload.kind==='flyer');
- const byDate=new Map<string,CommunityPayload[]>();
- for(const j of jobs){
-   const d=j.payload.editorialDate!;
-   byDate.set(d,[...(byDate.get(d)||[]),j.payload]);
+test('only an exact TAM family may become the morning course (not the Master)',()=>{
+ const reversed:Catalog={...catalog,courses:[courses[7],...courses.slice(1,7),courses[0]]};
+ assert.equal(morningAuthorizationsCourse(reversed)?.title,courses[0].title);
+ assert.notEqual(afternoonCourseForDate(reversed,'2026-10-28')?.title,courses[0].title);
+});
+test('v5 media fingerprints are unique for date and afternoon/morning; network photos optional',async()=>{
+ const items=planMonth(catalog,'2026-10-28')
+  .filter(x=>x.channel==='instagram'&&x.payload.kind==='flyer').slice(0,4);
+ const hashes:string[]=[];
+ for(const item of items){
+  assert.ok(item.slot.startsWith('v5:'));
+  const bytes=await renderCommunityImage(item.payload,undefined,'/missing/inteca-assets');
+  assert.equal(bytes[0],255);assert.equal(bytes[1],216);
+  hashes.push(fingerprint(bytes));
+  assert.ok(editorialVisualSignature(item.payload).includes('2026-10-'));
  }
- const fingerprints=new Set<string>();
- for(const [date,posters] of byDate){
-   assert.equal(posters.length,2);
-   assert.equal(posters[0].assetKey,posters[1].assetKey);
-   const signature=editorialVisualSignature(posters[0]);
-   assert.ok(!fingerprints.has(signature),date);
-   fingerprints.add(signature);
-   assert.equal(posters[0].campaignMonth,date.slice(0,7));
-   assert.equal(contentHash(posters[0]),contentHash(posters[1]));
- }
- assert.equal(fingerprints.size,30);
+ assert.equal(new Set(hashes).size,4);
 });
-test('actual exported JPEG bytes differ by day even for same monthly course',async()=>{
- const list=planMonth(catalog,'2026-10-27').filter(j=>j.channel==='instagram'&&j.payload.kind==='flyer');
- const [oct27,oct28,nov1]=[list[0],list[1],list[5]];
- assert.equal(oct27.payload.courseTitle,oct28.payload.courseTitle);
- const a=await renderCommunityImage(oct27.payload);
- const b=await renderCommunityImage(oct28.payload);
- const c=await renderCommunityImage(nov1.payload);
- assert.equal(a[0],0xff);
- assert.equal(a[1],0xd8);
- assert.notEqual(cryptoHash(a),cryptoHash(b),'two dates may never render identical pixels');
- assert.notEqual(cryptoHash(b),cryptoHash(c));
-});
-
-test('flyer still renders without optional PNG mascot, stock photos or image files',async()=>{
- const sample=planMonth(catalog,'2026-10-28').find(j=>j.channel==='instagram'&&j.payload.kind==='flyer')!;
- const image=await renderCommunityImage(sample.payload,undefined,'/nonexistent/inteca-assets-unit-test');
- assert.equal(image[0],0xff);
- assert.equal(image[1],0xd8);
- assert.ok(image.length>8_000);
-});
-
-test('Render waking up late can publish the same-day flyer without replaying previous days',()=>{
- const now=new Date('2026-10-27T23:00:00-04:00');
- const flyer={scheduled_at:'2026-10-27T09:00:00-04:00',payload:{kind:'flyer'} as any};
- const previousDay={scheduled_at:'2026-10-26T09:00:00-04:00',payload:{kind:'flyer'} as any};
- const oldVideo={scheduled_at:'2026-10-27T10:00:00-04:00',payload:{kind:'short'} as any};
- assert.equal(shouldMissCampaignSlot(flyer,now),false);
- assert.equal(shouldMissCampaignSlot(previousDay,now),true);
- assert.equal(shouldMissCampaignSlot(oldVideo,now),true);
+test('Render waking after the scheduled post is allowed for 2 hours, never overnight',()=>{
+ const flyer={scheduled_at:'2026-10-27T09:00:00-04:00',payload:{kind:'flyer'} as CommunityPayload};
+ assert.equal(shouldMissCampaignSlot(flyer,new Date('2026-10-27T10:59:00-04:00')),false);
+ assert.equal(shouldMissCampaignSlot(flyer,new Date('2026-10-27T11:05:00-04:00')),true);
+ const afternoon={scheduled_at:'2026-10-27T17:00:00-04:00',payload:{kind:'flyer'} as CommunityPayload};
+ assert.equal(shouldMissCampaignSlot(afternoon,new Date('2026-10-27T18:15:00-04:00')),false);
+ assert.equal(shouldMissCampaignSlot(afternoon,new Date('2026-10-28T00:01:00-04:00')),true);
+ const oldReel={scheduled_at:'2026-10-27T10:00:00-04:00',payload:{kind:'short'} as CommunityPayload};
+ assert.equal(shouldMissCampaignSlot(oldReel,new Date('2026-10-27T13:00:00-04:00')),true);
+ assert.equal(rdDay(new Date('2026-10-28T02:00:00Z')),'2026-10-27');
 });

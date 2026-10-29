@@ -2,8 +2,8 @@ name: INTECA - Organic Daily Flyer Wake-up
 on:
   schedule:
     # Dominican Republic is UTC-4 year-round; 13:07 UTC = 09:07 RD.
-    # Additional checks mitigate Render Free sleeping or delayed scheduled runs.
-    - cron: "7 13,14,18,22 * * *"
+    # Checks 09:07/10:07 and 17:07/18:07 RD mitigate Render sleeping.
+    - cron: "7 13,14,21,22 * * *"
   workflow_dispatch:
 permissions:
   contents: read
