@@ -1166,8 +1166,8 @@ const AGENT_RUNTIME_REGISTRY = [
     function: 'Prepara reportes contables, conciliaciones, inventario, recibos y estados financieros.',
     requiredIntegrationIds: ['int_supabase_database'],
     optionalIntegrationIds: ['int_payments', 'int_dgii_ecf'],
-    executableTools: ['accounting.read_ledger', 'accounting.review_period', 'accounting.export_journal', 'accounting.prepare_tax_workpaper', 'bank.compare_book_balance'],
-    humanIntervention: 'Reporte definitivo, conciliación con diferencia, criterio fiscal o cierre contable.',
+    executableTools: ['accounting.read_ledger', 'accounting.review_period', 'accounting.export_journal', 'accounting.prepare_tax_workpaper', 'accounting.prepare_dgii_606_607_608_609_IT1_IR2_ACT_drafts', 'bank.compare_book_balance'],
+    humanIntervention: 'Confirmar RNC y obligaciones oficiales, completar NCF/retenciones/anexos, validar períodos en cero, conciliación, firma y presentación DGII. El agente solo guarda borradores internos.',
   },
   {
     id: 'agent_procurement_national',
