@@ -54,5 +54,5 @@ export function flyerOffer(course:CatalogCourse,date:string,variant=0):FlyerOffe
   };
 }
 export const isPublishableFlyer=(offer:FlyerOffer)=>{
-  return Boolean(offer.course&&offer.duration&&offer.registration&&offer.monthly&&offer.benefits.length&&offer.focus&&offer.hook&&offer.question);
+  return Boolean(offer.course&&offer.duration&&!/pendiente|por confirmar|sin definir|no establecido|consulta con/i.test(offer.duration)&&offer.registration&&offer.monthly&&offer.benefits.length&&offer.focus&&offer.hook&&offer.question);
 };
