@@ -73,7 +73,7 @@ export function TaxFormsWorkspace({organization,period}:{organization:{id:string
       <td>{f.latestDraft?.payload.state==='zero_candidate_requires_human_review'?'Cero: propuesta por verificar':f.latestDraft?'Borrador incompleto':'Sin preparar'}</td>
       <td className="flex gap-2 p-2">
        <button className={btn} disabled={busy} onClick={()=>{setSelected(f.form);void run([f.form]);}}>Preparar</button>
-       <button className="rounded border border-slate-500 px-2" onClick={()=>{setSelected(f.form);setCurrentDraft(null);}}>Ver</button>
+       <button className="rounded border border-slate-500 px-2" onClick={()=>{setSelected(f.form);}}>Ver</button>
       </td>
     </tr>)}
    </tbody></table>
