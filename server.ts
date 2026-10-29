@@ -1568,45 +1568,35 @@ app.get('/api/advertising/activation-audit',async(_req,res)=>{
       salesStore.request('crm_fiscal_companies?select=organization_id&limit=1000'),
     ]);
     const val=<T>(r:PromiseSettledResult<T>,fallback:T):T=>r.status==='fulfilled'?r.value:fallback;
-    const g=val(gateway,{
-      preferredProvider:'unselected',merchantStatus:'contract_pending',
-      productionCertified:false,sandboxCertified:false,
-      linkInfrastructureReady:false,checkoutAvailable:false,
-    });
-    const ca=val(campus,{
-      verified:false,authReady:false,databaseReady:false,courseCount:0,
-      readyForEnrollment:false,campusSyncEnabled:false,errorCode:'CAMPUS_CHECK_UNAVAILABLE',
-    });
-    const lo=val(local,{
-      readyForProduction:false,workerConnected:false,referencePresent:false,
-      storageReady:false,autoEnabled:false,
-    });
-    const ru=val(runway,{renderReady:false});
-    const im=val(creative,{storageStatus:'unreachable',assets:{logo:false}});
+    const g=gateway.status==='fulfilled'?gateway.value:null;
+    const ca=campus.status==='fulfilled'?campus.value:null;
+    const lo=local.status==='fulfilled'?local.value:null;
+    const ru=runway.status==='fulfilled'?runway.value:null;
+    const im=creative.status==='fulfilled'?creative.value:null;
     const profileRows=val(profiles,[] as any[]);
     const result=activationAudit({
       flyers:{
-        configured:Boolean(im.assets?.logo&&im.storageStatus==='available'),
+        configured:Boolean(im?.assets?.logo&&im?.storageStatus==='available'),
         renderTestVerified:false,
       },
       videos:{
         heygen:{ready:heygenVideoProvider.status().ready},
-        runway:{renderReady:ru.renderReady},
+        runway:{renderReady:ru?.renderReady===true},
         local:{
-          readyForProduction:lo.readyForProduction,workerConnected:lo.workerConnected,
-          referencePresent:lo.referencePresent,storageReady:lo.storageReady,
-          autoEnabled:lo.autoEnabled,
+          readyForProduction:lo?.readyForProduction===true,workerConnected:lo?.workerConnected===true,
+          referencePresent:lo?.referencePresent===true,storageReady:lo?.storageReady===true,
+          autoEnabled:lo?.autoEnabled===true,
         },
       },
       payments:{
-        preferredProvider:g.preferredProvider,merchantStatus:g.merchantStatus,
-        sandboxCertified:g.sandboxCertified,productionCertified:g.productionCertified,
-        linkInfrastructureReady:g.linkInfrastructureReady,checkoutAvailable:g.checkoutAvailable,
+        preferredProvider:g?.preferredProvider||'unselected',merchantStatus:g?.merchantStatus||'contract_pending',
+        sandboxCertified:g?.sandboxCertified===true,productionCertified:g?.productionCertified===true,
+        linkInfrastructureReady:g?.linkInfrastructureReady===true,checkoutAvailable:g?.checkoutAvailable===true,
       },
       campus:{
-        verified:ca.verified,authReady:ca.authReady,databaseReady:ca.databaseReady,
-        courseCount:ca.courseCount,readyForEnrollment:ca.readyForEnrollment,
-        campusSyncEnabled:ca.campusSyncEnabled,errorCode:ca.errorCode,
+        verified:ca?.verified===true,authReady:ca?.authReady===true,databaseReady:ca?.databaseReady===true,
+        courseCount:ca?.courseCount||0,readyForEnrollment:ca?.readyForEnrollment===true,
+        campusSyncEnabled:ca?.campusSyncEnabled===true,errorCode:ca?.errorCode||'CAMPUS_CHECK_UNAVAILABLE',
       },
       counts:{
         courseMappings:val(mappings,[] as any[]).length,
