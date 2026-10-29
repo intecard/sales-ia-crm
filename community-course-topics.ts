@@ -17,10 +17,10 @@ export function courseFamily(title:string):CourseFamily{
  const t=norm(title);
  if(/pre[\s-]?certific/.test(t))return 'precertification';
  if(/atencion al (?:usuario|paciente)/.test(t))return 'patient_service';
- if(/farmacologia|visitador/.test(t))return 'pharmacology';
+ if(/farmacologia|visitador|visita medica/.test(t))return 'pharmacology';
  if(/enfermer/.test(t))return 'nursing';
- if(/promotor.*segur/.test(t))return 'health_insurance_promoter';
- if(/promotor.*salud/.test(t))return 'health_promoter';
+ if(/promotor.*segur|promocion de seguros/.test(t))return 'health_insurance_promoter';
+ if(/promotor.*salud|promocion de salud/.test(t))return 'health_promoter';
  if(/master.*autoriz/.test(t))return 'master_authorizations';
  if(/autoriz/.test(t))return 'authorizations';
  if(/factur/.test(t))return 'medical_billing';
