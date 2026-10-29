@@ -44,3 +44,40 @@ test('uncertain external result is never retried automatically',async()=>{const 
 test('pause, changed catalogue and changed destination prevent publication',async()=>{
  for(const change of ['pause','catalog','destination']){const h=harness();if(change==='pause')h.settings.enabled=false;if(change==='catalog')h.row.payload.catalogHash='changed';if(change==='destination')h.settings.destinations.facebook='other';await h.create().tick();assert.equal(h.publishes(),0);}
 });
+
+test('30-day v5 RPC only marks expired TODAY missed; all future 9am/5pm flyers remain queued',async()=>{
+ const pair:Catalog={...catalog,courses:[...catalog.courses,{
+   title:'Técnico en Atención al Usuario/Paciente',
+   text:'Atención al paciente, comunicación efectiva, empatía, orientación al afiliado.',
+   duration:'4 meses',modality:'Virtual',
+   investment:'Inscripción RD$2,500; mensualidad RD$2,000',
+   schedule:'Sábados',description:'Formación en servicio al paciente',
+ }]};
+ let jobs:any[]=[];
+ const store={request:async(resource:string,method='GET',body?:any)=>{
+  if(resource.startsWith('crm_community_settings'))return[{id:'inteca',enabled:true,destinations:{facebook:'11',instagram:'22',youtube:'33'}}];
+  if(resource.startsWith('crm_community_calendar_state'))return[{id:'inteca',last_planned_day:null,catalog_hash:'',creative_version:'v4'}];
+  if(resource==='rpc/crm_community_roll_plan'){jobs=body.p_jobs;return 840;}
+  throw Error('TEST_UNEXPECTED_STORE_RESOURCE:'+resource);
+ }};
+ const publisher={destination:(x:string)=>({facebook:'11',instagram:'22',youtube:'33'} as any)[x]};
+ await new CommunityManager(store,{get:async()=>pair},publisher as any).plan();
+ assert.equal(jobs.length,840);
+ const today=rdDay(new Date());
+ const future=jobs.filter(j=>j.payload.kind==='flyer'&&j.payload.editorialDate>today);
+ assert.ok(future.length>=100);
+ assert.ok(future.every(j=>j.state==='queued'),'future flyers must NEVER be missed');
+ assert.ok(future.some(j=>j.payload.editorialSlot==='morning'));
+ assert.ok(future.some(j=>j.payload.editorialSlot==='afternoon'));
+ assert.ok(future.every(j=>j.content_hash===contentHash(j.payload)));
+});
+test('If an attacker recomputes the hash after substituting an unrelated course topic, publishing still fails closed',async()=>{
+ const h=harness();
+ h.row.payload.flyerOffer={...h.row.payload.flyerOffer,focus:'Atención al usuario y paciente',
+   benefits:['Atención al usuario y paciente','Comunicación efectiva']};
+ h.row.content_hash=contentHash(h.row.payload);
+ await h.create().tick();
+ assert.equal(h.publishes(),0);
+ assert.equal(h.row.state,'blocked');
+ assert.equal(h.row.last_error,'CM_FLYER_COURSE_MISMATCH');
+});
