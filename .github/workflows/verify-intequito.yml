@@ -19,6 +19,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Unit tests for providers and calendar
-        run: node --import tsx --test heygen-video-provider.test.ts community-manager.test.ts community-monthly-rotation.test.ts community-flyer-v4.test.ts advertising-operational-readiness.test.ts local-video-engine.test.ts intequito-reference-store.test.ts payment-gateway-precontract.test.ts enrollment-agent.test.ts
+        run: node --import tsx --test heygen-video-provider.test.ts community-manager.test.ts community-monthly-rotation.test.ts community-flyer-v4.test.ts community-educational-v5.test.ts advertising-operational-readiness.test.ts local-video-engine.test.ts intequito-reference-store.test.ts payment-gateway-precontract.test.ts enrollment-agent.test.ts
       - name: Test local GPU worker (no models downloaded)
         run: python3 -m unittest discover -s workers/intequito_local_video -p 'test_*.py'
