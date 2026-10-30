@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CommunityManager } from './community-manager.ts';
+import { CommunityManager, isCurrentCommunityJob } from './community-manager.ts';
 import { makeContent, planMonth, rdDay, sha, contentHash, communityPublicCopy } from './community-plan.ts';
 import { hasDiscount } from './advertising-agent.ts';
 import type { Catalog } from './whatsapp-catalog.ts';
 const catalog:Catalog={text:'official',hash:'official-hash',generalSchedule:'Un día por semana',specialSchedules:[],payments:'',courses:[{title:'Técnico en Oficial de Autorizaciones Médicas',text:'Ley 87-01, PDSS, CIE-10, procesos de autorizaciones médicas y cobertura',duration:'5 meses',modality:'Virtual',investment:'Inscripción RD$2,500 y mensualidad RD$2,000',schedule:'Sábados',description:'Aprende validación de coberturas y atención al afiliado.'}]};
 test('single-course catalog still schedules a safe daily TAM poster plus video briefs',()=>{
- const jobs=planMonth(catalog,'2026-10-25');assert.equal(jobs.length,570);assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
+ const jobs=planMonth(catalog,'2026-10-25');assert.equal(jobs.length,600);assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
  assert.equal(jobs.filter(j=>j.channel==='youtube'&&j.payload.kind==='promo_video').length,30);
+ assert.equal(jobs.filter(j=>j.channel==='youtube'&&j.payload.kind==='avatar_video').length,30,'One avatar script for every calendar day');
+ assert.equal(jobs.filter(j=>j.payload.kind==='avatar_video').every(j=>j.payload.script?.actor==='INTEQUITO'),true);
  assert.equal(jobs.filter(j=>j.channel==='instagram'&&j.payload.kind==='flyer').length,30);
  assert.equal(jobs.filter(j=>j.channel==='facebook'&&j.payload.kind==='short').length,240);
  assert.equal(jobs.filter(j=>j.payload.kind==='short').every(j=>j.payload.script?.actor==='INTEQUITO'),true);
@@ -36,6 +38,12 @@ function harness(fail=false){
  const create=()=>new CommunityManager(store,{get:async()=>catalog},publisher as any);
  return {row,settings,create,publishes:()=>publishes};
 }
+test('only canonical v6 jobs are displayed as current, not superseded drafts',()=>{
+ const sample=planMonth(catalog,'2028-01-01');
+ assert.ok(sample.every(j=>isCurrentCommunityJob(j as any)));
+ assert.equal(isCurrentCommunityJob({...sample[0],slot:'v5:'+sample[0].slot.slice(3)} as any),false);
+ assert.equal(isCurrentCommunityJob({...sample[0],slot:'v6:2028-01-01:short:0:facebook:old'} as any),false);
+});
 test('cross-process conditional claim sends a post only once',async()=>{const h=harness();await Promise.all([h.create().tick(),h.create().tick()]);assert.equal(h.publishes(),1);assert.equal(h.row.state,'published');});
 test('PostgreSQL jsonb key ordering preserves approval while altered content is rejected',async()=>{
  for(const tampered of [false,true]){const h=harness();h.row.payload=Object.fromEntries(Object.entries(h.row.payload).reverse());if(tampered)h.row.payload.caption+=' Unapproved text';await h.create().tick();assert.equal(h.publishes(),tampered?0:1);assert.equal(h.row.state,tampered?'blocked':'published');}
@@ -57,12 +65,12 @@ test('30-day v6 RPC only marks expired TODAY missed; all future 9am/5pm flyers r
  const store={request:async(resource:string,method='GET',body?:any)=>{
   if(resource.startsWith('crm_community_settings'))return[{id:'inteca',enabled:true,destinations:{facebook:'11',instagram:'22',youtube:'33'}}];
   if(resource.startsWith('crm_community_calendar_state'))return[{id:'inteca',last_planned_day:null,catalog_hash:'',creative_version:'v4'}];
-  if(resource==='rpc/crm_community_roll_plan'){jobs=body.p_jobs;return 630;}
+  if(resource==='rpc/crm_community_roll_plan'){jobs=body.p_jobs;return 660;}
   throw Error('TEST_UNEXPECTED_STORE_RESOURCE:'+resource);
  }};
  const publisher={destination:(x:string)=>({facebook:'11',instagram:'22',youtube:'33'} as any)[x]};
  await new CommunityManager(store,{get:async()=>pair},publisher as any).plan();
- assert.equal(jobs.length,630);
+ assert.equal(jobs.length,660);
  const today=rdDay(new Date());
  const future=jobs.filter(j=>j.payload.kind==='flyer'&&j.payload.editorialDate>today);
  assert.ok(future.length>=100);
