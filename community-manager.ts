@@ -23,9 +23,10 @@ export function shouldMissCampaignSlot(row:Pick<CommunityJob,'scheduled_at'|'pay
  */
 export function isCurrentCommunityJob(row:Pick<CommunityJob,'slot'|'payload'>):boolean {
   return row.slot.startsWith('v6:') && (
-    row.payload.kind==='flyer' ||
-    (['short','promo_video'].includes(row.payload.kind) && row.slot.includes(':autorender-20261029')) ||
-    (row.payload.kind==='avatar_video' && row.slot.includes(':avatar-brief-20261030'))
+    (row.payload.kind==='flyer' && row.slot.includes(':flyer:')) ||
+    (row.payload.kind==='short' && row.slot.includes(':short:') && row.slot.includes(':autorender-20261029')) ||
+    (row.payload.kind==='promo_video' && row.slot.includes(':promo_video:') && row.slot.includes(':autorender-20261029')) ||
+    (row.payload.kind==='avatar_video' && row.slot.includes(':avatar_video:') && row.slot.includes(':avatar-brief-20261030'))
   );
 }
 export class CommunityManager {
