@@ -4,8 +4,11 @@ import { intequitoScript, INTEQUITO, type Script } from './intequito-studio.ts';
 import { flyerOffer, isPublishableFlyer, type FlyerOffer } from './community-flyer-offer.ts';
 import { courseFamily } from './community-course-topics.ts';
 export const SOCIAL_CHANNELS = ['facebook','instagram','youtube'] as const;
+/** Bounded rolling preview, replenished every Dominican calendar day without an end date. */
+export const COMMUNITY_ROLLING_HORIZON_DAYS = 30;
+export const COMMUNITY_SCHEDULE_MODE = 'rolling_perpetual' as const;
 export type SocialChannel = typeof SOCIAL_CHANNELS[number];
-export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'|'promo_video'; pillar: string; slides: string[]; assetKey: string; catalogHash: string; editorialDate?:string;campaignMonth?:string;designSeed?:number; editorialSlot?:'morning'|'afternoon'; flyerOffer?:FlyerOffer; script?: Script };
+export type CommunityPayload = { title: string; caption: string; courseTitle: string; kind: 'flyer'|'short'|'story'|'long_brief'|'promo_video'|'avatar_video'; pillar: string; slides: string[]; assetKey: string; catalogHash: string; editorialDate?:string;campaignMonth?:string;designSeed?:number; editorialSlot?:'morning'|'afternoon'; flyerOffer?:FlyerOffer; script?: Script };
 export const sha = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 // PostgreSQL jsonb reorders object keys. Keep the original field order when
 // checking persisted pieces, including the first plan already saved in production.
@@ -134,20 +137,22 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
     designSeed:editorialNumber*37+variant*111,
     ...(editorialSlot?{editorialSlot}:{}),
     ...(offer?{flyerOffer:offer}:{}),
-    ...(['short','promo_video'].includes(kind)?{script:intequitoScript(course,kind==='short'?'short':'long_brief',variant)}:{})};
+    ...(['short','promo_video','avatar_video'].includes(kind)?{script:intequitoScript(course,kind==='short'?'short':'long_brief',variant)}:{})};
 
 }
 /**
  * 2 original 4:5 flyers daily (9am fixed TAM; 5pm another catalog course),
- * 8 original vertical reels daily for Facebook and Instagram and one YouTube video.
- * The video queue is only enabled with CM_AUTOPUBLISH_RENDERED_VIDEOS=true;
- * rendering uses existing local FFmpeg, never a paid video-generation provider.
- * 21 jobs/day (two flyer surfaces x 2, eight reels x 2, one YouTube), 630/30 days.
+ * 8 original vertical reels daily on Facebook and Instagram, 1 standard YouTube
+ * video plus 1 INTEQUITO speaking-avatar script daily at 21:00 RD.
+ * Standard MP4s are rendered locally; avatar scripts are prepared for approved
+ * professional production, NOT auto-billed, silently rendered, or published.
+ * The 30-day database horizon renews DAILY, so the schedule never expires.
+ * 22 jobs/day, 660 in the renewable 30-day window.
  */
 export function planMonth(catalog:Catalog,start:string){
  const result:Array<{slot:string;channel:SocialChannel;scheduled_at:string;payload:CommunityPayload}>=[];
  if(!catalog.courses.length)return result;
- for(let day=0;day<30;day++){
+ for(let day=0;day<COMMUNITY_ROLLING_HORIZON_DAYS;day++){
    const date=new Date(start+'T12:00:00-04:00');
    date.setUTCDate(date.getUTCDate()+day);
    const d=rdDay(date);
@@ -161,13 +166,15 @@ export function planMonth(catalog:Catalog,start:string){
        course:(i<4?morning:afternoon)||afternoon||morning,
      })),
      {kind:'promo_video',variant:0,hour:19,minute:30,course:afternoon||morning},
+     // Prepared indefinitely, but never sent to paid avatar API without consent/credits.
+     {kind:'avatar_video',variant:0,hour:21,minute:0,course:morning||afternoon},
    ];
    for(const {kind,variant,hour,minute,course} of slots){
      if(!course)continue;
      const payload=makeContent(course,catalog,d,kind,variant);
-     const channels:SocialChannel[]=kind==='promo_video'?['youtube']:['facebook','instagram'];
+     const channels:SocialChannel[]=(kind==='promo_video'||kind==='avatar_video')?['youtube']:['facebook','instagram'];
      for(const channel of channels)result.push({
-       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12)+(kind==='short'||kind==='promo_video'?':autorender-20261029':''),
+       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12)+(kind==='short'||kind==='promo_video'?':autorender-20261029':kind==='avatar_video'?':avatar-brief-20261030':''),
        channel,
        scheduled_at:new Date(
          d+'T'+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00-04:00'
