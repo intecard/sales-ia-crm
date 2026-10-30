@@ -25,18 +25,20 @@ const fingerprint=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex
 
 test('fixed 9 AM authorizations and rotating 5 PM non-TAM course every date, 30 days',()=>{
  const jobs=planMonth(catalog,'2026-10-27');
- assert.equal(jobs.length,30*(4+8*2+1));
+ assert.equal(jobs.length,30*(4+8*2+1+1));
  assert.equal(new Set(jobs.map(j=>j.slot)).size,jobs.length);
  const dates=[...new Set(jobs.map(j=>j.payload.editorialDate))];
  assert.equal(dates.length,30);
  const afternoons:string[]=[];
  for(const date of dates){
   const daily=jobs.filter(j=>j.payload.editorialDate===date);
-  assert.equal(daily.length,21);
+  assert.equal(daily.length,22);
   const flyers=daily.filter(j=>j.payload.kind==='flyer');
   assert.equal(flyers.length,4);
   assert.equal(daily.filter(j=>j.payload.kind==='short').length,16);
   assert.equal(daily.filter(j=>j.payload.kind==='promo_video').length,1);
+  assert.equal(daily.filter(j=>j.payload.kind==='avatar_video').length,1);
+  assert.equal(daily.find(j=>j.payload.kind==='avatar_video')?.scheduled_at,new Date(date+'T21:00:00-04:00').toISOString());
   const mornings=flyers.filter(j=>j.payload.editorialSlot==='morning');
   const afternoon=flyers.filter(j=>j.payload.editorialSlot==='afternoon');
   assert.equal(mornings.length,2);
@@ -83,4 +85,19 @@ test('Render waking after the scheduled post is allowed for 2 hours, never overn
  const oldReel={scheduled_at:'2026-10-27T10:00:00-04:00',payload:{kind:'short'} as CommunityPayload};
  assert.equal(shouldMissCampaignSlot(oldReel,new Date('2026-10-27T13:00:00-04:00')),true);
  assert.equal(rdDay(new Date('2026-10-28T02:00:00Z')),'2026-10-27');
+});
+
+test('rolling forever: all days of a renewed window overlap exactly, including New Year and leap day',()=>{
+ const older=planMonth(catalog,'2028-02-01');
+ const newer=planMonth(catalog,'2028-02-02');
+ assert.equal(older.length,660);assert.equal(newer.length,660);
+ assert.equal(new Set(older.map(j=>j.slot)).size,660);
+ const oldSlots=new Set(older.map(j=>j.slot));
+ assert.equal(newer.filter(j=>oldSlots.has(j.slot)).length,29*22,'overlapping days use identical idempotent keys');
+ assert.equal(newer.filter(j=>!oldSlots.has(j.slot)).length,22,'only the new final day needs new jobs');
+ const first=planMonth(catalog,'2028-02-28');
+ assert.ok(first.some(j=>j.payload.editorialDate==='2028-02-29'),'leap day must be scheduled');
+ const crossYear=planMonth(catalog,'2028-12-31');
+ assert.ok(crossYear.some(j=>j.payload.editorialDate==='2029-01-01'));
+ assert.ok(crossYear.every(j=>!j.slot.includes('INFINITE')));
 });
