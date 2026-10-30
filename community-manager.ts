@@ -95,10 +95,12 @@ export class CommunityManager {
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
     // A calendar is complete only when today's second (speaking avatar) slot exists.
     // An older runtime could have stamped v6 while producing just the 21 legacy jobs/day.
-    const avatarRows=await this.store.request(
-      `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*')}&select=id&limit=1`
-    );
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6'&&avatarRows.length)return;
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6'){
+      const avatarRows=await this.store.request(
+        `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*')}&select=id&limit=1`
+      );
+      if(avatarRows?.length)return;
+    }
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
     const autoVideo=process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS==='true';
     const jobs=planMonth(catalog,today).map(item=>{
