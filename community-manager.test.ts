@@ -24,6 +24,7 @@ function harness(fail=false){
  const settings={enabled:true,plan_started_at:'started',destinations:{facebook:'111'}};
  const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
  const store={request:async(resource:string,method='GET',body?:any)=>{
+  if(resource.startsWith('crm_community_jobs?slot=like.'))return [{id:'existing-avatar-plan'}];
   if(resource.startsWith('crm_community_calendar_state'))return [{
     id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v6'
   }];

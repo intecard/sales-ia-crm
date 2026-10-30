@@ -93,7 +93,14 @@ export class CommunityManager {
     try{record=(await this.store.request('crm_community_calendar_state?id=eq.inteca&limit=1'))?.[0];}
     catch{if(settings.plan_started_at)return;throw Error('CM_CALENDAR_MIGRATION_MISSING');}
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6')return;
+    // A calendar is complete only when today's second (speaking avatar) slot exists.
+    // An older runtime could have stamped v6 while producing just the 21 legacy jobs/day.
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6'){
+      const avatarRows=await this.store.request(
+        `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*')}&select=id&limit=1`
+      );
+      if(avatarRows?.length)return;
+    }
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
     const autoVideo=process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS==='true';
     const jobs=planMonth(catalog,today).map(item=>{
@@ -112,9 +119,13 @@ export class CommunityManager {
         content_hash:contentHash(item.payload),
       };
     });
-    await this.store.request('rpc/crm_community_roll_plan','POST',{
+    console.info('community_calendar_roll_request',JSON.stringify({
+      day:today,planned:jobs.length,avatarPlanned:jobs.filter(j=>j.payload.kind==='avatar_video').length
+    }));
+    const inserted=await this.store.request('rpc/crm_community_roll_plan','POST',{
       p_jobs:jobs,p_destinations:destinations,p_day:today,p_catalog_hash:catalog.hash,
     });
+    console.info('community_calendar_roll_result',JSON.stringify({day:today,inserted}));
   }
   async retry(id:string){
     // Unknown external outcomes must be reconciled manually, never automatically republished.
@@ -214,7 +225,10 @@ export class CommunityManager {
         // At most one externally eligible job per tick; blocked channels do not stop others.
         if(claimed)break;
       }
-    }catch{/* Fail closed on unavailable storage; no publication without durable state. */}
+    }catch(e){
+      const reason=e instanceof Error&&/^CM_[A-Z0-9_]+$/.test(e.message)?e.message:'CM_TICK_FAILED';
+      console.warn('community_calendar_tick_failed',JSON.stringify({reason}));
+    }
     finally{this.running=false;}
   }
   private update(id:string,value:Record<string,unknown>){return this.store.request(`crm_community_jobs?id=eq.${id}`,'PATCH',{...value,updated_at:new Date().toISOString()});}
