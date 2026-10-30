@@ -1,9 +1,9 @@
 name: INTECA - Community Manager Frequent Wake-up
 on:
   schedule:
-    # Every 15 minutes throughout the local publishing day (07:07-23:52 RD).
-    # UTC-4 year-round; irregular minute avoids top-of-hour scheduled-run congestion.
-    - cron: "7,22,37,52 11-23,0-3 * * *"
+    # Backup wake only: Supabase Cron is the primary every-15-minute scheduler.
+    # 07:10 and 19:10 Dominican local (UTC-4) give independent recovery.
+    - cron: "10 11,23 * * *"
   workflow_dispatch:
 permissions:
   contents: read
