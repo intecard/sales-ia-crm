@@ -1,7 +1,7 @@
 import { growthSummary } from './community-growth.ts';
 import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
-import { makeContent, planMonth, rdDay, sha, contentHash, communityPublicCopy, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
+import { makeContent, planMonth, rdDay, sha, COMMUNITY_ROLLING_HORIZON_DAYS, COMMUNITY_SCHEDULE_MODE, contentHash, communityPublicCopy, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from './community-media.ts';
 import { isPublishableFlyer, flyerOffer } from './community-flyer-offer.ts';
 import {courseFamily} from './community-course-topics.ts';
@@ -18,6 +18,16 @@ export function shouldMissCampaignSlot(row:Pick<CommunityJob,'scheduled_at'|'pay
   if(row.payload.kind==='flyer')return rdDay(new Date(at))!==rdDay(now)||now.getTime()-at>2*60*60_000;
   return now.getTime()-at>90*60_000;
 }
+/** Only the canonical v6 flyer, auto-rendered MP4 and 21:00 avatar brief
+ * belong to the current schedule. Older jobs stay auditable, never resurrected.
+ */
+export function isCurrentCommunityJob(row:Pick<CommunityJob,'slot'|'payload'>):boolean {
+  return row.slot.startsWith('v6:') && (
+    row.payload.kind==='flyer' ||
+    (['short','promo_video'].includes(row.payload.kind) && row.slot.includes(':autorender-20261029')) ||
+    (row.payload.kind==='avatar_video' && row.slot.includes(':avatar-brief-20261030'))
+  );
+}
 export class CommunityManager {
   private running=false;
   constructor(private store:Store,private catalog:Pick<CatalogStore,'get'>,private publisher:Pick<CommunityPublisher,'destination'|'verify'|'publish'|'metrics'>){}
@@ -25,18 +35,25 @@ export class CommunityManager {
   async snapshot(){
     // Display due/next works first instead of hiding them behind years of old archived jobs.
     const since=new Date(Date.now()-24*60*60*1000).toISOString();
+    const visibleUntil=new Date(Date.now()+7*24*60*60*1000).toISOString();
     const [upcoming,recent,settings,observations,catalog]=await Promise.all([
-      this.store.request(`crm_community_jobs?scheduled_at=gte.${encodeURIComponent(since)}&order=scheduled_at.asc&limit=550`),
+      this.store.request(`crm_community_jobs?slot=like.v6:*&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(visibleUntil)}&order=scheduled_at.asc&limit=650`),
       this.store.request('crm_community_jobs?state=in.(published,blocked,review_required,missed)&order=updated_at.desc&limit=120'),
       this.settings(),
       this.store.request('crm_community_observations?order=checked_at.desc&limit=100'),
       this.catalog.get(),
     ]);
-    const jobs:Array<CommunityJob>=[...new Map(([] as CommunityJob[]).concat(upcoming,recent).map(j=>[j.id,j])).values()]
+    const all=[...new Map(([] as CommunityJob[]).concat(upcoming,recent).map(j=>[j.id,j])).values()];
+    const jobs:Array<CommunityJob>=all.filter(isCurrentCommunityJob)
       .sort((a,b)=>Date.parse(a.scheduled_at)-Date.parse(b.scheduled_at));
+    const historicalJobs=all.filter(j=>!isCurrentCommunityJob(j))
+      .sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at)).slice(0,100);
     const day=rdDay(new Date());
     return {
-      settings,jobs,observations,growth:growthSummary(jobs,observations),
+      settings,jobs,historicalJobs,observations,growth:growthSummary(jobs,observations),
+      schedule:{mode:COMMUNITY_SCHEDULE_MODE,endsAt:null,horizonDays:COMMUNITY_ROLLING_HORIZON_DAYS,
+        dailyJobs:22, standardYouTubeVideos:1, avatarYouTubeBriefs:1,
+        avatarAutomaticPublishing:false, localTimeZone:'America/Santo_Domingo'},
       featuredCourse:catalog?catalog.courses.find(c=>courseFamily(c.title)==='authorizations')?.title||null:null,
       campaignMonth:day.slice(0,7),
       totalCatalogCourses:catalog?.courses.length||0,
@@ -44,14 +61,14 @@ export class CommunityManager {
       capabilities:{
         flyers:'Dos flyers premium por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
         verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
-        stories:'Calendario: 1 post con arte, 1 imagen promocional, 8 reels en Facebook e Instagram y 1 video diario en YouTube, sujeto a cuenta, permisos y archivo MP4 real',
-        longVideo:'1 video diario en YouTube mediante renderizado local (formato vertical breve); no se confunde el guion con un video publicado',
+        stories:'Calendario continuo sin caducidad: 1 post, 1 imagen y 8 reels al día en Facebook e Instagram; 1 video estándar en YouTube y 1 guion de INTEQUITO a las 21:00, pendiente de producción profesional',
+        longVideo:'1 MP4 diario en YouTube mediante renderizado local, y una segunda cita diaria para INTEQUITO hablando; el segundo video no se publica mientras no exista avatar, voz, derechos y presupuesto aprobado',
         communityReplies:'Ganchos y CTA al 809-643-5502; moderación y respuestas públicas requieren permisos',
         paidPromotion:'Solo propuestas; presupuesto y descuentos requieren aprobación',
         monthlyRotation:'Curso fijo de Autorizaciones Médicas por la mañana y alternancia sin repeticiones consecutivas de los otros programas por la tarde',
         growth:'Ganchos educativos, preguntas, seguidores y conversaciones reales, sin interacciones artificiales',
         metrics:'Métricas disponibles de Facebook, Instagram y YouTube, sin estimar valores inexistentes',
-        continuousOperation:'Sujeto a disponibilidad de Render, red social y almacenamiento; no garantiza 24/7 con infraestructura Free',
+        continuousOperation:'Sin fecha final: la ventana de 30 días se renueva diariamente mientras el CRM y el scheduler sigan operativos. Render, proveedores y credenciales pueden interrumpir entregas puntuales',
         diagnostics:'Registrar el paso de fallo (cuenta, render, storage o API) en lugar de error genérico',
       }
     };
@@ -84,7 +101,7 @@ export class CommunityManager {
       return {
         ...item,
         state:incomplete?'blocked':
-          item.payload.kind==='long_brief'?'brief':
+          (item.payload.kind==='long_brief'||item.payload.kind==='avatar_video')?'brief':
           (item.payload.kind==='short'||item.payload.kind==='promo_video')&&!autoVideo?'brief':
           (item.payload.kind==='flyer'||item.payload.kind==='short'||item.payload.kind==='promo_video')?
             (Date.parse(item.scheduled_at)>now.getTime()?'queued':
@@ -152,6 +169,8 @@ export class CommunityManager {
                JSON.stringify(actual.benefits)!==JSON.stringify(expected.benefits))
                throw Error('CM_FLYER_COURSE_MISMATCH');
           }
+          // Avatar scripts are never substituted by slideshow MP4s or sent to a paid provider automatically.
+          if(row.payload.kind==='avatar_video')throw Error('CM_AVATAR_REQUIRES_PROFESSIONAL_RENDER');
           // Explicit opt-in is required before any autonomous local video is published.
           if(['short','promo_video'].includes(row.payload.kind)&&process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS!=='true')throw Error('CM_VIDEO_AUTOPUBLISH_DISABLED');
           // Identity must be valid before generating or sending anything to this channel.
