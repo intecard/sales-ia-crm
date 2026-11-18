@@ -193,7 +193,7 @@ export class SalesFollowupAgent {
     return {
       name,
       language: { code: language },
-      components: [{ type: 'body', parameters: [{ type: 'text', text }] }],
+      components: [{ type: 'body', parameters: [{ type: 'text', text: text.replace(/\s+/g, ' ').trim() }] }],
     };
   }
   async tick() {
