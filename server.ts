@@ -1,3 +1,5 @@
+import { SalesFollowupAgent } from './sales-followup';
+import { rememberSalesPreferences, internationalCatalog, internationalPriceReply, usesInternationalUsd, USD_OFFER } from './sales-policy';
 import { createServer } from 'node:http';
 import { VoiceSalesAgent } from './voice/agent';
 import { VoiceProvider } from './voice/provider';
@@ -52,6 +54,9 @@ void whatsAppCatalog.get();
 const salesStore = new SalesStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const gatewayPrecontract=new GatewayPrecontract(salesStore);
 void salesStore.verify();
+const salesFollowup = new SalesFollowupAgent(salesStore);
+const salesFollowupTimer = setInterval(() => void salesFollowup.tick(), 60000);
+salesFollowupTimer.unref();
 const enrollmentAgent = new EnrollmentAgent(salesStore);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
@@ -382,12 +387,16 @@ Alcance de uso: ${scope}.
 
 ${catalog ? catalogPrompt(catalog) : getIntecaAgentKnowledgeBase()}
 
+OFERTA INTERNACIONAL AUTORIZADA: ${USD_OFFER}
+RESULTADOS COMERCIALES OBSERVADOS: ${salesFollowup.learning()}
+Usa los resultados para mejorar preguntas y orientación. Nunca cambies precios, cuentas, permisos o validación de pago por optimizar cierres.
+
 REGLAS ESTRICTAS DE CONVERSACION Y SEGURIDAD:
 1. IDENTIDAD Y SALUDO INICIAL: Si el usuario te saluda por primera vez o es el inicio de la conversación, DEBES responder textualmente con este formato: "¡Hola, [Nombre del cliente]! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. ¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?"
-2. EXTRACCIÓN DE DATOS: Cuando un prospecto pregunte por un curso (ej: Atención al Usuario en Salud), DEBES leer la FUENTE PRINCIPAL (CATÁLOGO OFICIAL DE SUPABASE) y darle EXACTAMENTE la duración, los horarios disponibles y el precio que dice ahí. NO INVENTES horarios generales de fines de semana. Si el catálogo dice un horario específico, da ese. Si el catálogo NO menciona un horario o curso, di "Actualmente no tengo información confirmada sobre ese curso/horario, déjame que un asesor lo verifique."
+2. EXTRACCIÓN DE DATOS: Cuando un prospecto pregunte por un curso (ej: Atención al Usuario en Salud), DEBES leer la FUENTE PRINCIPAL (CATÁLOGO OFICIAL DE SUPABASE) y darle EXACTAMENTE la duración y los horarios disponibles. Usa el precio del catálogo para el caso local y la oferta internacional autorizada para residentes fuera que confirmen pago en USD. NO INVENTES horarios generales de fines de semana. Si el catálogo dice un horario específico, da ese. Si el catálogo NO menciona un horario o curso, di "Actualmente no tengo información confirmada sobre ese curso/horario, déjame que un asesor lo verifique."
 3. PAGOS: No inventes cuentas ni métodos. Las instrucciones oficiales se proporcionan desde la configuración privada del servidor o, si existen, desde la sección de pagos del catálogo.
 4. Sé amable, humano y dominicano neutral.
-5. Puedes conversar de forma fluida, pero NUNCA asumas precios u horarios que no estén explícitamente en el Catálogo de Supabase.
+5. Puedes conversar de forma fluida, pero NUNCA asumas horarios ni precios fuera del Catálogo de Supabase y de la oferta internacional autorizada.
 `;
 }
 
@@ -432,17 +441,23 @@ function findWhatsAppContactName(event: any, waId: string) {
 }
 
 async function generateWhatsAppAutoReply(userMessage: string, conversation: Conversation, customerName?: string, hasPhone = false, salesState?: SalesOpportunity) {
-  const instructions = process.env.WHATSAPP_PAYMENT_INSTRUCTIONS || '';
+  const policy = salesStore.configured() ? await salesFollowup.settings().catch(() => null) : null;
+  const instructions = (usesInternationalUsd(conversation) ? policy?.international_payment_instructions : policy?.payment_instructions) || process.env.WHATSAPP_PAYMENT_INSTRUCTIONS || '';
+  const pricingAnswer = internationalPriceReply(conversation, userMessage);
 
   if (salesState?.stage === 'won' && isPaymentQuestion(userMessage)) return { reply: 'Tu pago de inscripción ya está validado. El grupo y el acceso al campus están pendientes de confirmación. Si deseas pagar otro concepto, indícalo para que INTECA lo revise.', awaiting: '' as AwaitingField };
   if (salesState?.stage === 'payment_review' && isPaymentQuestion(userMessage)) return { reply: 'Tu aviso de pago está pendiente de revisión. No hace falta repetir la transferencia mientras INTECA verifica el comprobante.', awaiting: '' as AwaitingField };
+  if (pricingAnswer && !usesInternationalUsd(conversation)) return pricingAnswer;
   
-  const catalog = await whatsAppCatalog.get();
+  const originalCatalog = await whatsAppCatalog.get();
+  const catalog = originalCatalog ? internationalCatalog(originalCatalog, conversation) : null;
   if (isPaymentQuestion(userMessage) || (conversation.awaiting === 'payment' && /^(sí|si|claro|por favor)[.!\s]*$/i.test(userMessage))) {
-    const payment = catalogPaymentReply(catalog, conversation, instructions);
+    const payment = catalogPaymentReply(policy?.payment_instructions && catalog ? { ...catalog, payments: '' } : catalog, conversation, instructions);
+    if (usesInternationalUsd(conversation)) payment.reply = `${USD_OFFER}\n\n${payment.reply}`;
     const facts = catalogReply(catalog, conversation, userMessage);
     return facts ? { reply: `${facts.reply}\n\n${payment.reply}`, awaiting: payment.awaiting } : payment;
   }
+  if (pricingAnswer) return pricingAnswer;
   const factualAnswer = catalogReply(catalog, conversation, userMessage);
   if (factualAnswer) return factualAnswer;
   const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. Para otra consulta sobre tu matrícula puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. No necesitas repetir la transferencia.', awaiting: '' as AwaitingField } : catalogFallback(conversation, userMessage, catalog);
@@ -458,7 +473,7 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
       history: conversation.turns,
     });
     const response = await generateGeminiContentWithFallback(contents, {
-      systemInstruction: `${catalogPrompt(catalog)}\n\n${CONVERSATION_RULES}\n\n${SALES_RULES}`,
+      systemInstruction: `${catalogPrompt(catalog)}\n\n${CONVERSATION_RULES}\n\n${SALES_RULES}\nResultados observados: ${salesFollowup.learning()}. Son contexto para mejorar orientación, no garantías ni permiso para cambiar tarifas.\nOferta USD autorizada (solo residentes fuera que pagan USD): ${USD_OFFER}. Si falta residencia o moneda, pregunta, no lo infieras del prefijo telefónico. Las preferencias confirmadas están en rememberedFacts. El precio USD no es el importe DOP acreditado; la revisión bancaria sigue siendo obligatoria.\nINSTRUCCIONES DE PAGO AUTORIZADAS:\n${instructions}\nSi el interesado pospone su decisión, pregunta si autoriza que le escribamos después. No des por aceptado el seguimiento por silencio.`,
       temperature: 0.2,
       maxOutputTokens: 4096,
       responseMimeType: 'application/json',
@@ -555,6 +570,8 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
         const previousSale = salesStore.configured() ? await salesStore.get(memoryKey) : undefined;
         if (previousSale) conversation.facts = { ...previousSale.profile, ...conversation.facts };
         rememberUser(conversation, userMessage, messageId, false);
+        rememberSalesPreferences(conversation, userMessage);
+        if (senderPhone) await salesFollowup.ownerInbound(senderPhone).catch(() => {});
         rememberCatalogCourse(await whatsAppCatalog.get(), conversation, userMessage);
         await whatsAppConversations.save(memoryKey, conversation);
         const customerName = conversation.facts.fullName || profileName;
@@ -565,6 +582,11 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
           sale = await salesStore.inbound(memoryKey, messageId, userMessage, {
             ...conversation.facts, profileName, ...(senderPhone ? { phone: senderPhone } : {}), ...(whatsappUserId ? { whatsappUserId } : {}),
           }, signal, String(message.type || ''), String(message[message.type]?.id || ''));
+          if (usesInternationalUsd(conversation) && !['won','payment_review'].includes(sale.stage) && !(previousSale?.profile.residesAbroad && previousSale?.profile.paymentCurrency === 'USD')) {
+            await salesStore.request(`crm_sales_opportunities?contact_key=eq.${memoryKey}`, 'PATCH', { expected_amount: null });
+            sale.expected_amount = null;
+          }
+          await salesFollowup.notify(sale).catch(() => console.warn('Owner alert queue unavailable'));
           // A paused or opted-out contact stays silent until a human intervenes.
           if (!settings?.enabled || (previousSale && previousSale.control !== 'auto')) return;
         }
@@ -666,6 +688,9 @@ function recordServerAudit(event: z.infer<typeof auditEventSchema>) {
   };
   serverAuditEvents.unshift(entry);
   serverAuditEvents.splice(500);
+  if (event.severity === 'Crítico' && salesStore.configured()) {
+    void salesFollowup.operationalAlert(event.module, event.entityType).catch(() => console.warn('Operational alert queue unavailable'));
+  }
   console.log('Audit event recorded', {
     id: entry.id,
     module: entry.module,
@@ -1801,6 +1826,14 @@ app.get('/api/sales', async (req, res) => {
     return res.json({ settings, opportunities, hasMore: opportunities.length === 100, status: salesStore.status() });
   } catch (error) { return salesError(res, error); }
 });
+app.get('/api/sales/automation', async (_req, res) => {
+  try { return res.json(await salesFollowup.snapshot()); } catch (error) { return salesError(res, error); }
+});
+app.post('/api/sales/automation/settings', async (req, res) => {
+  const parsed = z.object({ enabled: z.boolean(), followup_template: z.string().regex(/^[a-z0-9_]*$/).max(100), owner_template: z.string().regex(/^[a-z0-9_]*$/).max(100), template_language: z.string().regex(/^[a-z]{2}(?:_[A-Z]{2})?$/) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Configuración inválida.' });
+  try { await salesStore.request('crm_sales_automation_settings?id=eq.org_inteca_main', 'PATCH', { ...parsed.data, updated_at: new Date().toISOString() }); return res.json({ success: true }); } catch (error) { return salesError(res, error); }
+});
 app.get('/api/sales/:key/events', async (req, res) => {
   try { return res.json(await salesStore.request(`crm_sales_events?contact_key=eq.${encodeURIComponent(req.params.key)}&select=*&order=created_at.desc&limit=60`)); }
   catch (error) { return salesError(res, error); }
@@ -1818,7 +1851,10 @@ app.post('/api/sales/:key/action', async (req, res) => {
     const opportunity = await salesStore.request('rpc/crm_sales_admin_action', 'POST', {
       p_key: req.params.key, p_action: parsed.data.action, p_data: parsed.data.data, p_actor: getConfiguredAdminCredentials().email,
     });
-    if (parsed.data.action === 'verify_payment') void enrollmentAgent.tick();
+    if (parsed.data.action === 'verify_payment') {
+      void enrollmentAgent.tick();
+      void salesStore.get(req.params.key).then(sale => sale && salesFollowup.notify(sale)).catch(() => console.warn('Owner payment alert queue unavailable'));
+    }
     return res.json({ success: true, opportunity });
   } catch (error) { return salesError(res, error); }
 });
@@ -1837,6 +1873,7 @@ app.get('/api/health', (req, res) => {
     whatsAppMemory: whatsAppConversations.status(),
     whatsAppCatalog: { ...whatsAppCatalog.status(), paymentInstructionsConfigured: Boolean(process.env.WHATSAPP_PAYMENT_INSTRUCTIONS?.trim()) },
     salesAgent: salesStore.status(),
+    salesAutomation: salesFollowup.status(),
     enrollmentAgent: enrollmentAgent.status(),
     fiscalWorkspace: { jurisdiction: 'DO', multiCompany: true, calculationMode: 'deterministic_decimal_strings', preparationEnabled: true, officialEmissionEnabled: false, xmlValidationEnabled: false, rulesVersion: FISCAL_RULE_VERSION },
     advertisingAgent: { minimumPlanBudgetDop: 1000, budgetControl: 'crm_allocation_only', automaticSpendingEnabled: false, policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },

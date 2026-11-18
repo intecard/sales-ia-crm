@@ -1,3 +1,4 @@
+import { SalesAutomationPanel } from './SalesAutomationPanel';
 import { useEffect, useState } from 'react';
 import type { SalesOpportunity } from '../../sales-agent';
 const labels: Record<string, string> = {
@@ -83,6 +84,7 @@ export function InterestedPipeline() {
         Los contactos entrantes de WhatsApp se registran y avanzan según su conversación. El pago
         requiere validación. El documento se actualiza desde los registros guardados en Supabase.
       </p>
+      <SalesAutomationPanel />
       {error && (
         <p role="alert" className="text-red-300">
           {error}
