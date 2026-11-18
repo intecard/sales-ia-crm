@@ -84,6 +84,8 @@ test('sales endpoints enforce administrator session and explicit bank review; pa
         ...(body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }),
       });
     assert.equal((await req('/api/sales')).status, 401);
+    assert.equal((await req('/api/sales/automation')).status, 401);
+    assert.equal((await req('/api/sales/automation/settings', {enabled:true})).status, 401);
     assert.equal((await req('/api/sales/enrollments')).status, 401);
     assert.equal(
       (await req('/api/sales/receipts/00000000-0000-4000-8000-000000000001/content')).status,

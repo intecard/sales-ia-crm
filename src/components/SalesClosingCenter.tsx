@@ -1,3 +1,4 @@
+import { SalesAutomationPanel } from './SalesAutomationPanel';
 import { PaymentReceiptSelector } from './PaymentReceiptSelector';
 import React, { useCallback, useEffect, useState } from 'react';
 import type { SalesOpportunity } from '../../sales-agent';
@@ -181,10 +182,10 @@ export function SalesClosingCenter() {
         </p>
         <p className="mt-2 text-xs text-slate-400">
           El agente responde consultas, guía la inscripción y entrega las cuentas oficiales. Las
-          transferencias requieren revisión en el banco. Los seguimientos aparecen como tareas; no
-          envían mensajes solos.
+          transferencias requieren revisión en el banco. Los seguimientos automáticos y sus resultados se muestran abajo.
         </p>
       </div>
+      <SalesAutomationPanel />
       {error && (
         <div role="alert" className="rounded-lg border border-red-500/50 bg-red-950 p-3 text-sm">
           {error}
