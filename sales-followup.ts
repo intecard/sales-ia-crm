@@ -69,6 +69,8 @@ export class SalesFollowupAgent {
   private running = false;
   private cache: { at: number; data: SalesAutomationSettings } | null = null;
   private error: string | null = null;
+  private templateCheckedAt = 0;
+  private templateChecks: Record<string, string> = {};
   private learningSummary = 'Todavía no hay resultados suficientes para comparar estrategias.';
   learning() {
     return this.learningSummary;
@@ -85,6 +87,7 @@ export class SalesFollowupAgent {
       ready: !!this.cache && !this.error,
       error: this.error,
       dailyPaidGoal: this.cache?.data.daily_goal ?? 5,
+      templateChecks: this.templateChecks,
     };
   }
   async settings() {
@@ -169,10 +172,13 @@ export class SalesFollowupAgent {
       signal: AbortSignal.timeout(10000),
     });
     const body = await r.json();
-    if (!r.ok) throw Error('TEMPLATE_VERIFICATION_FAILED');
-    const found = body.data?.find(
-      (t: any) => t.name === name && t.status === 'APPROVED' && t.language === language,
-    );
+    if (!r.ok)
+      throw Error(
+        `TEMPLATE_META_${Number(body.error?.code) || r.status}_${Number(body.error?.error_subcode) || 0}`,
+      );
+    const found = body.data?.find((t: any) => t.name === name && t.language === language);
+    if (!found) throw Error('TEMPLATE_NOT_FOUND');
+    if (found.status !== 'APPROVED') throw Error('TEMPLATE_NOT_APPROVED');
     // Explicit one-body-variable template contract, no hidden required headers/buttons.
     const components = found?.components || [];
     const templateBody = components.find((c: any) => c.type === 'BODY')?.text || '';
@@ -193,14 +199,35 @@ export class SalesFollowupAgent {
     return {
       name,
       language: { code: language },
-      components: [{ type: 'body', parameters: [{ type: 'text', text: text.replace(/\s+/g, ' ').trim() }] }],
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: text.replace(/\s+/g, ' ').trim() }] },
+      ],
     };
+  }
+  private async probeTemplates(settings: SalesAutomationSettings) {
+    if (Date.now() - this.templateCheckedAt < 15 * 60000) return;
+    this.templateCheckedAt = Date.now();
+    for (const [kind, name] of Object.entries({
+      followup: settings.followup_template,
+      owner: settings.owner_template,
+    })) {
+      try {
+        await this.template(name, settings.template_language, 'Comprobación de configuración');
+        this.templateChecks[kind] = 'APPROVED';
+      } catch (error) {
+        this.templateChecks[kind] =
+          error instanceof Error && /^[A-Z0-9_]+$/.test(error.message)
+            ? error.message
+            : 'TEMPLATE_CHECK_UNAVAILABLE';
+      }
+    }
   }
   async tick() {
     if (this.running || !this.store.configured()) return;
     this.running = true;
     try {
       const settings = await this.settings();
+      await this.probeTemplates(settings);
       const master = await this.store.settings();
       if (!settings.enabled || !master?.enabled || this.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false')
         return;
@@ -391,7 +418,7 @@ export class SalesFollowupAgent {
         state: attempted || accepted ? 'unknown' : 'blocked',
         last_error: attempted
           ? 'VERIFY_DELIVERY_BEFORE_RETRY'
-          : e instanceof Error && /^[A-Z_]+$/.test(e.message)
+          : e instanceof Error && /^[A-Z0-9_]+$/.test(e.message)
             ? e.message
             : 'PRE_SEND_CHECK_FAILED',
         available_at: new Date(Date.now() + 3600000).toISOString(),
