@@ -1,3 +1,4 @@
+import { OperationalStatus } from './OperationalStatus';
 import React from 'react';
 import {
   Sparkles,
@@ -107,14 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Live AI Status Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full px-2.5 py-1 text-[11px] font-semibold">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span>IA Vendedora 24/7 Activa</span>
-        </div>
+        <OperationalStatus />
 
         <div
           className={`hidden xl:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border ${

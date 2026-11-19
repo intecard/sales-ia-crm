@@ -1,3 +1,7 @@
+import { generateWithFallback, aiRuntime } from './ai-resilience.ts';
+import { AGENT_PLAYBOOKS } from './team/playbooks.ts';
+import { TEAM_AGENTS } from './team/agents.ts';
+import { salesCoachingReply } from './sales-coaching.ts';
 import { SalesFollowupAgent } from './sales-followup';
 import { rememberSalesPreferences, internationalCatalog, internationalPriceReply, usesInternationalUsd, USD_OFFER } from './sales-policy';
 import { createServer } from 'node:http';
@@ -87,10 +91,9 @@ const PORT = Number(process.env.PORT || 3000);
 let DEPLOYMENT_MODE =
   process.env.DEPLOYMENT_MODE || process.env.VITE_DEPLOYMENT_MODE || 'production';
 
-const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 const DEFAULT_GEMINI_FALLBACK_MODELS = [
-  'gemini-1.5-pro',
-  'gemini-1.5-flash-8b'
+  'gemini-3.5-flash-lite'
 ];
 const GEMINI_MODEL_RETRY_DELAY_MS = Number(process.env.GEMINI_MODEL_RETRY_DELAY_MS || 120_000);
 
@@ -378,21 +381,20 @@ function getIntecaAgentKnowledgeBase() {
   return cachedIntecaAgentKnowledgeBase;
 }
 
-function buildAgentKnowledgePrompt(scope: string) {
-  void whatsAppCatalog.get();
-  const catalog = whatsAppCatalog.current();
+async function buildAgentKnowledgePrompt(scope: string) {
+  const catalog = await whatsAppCatalog.get();
   return `
 BASE DE CONOCIMIENTO INSTITUCIONAL PARA TODOS LOS AGENTES DE INTECA
 Alcance de uso: ${scope}.
 
-${catalog ? catalogPrompt(catalog) : getIntecaAgentKnowledgeBase()}
+${catalog ? catalogPrompt(catalog) : 'CATÁLOGO OFICIAL NO DISPONIBLE: no cotices precios, horarios ni duración desde memoria. Indica el bloqueo y solicita verificación del catálogo; puedes preparar estructura y preguntas sin inventar datos.'}
 
 OFERTA INTERNACIONAL AUTORIZADA: ${USD_OFFER}
 RESULTADOS COMERCIALES OBSERVADOS: ${salesFollowup.learning()}
 Usa los resultados para mejorar preguntas y orientación. Nunca cambies precios, cuentas, permisos o validación de pago por optimizar cierres.
 
 REGLAS ESTRICTAS DE CONVERSACION Y SEGURIDAD:
-1. IDENTIDAD Y SALUDO INICIAL: Si el usuario te saluda por primera vez o es el inicio de la conversación, DEBES responder textualmente con este formato: "¡Hola, [Nombre del cliente]! Un placer saludarte. Mi nombre es Mariela López, representante de información de INTECA. ¿En cuál de nuestros programas de capacitación te gustaría recibir información hoy?"
+1. IDENTIDAD: Conserva el nombre, la función y el canal del agente asignado. En conversaciones internas responde directamente a la tarea del equipo; no saludes como representante de WhatsApp ni preguntes qué curso desea el empleado. En conversaciones con interesados, saluda solo al inicio y conserva el contexto.
 2. EXTRACCIÓN DE DATOS: Cuando un prospecto pregunte por un curso (ej: Atención al Usuario en Salud), DEBES leer la FUENTE PRINCIPAL (CATÁLOGO OFICIAL DE SUPABASE) y darle EXACTAMENTE la duración y los horarios disponibles. Usa el precio del catálogo para el caso local y la oferta internacional autorizada para residentes fuera que confirmen pago en USD. NO INVENTES horarios generales de fines de semana. Si el catálogo dice un horario específico, da ese. Si el catálogo NO menciona un horario o curso, di "Actualmente no tengo información confirmada sobre ese curso/horario, déjame que un asesor lo verifique."
 3. PAGOS: No inventes cuentas ni métodos. Las instrucciones oficiales se proporcionan desde la configuración privada del servidor o, si existen, desde la sección de pagos del catálogo.
 4. Sé amable, humano y dominicano neutral.
@@ -458,6 +460,8 @@ async function generateWhatsAppAutoReply(userMessage: string, conversation: Conv
     return facts ? { reply: `${facts.reply}\n\n${payment.reply}`, awaiting: payment.awaiting } : payment;
   }
   if (pricingAnswer) return pricingAnswer;
+  const coaching = salesCoachingReply(catalog, conversation, userMessage, salesState);
+  if (coaching) return coaching;
   const factualAnswer = catalogReply(catalog, conversation, userMessage);
   if (factualAnswer) return factualAnswer;
   const fallback = salesState?.stage === 'won' ? { reply: 'Tu pago de inscripción está validado. Para otra consulta sobre tu matrícula puedes escribir a intecaedu@gmail.com.', awaiting: '' as AwaitingField } : salesState?.stage === 'payment_review' ? { reply: 'La revisión de tu pago está pendiente. No necesitas repetir la transferencia.', awaiting: '' as AwaitingField } : catalogFallback(conversation, userMessage, catalog);
@@ -891,50 +895,22 @@ function getAvailableGeminiModelCandidates() {
   });
 }
 
-function summarizeGeminiError(error: unknown) {
-  if (error && typeof error === 'object') {
-    const errorLike = error as { message?: unknown; name?: unknown; status?: unknown };
-    return {
-      name: typeof errorLike.name === 'string' ? errorLike.name : 'Error',
-      status: errorLike.status,
-      message: typeof errorLike.message === 'string' ? errorLike.message : 'Sin mensaje',
-    };
-  }
-
-  return {
-    name: 'Error',
-    status: undefined,
-    message: String(error),
-  };
-}
-
-async function generateGeminiContentWithFallback(contents: string, config?: Record<string, unknown>, whatsApp = false) {
-  let lastError: unknown;
-  const modelCandidates = getAvailableGeminiModelCandidates();
-
-  if (modelCandidates.length === 0) {
-    throw new Error('GEMINI_MODELS_TEMPORARILY_UNAVAILABLE');
-  }
-
-  for (const model of modelCandidates) {
-    try {
-      const ai = getGeminiClient();
-      return await ai.models.generateContent({
-        model,
-        contents,
-        config: whatsApp ? whatsAppGenerationConfig(model, config) : config,
-      });
-    } catch (error) {
-      lastError = error;
-      temporarilyUnavailableGeminiModels.set(model, Date.now() + GEMINI_MODEL_RETRY_DELAY_MS);
-      console.error(`[DEBUG] Gemini generateContent failed para el modelo ${model}`, {
-        retryAfterMs: GEMINI_MODEL_RETRY_DELAY_MS,
-        ...summarizeGeminiError(error),
-      });
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('GEMINI_GENERATE_CONTENT_FAILED');
+async function generateGeminiContentWithFallback(contents: string, config: Record<string, unknown> = {}, whatsApp = false) {
+  return generateWithFallback({
+    models: getGeminiModelCandidates(), cooldowns: temporarilyUnavailableGeminiModels,
+    cooldownMs: GEMINI_MODEL_RETRY_DELAY_MS,
+    generate: async (model, timeout) => {
+      const http = (config.httpOptions || {}) as Record<string, unknown>;
+      const requestConfig = { ...config, httpOptions: { ...http, timeout: Math.min(Number(http.timeout) || timeout, timeout), retryOptions: { attempts: 1 } } };
+      // Modern models ignore sampling controls; keep requests compatible with their API.
+      if (/^gemini-(?:3\.[6-9]|4)/.test(model)) {
+        for (const field of ['temperature', 'topP', 'topK', 'candidateCount', 'frequencyPenalty', 'presencePenalty']) delete (requestConfig as Record<string, unknown>)[field];
+      }
+      return getGeminiClient().models.generateContent({ model, contents,
+        config: whatsApp ? whatsAppGenerationConfig(model, requestConfig) : requestConfig });
+    },
+    onFailure: (model, code) => console.warn('AI generation unavailable', { model, code }),
+  });
 }
 
 const INTEGRATION_ENVIRONMENT_GROUPS = [
@@ -1345,7 +1321,13 @@ function buildAgentRuntimeManifest() {
   const integrations = buildIntegrationEnvironmentStatus();
   const integrationById = new Map(integrations.map((integration) => [integration.id, integration]));
 
-  return AGENT_RUNTIME_REGISTRY.map((agent) => {
+  return TEAM_AGENTS.map((teamAgent) => {
+    const agent = AGENT_RUNTIME_REGISTRY.find(a => a.id === teamAgent.id) || {
+      id: teamAgent.id, name: teamAgent.name, function: AGENT_PLAYBOOKS[teamAgent.id].objective,
+      requiredIntegrationIds: ['int_gemini_ai', 'int_supabase_database'], optionalIntegrationIds: [],
+      executableTools: ['team.prepare_text', 'team.persist_conversation'],
+      humanIntervention: 'La ejecución externa requiere el módulo conectado; el chat prepara entregables.',
+    };
     const requiredIntegrations = agent.requiredIntegrationIds.map((id) => integrationById.get(id));
     const optionalIntegrations = agent.optionalIntegrationIds.map((id) => integrationById.get(id));
     const missingRequired = requiredIntegrations.flatMap((integration) =>
@@ -1365,6 +1347,7 @@ function buildAgentRuntimeManifest() {
 
     return {
       ...agent,
+      playbook: AGENT_PLAYBOOKS[agent.id],
       status,
       sharedPlatformConnections: agentConnections.snapshot(),
       requiredIntegrations: requiredIntegrations.filter(Boolean),
@@ -1878,6 +1861,7 @@ app.get('/api/health', (req, res) => {
     fiscalWorkspace: { jurisdiction: 'DO', multiCompany: true, calculationMode: 'deterministic_decimal_strings', preparationEnabled: true, officialEmissionEnabled: false, xmlValidationEnabled: false, rulesVersion: FISCAL_RULE_VERSION },
     advertisingAgent: { minimumPlanBudgetDop: 1000, budgetControl: 'crm_allocation_only', automaticSpendingEnabled: false, policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    aiRuntime: { ...aiRuntime, countersScope: 'current_process' },
     geminiModels: {
       configured: getGeminiModelCandidates(),
       currentlyAvailable: getAvailableGeminiModelCandidates(),
@@ -2135,7 +2119,7 @@ app.get('/api/auth/session', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const credentials = getConfiguredAdminCredentials();
   if (!credentials.email || !credentials.password || !verifySalesSession(req.headers.cookie || '', credentials.password, credentials.email)) {
-    try { const i=await teamStudio.identity(req);if(i&&!i.owner)return res.json({success:true,session:{mode:'real',userName:i.name,email:i.email,role:i.area,organizationId:i.org,organizationName:(await salesStore.request(`crm_team_members?id=eq.${i.id}&select=organization_name`))[0].organization_name,token:'',loginAt:new Date().toISOString()}}); } catch {}
+    try { const i=await teamStudio.identity(req);if(i&&!i.owner)return res.json({success:true,session:{mode:'real',userName:i.name,email:i.email,role:i.area,organizationId:i.org,organizationName:(await salesStore.request(`crm_team_members?id=eq.${i.id}&select=organization_name`))[0].organization_name,token:'',loginAt:new Date().toISOString()}}); } catch { /* Missing or unavailable staff session must not grant access. */ }
     return res.status(401).json({ success: false, error: 'SESSION_REQUIRED' });
   }
   return res.json({ success: true, session: {
@@ -2170,7 +2154,7 @@ app.post('/api/auth/login', rateLimit({windowMs:15*60000,limit:20}), async (req,
   }
 
   if (!validateAdminCredentials(parsed.data.email, parsed.data.password)) {
-    try { if(await teamStudio.login(parsed.data.email,parsed.data.password,res))return; } catch {}
+    try { if(await teamStudio.login(parsed.data.email,parsed.data.password,res))return; } catch { /* Missing or unavailable staff session must not grant access. */ }
     recordServerAudit({
       actorType: 'Usuario',
       actorName: parsed.data.email,
@@ -2560,7 +2544,8 @@ ${systemPrompt || 'Eres un asesor comercial profesional. No inventes precios, pr
 ORGANIZACIÓN: ${organizationName || 'Organización principal'}
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
-${buildAgentKnowledgePrompt('ventas, seguimiento, soporte comercial, objeciones y conversacion con leads')}
+${await buildAgentKnowledgePrompt('ventas, seguimiento, soporte comercial, objeciones y conversacion con leads')}
+${SALES_RULES}
 
 CONTEXTO DEL LEAD:
 - Nombre: ${leadName || 'Cliente'}
@@ -2568,7 +2553,7 @@ CONTEXTO DEL LEAD:
 - Teléfono/WhatsApp: ${leadPhone || 'No especificado'}
 - Producto o servicio de interés: ${courseTitle || 'No especificado'}
 - Emoción Detectada: ${currentEmotion || 'Interesado'}
-- Probabilidad de Compra: ${buyProbability || 75}%
+- Probabilidad de Compra declarada (no es una medición verificada): ${buyProbability == null ? 'No estimada' : `${buyProbability}%`}
 
 HISTORIAL PREVIO:
 ${formattedHistory}
@@ -2584,7 +2569,7 @@ INSTRUCCIONES DE RESPUESTA:
 5. Si falta información, indícalo y solicita intervención humana.
 6. Detecta la necesidad principal del cliente y adapta la oferta a esa necesidad.
 7. Explica el beneficio práctico: qué aprenderá/recibirá, cómo mejora su vida, empleo, ventas u operación.
-8. Crea urgencia ética mostrando el costo de no actuar y el siguiente paso concreto.
+8. Propón un siguiente paso concreto. Solo menciona urgencia, fechas límite o cupos cuando exista evidencia vigente.
 9. Si el cliente está listo para pagar, orienta hacia pago validado; no marques cliente/matriculado sin confirmación real.
 10. Sugiere próxima acción de seguimiento si no compra ahora.
 `;
@@ -2627,7 +2612,7 @@ app.post('/api/ai/qualify-lead', async (req, res) => {
     const prompt = `
 Analiza la siguiente información comercial y realiza una calificación orientativa. No uses características sensibles y no inventes datos ausentes:
 
-${buildAgentKnowledgePrompt('calificacion de leads, deteccion de necesidades, recomendacion de cursos y proximos pasos comerciales')}
+${await buildAgentKnowledgePrompt('calificacion de leads, deteccion de necesidades, recomendacion de cursos y proximos pasos comerciales')}
 
 DATOS DEL LEAD:
 ${JSON.stringify(leadData, null, 2)}
@@ -2722,7 +2707,7 @@ ${liveCatalog.text}
 
 CONTEXTO DEL NEGOCIO: ${businessContext || 'No especificado'}
 
-${buildAgentKnowledgePrompt('marketing, publicidad, propuestas de valor, flyers, anuncios, embudos y contenido persuasivo')}
+${await buildAgentKnowledgePrompt('marketing, publicidad, propuestas de valor, flyers, anuncios, embudos y contenido persuasivo')}
 
 TIPO DE CONTENIDO: ${contentType || 'WhatsApp Campaign'}
 PÚBLICO OBJETIVO: ${targetAudience || 'Profesionales interesados en IA'}
@@ -2845,7 +2830,7 @@ TASA DE CIERRE ESTIMADA: ${closeRatePercent || 12}%
 CUELLO DE BOTELLA: ${bottleneck || 'No especificado'}
 CANALES: ${(channels || ['Meta Ads', 'Google Ads', 'YouTube', 'WhatsApp', 'Landing Page']).join(', ')}
 
-${buildAgentKnowledgePrompt('sistema de crecimiento, marketing agresivo etico, ventas optimizadas, operaciones escalables, KPIs y auditoria')}
+${await buildAgentKnowledgePrompt('sistema de crecimiento, marketing agresivo etico, ventas optimizadas, operaciones escalables, KPIs y auditoria')}
 
 Reglas:
 1. Trata las metas de ventas, ROAS o 80% como objetivos operativos, nunca como garantias.
@@ -2966,7 +2951,7 @@ LANZAMIENTO: ${launchDate || 'No especificado'}
 RELANZAMIENTO: ${relaunchDate || 'No especificado'}
 MARCA: ${brandInstructions || 'Usar logo INTECA, tono profesional, claro, educativo y orientado a resultados.'}
 
-${buildAgentKnowledgePrompt('briefs creativos, flyers, videos de 30 a 60 segundos, carruseles, reels, shorts y anuncios visuales')}
+${await buildAgentKnowledgePrompt('briefs creativos, flyers, videos de 30 a 60 segundos, carruseles, reels, shorts y anuncios visuales')}
 
 Reglas:
 1. No inventes avales, precios, fechas ni garantías no indicadas.
@@ -3091,7 +3076,7 @@ NOTAS: ${notes || 'Sin notas'}
 DATOS FUENTE:
 ${JSON.stringify(sourceData, null, 2)}
 
-${buildAgentKnowledgePrompt('contabilidad, reportes administrativos, ordenes de compra, recibos, conciliacion, inventario, KPIs y auditoria')}
+${await buildAgentKnowledgePrompt('contabilidad, reportes administrativos, ordenes de compra, recibos, conciliacion, inventario, KPIs y auditoria')}
 
 Reglas:
 1. Para Estado de resultados, resume ingresos, costos, gastos y utilidad.

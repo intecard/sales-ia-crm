@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 type Snapshot = {
+  status?: { templateChecks: Record<string, string>; readiness?: { outsideServiceWindow: boolean; ownerTemplate: boolean } };
   settings: {
     enabled: boolean;
     owner_phone: string;
@@ -115,6 +116,11 @@ export function SalesAutomationPanel() {
       )}
       {data && (
         <>
+          <div className="rounded-lg border border-amber-700 p-3 text-sm" role="status">
+            <p>Seguimiento fuera de la ventana: {data.status?.readiness?.outsideServiceWindow ? 'plantilla verificada' : 'pendiente de aprobación o configuración'}.</p>
+            <p>Avisos al dueño: {data.status?.readiness?.ownerTemplate ? 'plantilla verificada' : 'pendiente de aprobación o configuración'}.</p>
+            <p>Cola: {data.jobs.filter(j => j.state === 'blocked').length} bloqueadas, {data.jobs.filter(j => ['failed', 'unknown'].includes(j.state)).length} para revisar (últimas 50 tareas).</p>
+          </div>
           <div className="grid sm:grid-cols-4 gap-3">
             {[
               ['Pagos validados hoy', `${data.metrics.paid_today} / ${data.settings.daily_goal}`],
