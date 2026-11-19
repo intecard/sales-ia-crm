@@ -88,6 +88,12 @@ export class SalesFollowupAgent {
       error: this.error,
       dailyPaidGoal: this.cache?.data.daily_goal ?? 5,
       templateChecks: this.templateChecks,
+      readiness: {
+        storage: !!this.cache && !this.error,
+        outsideServiceWindow: !!this.cache?.data.enabled && !this.error && this.templateChecks.followup === 'APPROVED',
+        ownerTemplate: !!this.cache?.data.enabled && !this.error && this.templateChecks.owner === 'APPROVED',
+        requiresConsent: true,
+      },
     };
   }
   async settings() {

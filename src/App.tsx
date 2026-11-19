@@ -1,31 +1,32 @@
-import { TeamChatStudio } from './components/TeamChatStudio';
-import React, { useEffect, useState } from 'react';
+const TeamChatStudio = lazy(() => import('./components/TeamChatStudio').then(m => ({ default: m.TeamChatStudio })));
+import React, { lazy, Suspense, useEffect, useState } from 'react';
+import { ModuleBoundary } from './components/ModuleBoundary';
 import { PlatformFrame } from './components/PlatformFrame';
 import { Sidebar, NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
 import { AuthGate } from './components/AuthGate';
 
 // View Modules
-import { DashboardOverview } from './components/DashboardOverview';
-import { LeadsCRM } from './components/LeadsCRM';
-import { AIChatStudio } from './components/AIChatStudio';
-import { AIAgentsCommand } from './components/AIAgentsCommand';
-import { CoursesManager } from './components/CoursesManager';
-import { SalesFunnelsEditor } from './components/SalesFunnelsEditor';
-import { MarketingAutomation } from './components/MarketingAutomation';
-import { GrowthRevenueCommandCenter } from './components/GrowthRevenueCommandCenter';
-import { AutonomousGrowthOps } from './components/AutonomousGrowthOps';
-import { PaymentsInvoicing } from './components/PaymentsInvoicing';
-import { AccountingAutopilot } from './components/AccountingAutopilot';
-import { DocumentVault } from './components/DocumentVault';
-import { PredictiveAnalytics } from './components/PredictiveAnalytics';
-import { AuditTrailCenter } from './components/AuditTrailCenter';
-import { MultiTenantSettings } from './components/MultiTenantSettings';
+const DashboardOverview = lazy(() => import('./components/DashboardOverview').then(m => ({ default: m.DashboardOverview })));
+const LeadsCRM = lazy(() => import('./components/LeadsCRM').then(m => ({ default: m.LeadsCRM })));
+const AIChatStudio = lazy(() => import('./components/AIChatStudio').then(m => ({ default: m.AIChatStudio })));
+const AIAgentsCommand = lazy(() => import('./components/AIAgentsCommand').then(m => ({ default: m.AIAgentsCommand })));
+const CoursesManager = lazy(() => import('./components/CoursesManager').then(m => ({ default: m.CoursesManager })));
+const SalesFunnelsEditor = lazy(() => import('./components/SalesFunnelsEditor').then(m => ({ default: m.SalesFunnelsEditor })));
+const MarketingAutomation = lazy(() => import('./components/MarketingAutomation').then(m => ({ default: m.MarketingAutomation })));
+const GrowthRevenueCommandCenter = lazy(() => import('./components/GrowthRevenueCommandCenter').then(m => ({ default: m.GrowthRevenueCommandCenter })));
+const AutonomousGrowthOps = lazy(() => import('./components/AutonomousGrowthOps').then(m => ({ default: m.AutonomousGrowthOps })));
+const PaymentsInvoicing = lazy(() => import('./components/PaymentsInvoicing').then(m => ({ default: m.PaymentsInvoicing })));
+const AccountingAutopilot = lazy(() => import('./components/AccountingAutopilot').then(m => ({ default: m.AccountingAutopilot })));
+const DocumentVault = lazy(() => import('./components/DocumentVault').then(m => ({ default: m.DocumentVault })));
+const PredictiveAnalytics = lazy(() => import('./components/PredictiveAnalytics').then(m => ({ default: m.PredictiveAnalytics })));
+const AuditTrailCenter = lazy(() => import('./components/AuditTrailCenter').then(m => ({ default: m.AuditTrailCenter })));
+const MultiTenantSettings = lazy(() => import('./components/MultiTenantSettings').then(m => ({ default: m.MultiTenantSettings })));
 import { ManualsDocumentationModal } from './components/ManualsDocumentationModal';
-import { OwnerControlCenter } from './components/OwnerControlCenter';
-import { AdsWalletCommandCenter } from './components/AdsWalletCommandCenter';
-import { ProcurementCommandCenter } from './components/ProcurementCommandCenter';
-import { CompanyKpisCenter } from './components/CompanyKpisCenter';
+const OwnerControlCenter = lazy(() => import('./components/OwnerControlCenter').then(m => ({ default: m.OwnerControlCenter })));
+const AdsWalletCommandCenter = lazy(() => import('./components/AdsWalletCommandCenter').then(m => ({ default: m.AdsWalletCommandCenter })));
+const ProcurementCommandCenter = lazy(() => import('./components/ProcurementCommandCenter').then(m => ({ default: m.ProcurementCommandCenter })));
+const CompanyKpisCenter = lazy(() => import('./components/CompanyKpisCenter').then(m => ({ default: m.CompanyKpisCenter })));
 
 // Mock Initial Datasets
 import {
@@ -1393,6 +1394,7 @@ export function App() {
 
           {/* Dynamic View Container */}
           <main className="flex-1 overflow-y-auto bg-slate-950/90">
+            <ModuleBoundary key={activeTab + currentOrg.id}><Suspense fallback={<p role="status" className="p-8 text-slate-300">Cargando módulo…</p>}>
             {activeTab === 'dashboard' && (
               <DashboardOverview
                 leads={leads}
@@ -1570,6 +1572,7 @@ export function App() {
                 onAddOrganization={handleAddOrganization}
               />
             )}
+            </Suspense></ModuleBoundary>
           </main>
         </div>
       </div>

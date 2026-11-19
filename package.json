@@ -16,7 +16,8 @@
     "check": "npm run typecheck && npm run lint && npm run build",
     "test:whatsapp": "node --experimental-strip-types --test whatsapp-routing.test.ts whatsapp-conversation.test.ts whatsapp-catalog.test.ts whatsapp-ai.test.ts && npm run build && node --test whatsapp-webhook.test.mjs",
     "test:sales": "node --experimental-strip-types --test sales-agent.test.ts sales-followup.test.ts && npm run build && node --test sales-api.test.mjs",
-    "test:enrollment": "node --experimental-strip-types --test enrollment-agent.test.ts && npm run build && node --test sales-api.test.mjs"
+    "test:enrollment": "node --experimental-strip-types --test enrollment-agent.test.ts && npm run build && node --test sales-api.test.mjs",
+    "test": "node --import tsx --test *.test.ts accounting/*.test.ts team/*.test.ts voice/*.test.ts fiscal/*.test.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "1.1.0",

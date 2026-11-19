@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-type Agent = { id: string; name: string; title: string; area: string };
+import { useCallback, useEffect, useRef, useState } from 'react';
+type Agent = { id: string; name: string; title: string; area: string; playbook?: {objective: string; deliverable: string; measure: string} };
 const field = 'w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100';
 const button = 'bg-blue-600 text-white rounded-lg px-3 py-2 disabled:opacity-50';
-export function TeamChatStudio({
+function TeamChatWorkspace({
   organization,
   onOpenClients,
 }: {
@@ -23,18 +23,19 @@ export function TeamChatStudio({
   const retry = useRef<{ id: string; agent: string; text: string } | null>(null),
     bottom = useRef<HTMLDivElement>(null);
   const base = '/api/team/' + encodeURIComponent(organization.id);
-  async function api(path = '', body?: unknown) {
+  const api = useCallback(async (path = '', body?: unknown) => {
     const r = await fetch(base + path, {
       method: body === undefined ? 'GET' : 'POST',
       credentials: 'same-origin',
       cache: 'no-store',
+      signal: AbortSignal.timeout(45000),
       headers: { 'Content-Type': 'application/json', 'X-CRM-Action': 'team' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const d = await r.json();
     if (!r.ok) throw Error(d.error || 'No se pudo completar la solicitud.');
     return d;
-  }
+  }, [base]);
   async function refresh() {
     const d = await api();
     setData(d);
@@ -43,9 +44,6 @@ export function TeamChatStudio({
   }
   useEffect(() => {
     let valid = true;
-    setLoading(true);
-    setData(null);
-    setMessages([]);
     api()
       .then(async (d) => {
         if (!valid) return;
@@ -65,11 +63,10 @@ export function TeamChatStudio({
     return () => {
       valid = false;
     };
-  }, [organization.id]);
+  }, [api]);
   useEffect(() => {
     if (!agent) return;
     let valid = true;
-    setMessages([]);
     const poll = () =>
       api('/messages/' + agent)
         .then((v) => {
@@ -84,7 +81,7 @@ export function TeamChatStudio({
       valid = false;
       clearInterval(timer);
     };
-  }, [agent, organization.id]);
+  }, [agent, api]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'nearest' });
   }, [messages.length]);
@@ -159,6 +156,8 @@ export function TeamChatStudio({
                   disabled={busy}
                   key={a.id}
                   onClick={() => {
+                    setMessages([]);
+                    setError('');
                     setAgent(a.id);
                     setText('');
                     retry.current = null;
@@ -188,6 +187,9 @@ export function TeamChatStudio({
                 Comparte objetivos, pide análisis o solicita un plan de trabajo. Las respuestas
                 preparan propuestas; no publican campañas ni ejecutan pagos.
               </p>
+              {selected?.playbook && <div className="mt-3 rounded-lg bg-slate-800 p-3 text-sm space-y-1">
+                <p>{selected.playbook.objective}</p><p>Entregable: {selected.playbook.deliverable}</p><p>Evaluación: {selected.playbook.measure}</p>
+              </div>}
               <div
                 className="flex-1 overflow-auto max-h-[480px] space-y-3 py-4"
                 role="log"
@@ -471,4 +473,8 @@ export function TeamChatStudio({
       )}
     </div>
   );
+}
+
+export function TeamChatStudio(props: { organization: { id: string; name: string }; onOpenClients?: () => void }) {
+  return <TeamChatWorkspace key={props.organization.id} {...props} />;
 }
