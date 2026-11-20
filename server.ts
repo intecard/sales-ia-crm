@@ -1,4 +1,6 @@
 import { generateWithFallback, aiRuntime } from './ai-resilience.ts';
+import { OwnerAgent } from './owner-agent.ts';
+import { validWhatsAppSignature } from './whatsapp-auth.ts';
 import { AGENT_PLAYBOOKS } from './team/playbooks.ts';
 import { TEAM_AGENTS } from './team/agents.ts';
 import { salesCoachingReply } from './sales-coaching.ts';
@@ -62,6 +64,7 @@ const salesFollowup = new SalesFollowupAgent(salesStore);
 const salesFollowupTimer = setInterval(() => void salesFollowup.tick(), 60000);
 salesFollowupTimer.unref();
 const enrollmentAgent = new EnrollmentAgent(salesStore);
+const ownerAgent = new OwnerAgent(salesStore, salesFollowup, enrollmentAgent);
 const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
@@ -102,6 +105,17 @@ if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1' || pro
   app.set('trust proxy', 1);
 }
 app.use(helmet({ contentSecurityPolicy: false }));
+const signedWhatsAppRequests = new WeakSet<express.Request>();
+// Verify the exact request bytes before JSON parsing or any privileged owner routing.
+app.post('/api/webhooks/meta/whatsapp', express.raw({ type: 'application/json', limit: '1mb' }), (req, res, next) => {
+  // DS_META_APP_SECRET belongs to the separate advertising app. Never use it here.
+  const secret = process.env.WHATSAPP_APP_SECRET || '';
+  if (!Buffer.isBuffer(req.body)) return res.sendStatus(400);
+  if (secret && !validWhatsAppSignature(req.body, req.headers['x-hub-signature-256'], secret)) return res.sendStatus(401);
+  if (secret && process.env.WHATSAPP_PHONE_NUMBER_ID) signedWhatsAppRequests.add(req);
+  try { req.body = JSON.parse(req.body.toString('utf8')); } catch { return res.sendStatus(400); }
+  next();
+});
 app.use('/api/sales/:key/receipts', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(
@@ -534,7 +548,7 @@ async function sendWhatsAppTextMessage(recipient: WhatsAppRecipient, body: strin
 }
 
 // Support phone-number and BSUID identities without converting IDs into phone numbers.
-async function processWhatsAppInboundMessages(messages: any[], event: any) {
+async function processWhatsAppInboundMessages(messages: any[], event: any, signed = false) {
   console.log(`[DEBUG] WHATSAPP_AUTO_REPLY_ENABLED en Render: '${process.env.WHATSAPP_AUTO_REPLY_ENABLED}'`);
 
   if (process.env.WHATSAPP_AUTO_REPLY_ENABLED === 'false') {
@@ -568,6 +582,17 @@ async function processWhatsAppInboundMessages(messages: any[], event: any) {
       try {
 
         const userMessage = getWhatsAppMessageText(message);
+        if (await ownerAgent.isOwner(recipient)) {
+          if (!signed) { console.warn('Owner instruction blocked: verified WhatsApp signature required'); return; }
+          const ownerConversation = await whatsAppConversations.get(memoryKey);
+          if (ownerConversation.turns.some(turn => turn.role === 'assistant' && turn.id === messageId)) return;
+          const reply = await ownerAgent.respond(recipient, messageId, userMessage, signed);
+          for (const chunk of splitWhatsAppText(reply)) await sendWhatsAppTextMessage(recipient, chunk);
+          rememberReply(ownerConversation, reply, '', messageId);
+          await whatsAppConversations.save(memoryKey, ownerConversation);
+          processedWhatsAppMessageIds.add(messageId);
+          return;
+        }
         const profileName = findWhatsAppContactName(event, recipient.id);
         const conversation = await whatsAppConversations.get(memoryKey);
         if (conversation.turns.some(turn => turn.role === 'assistant' && turn.id === messageId)) return;
@@ -945,6 +970,7 @@ const INTEGRATION_ENVIRONMENT_GROUPS = [
     requiredEnvVars: [
       'META_WEBHOOK_VERIFY_TOKEN',
       'WHATSAPP_ACCESS_TOKEN',
+      'WHATSAPP_APP_SECRET',
       'WHATSAPP_PHONE_NUMBER_ID',
       'WHATSAPP_BUSINESS_ACCOUNT_ID',
     ],
@@ -1858,6 +1884,7 @@ app.get('/api/health', (req, res) => {
     salesAgent: salesStore.status(),
     salesAutomation: salesFollowup.status(),
     enrollmentAgent: enrollmentAgent.status(),
+    ownerAssistant: { signatureConfigured: Boolean(process.env.WHATSAPP_APP_SECRET), enabled: Boolean(process.env.WHATSAPP_APP_SECRET && process.env.WHATSAPP_PHONE_NUMBER_ID && salesStore.configured()), requiresSignedWebhook: true, paymentValidationByChat: false },
     fiscalWorkspace: { jurisdiction: 'DO', multiCompany: true, calculationMode: 'deterministic_decimal_strings', preparationEnabled: true, officialEmissionEnabled: false, xmlValidationEnabled: false, rulesVersion: FISCAL_RULE_VERSION },
     advertisingAgent: { minimumPlanBudgetDop: 1000, budgetControl: 'crm_allocation_only', automaticSpendingEnabled: false, policy: 'owner_approval_per_campaign', autonomousDiscountPercent: 0, connections: advertisingAgent.configuration().map(({ channel, configured }) => ({ channel, configured })) },
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
@@ -2274,7 +2301,7 @@ app.post('/api/webhooks/meta/whatsapp', (req, res) => {
     });
 
     if (messages.length > 0) {
-      void processWhatsAppInboundMessages(messages, event).catch((error) => {
+      void processWhatsAppInboundMessages(messages, event, signedWhatsAppRequests.has(req)).catch((error) => {
         console.error('Error sending WhatsApp auto reply:', error);
         recordServerAudit({
           actorType: 'Agente IA',

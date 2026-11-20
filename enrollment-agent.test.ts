@@ -4,6 +4,7 @@ import {
   EnrollmentAgent,
   receiptMime,
   welcomeText,
+  welcomeEmailText,
   whatsappWelcomePayload,
   type Enrollment,
 } from './enrollment-agent.ts';
@@ -34,6 +35,15 @@ const sale = (now = Date.now()) =>
     profile: { phone: '18095550101' },
     last_inbound_at: new Date(now).toISOString(),
   }) as SalesOpportunity;
+test('welcome email includes a personal setup link and no password or invented start date',()=>{
+  const text=welcomeEmailText(row(),'https://campus.example.test','https://firebase.example.test/action?mode=resetPassword&oobCode=TEST');
+  assert.match(text,/oobCode=TEST/);
+  assert.match(text,/solo la cambia si tú completas el proceso/);
+  assert.match(text,/pendientes de confirmación académica/);
+  assert.doesNotMatch(text,/Contraseña temporal:/);
+  const pending=row();pending.campus_status='pending';
+  assert.throws(()=>welcomeEmailText(pending,'https://campus.example.test','https://example.test'),/PAYMENT_REQUIRED/);
+});
 test('receipt rejects scripts and oversize data; recognizes actual document signatures', () => {
   assert.equal(receiptMime(Buffer.from('%PDF-1.7\nTEST')), 'application/pdf');
   assert.throws(() => receiptMime(Buffer.from('<html>not a receipt</html>')), /RECEIPT_INVALID/);
@@ -157,6 +167,7 @@ test('Resend persists acknowledgement, uses idempotency, and holds ambiguous fai
     EMAIL_FROM: 'test@example.test',
   });
   assert.equal(agent.status().emailConfigured, true);
+  agent.accessLink = async () => 'https://example.test/action?mode=resetPassword&oobCode=TEST';
   let count = 0;
   globalThis.fetch = async (url, init) => {
     assert.equal(url, 'https://api.resend.com/emails');
@@ -165,6 +176,7 @@ test('Resend persists acknowledgement, uses idempotency, and holds ambiguous fai
       `crm-enrollment/${row().id}`,
     );
     count++;
+    assert.match(JSON.parse(String(init?.body)).text, /oobCode=TEST/);
     return new Response(JSON.stringify({ id: 'email-test' }));
   };
   try {

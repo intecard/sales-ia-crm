@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 type Snapshot = {
-  status?: { templateChecks: Record<string, string>; readiness?: { outsideServiceWindow: boolean; ownerTemplate: boolean } };
+  status?: { ownerCommandsReady?: boolean; templateChecks: Record<string, string>; readiness?: { outsideServiceWindow: boolean; ownerTemplate: boolean } };
   settings: {
     enabled: boolean;
     owner_phone: string;
@@ -148,6 +148,12 @@ export function SalesAutomationPanel() {
             automáticos por interesado, separados al menos 24 horas. Las bajas, la atención humana y
             los pagos en revisión detienen los recordatorios de cobro.
           </p>
+          <div className="rounded-lg border border-slate-600 p-3 text-sm space-y-2">
+            <p className="font-semibold">Asistente del director: {data.status?.ownerCommandsReady ? 'habilitado para mensajes firmados' : 'pendiente de conectar la firma de la aplicación de WhatsApp'}</p>
+            <p>Desde +{data.settings.owner_phone}, escribe al WhatsApp institucional: resumen, estudiantes, pendientes, revisión, atención o fiscal. Para más resultados: pendientes 2.</p>
+            <p>Con el ID de un caso puedes enviar: ficha ID, pausar ID, reanudar ID, seguimiento ID o matricular ID. Cada instrucción de cambio queda registrada. Matricular exige un pago validado en el CRM.</p>
+            {!data.status?.ownerCommandsReady && <p>En Conexiones configura WHATSAPP_APP_SECRET con el secreto de la aplicación que recibe los mensajes de WhatsApp. El secreto de la aplicación de publicidad es distinto. Nunca lo envíes por chat.</p>}
+          </div>
           <p className="text-sm text-amber-200">
             Fuera de la ventana de atención se requieren consentimiento y plantilla aprobada por
             Meta. Para recibir avisos libres, el dueño debe escribir al WhatsApp del negocio; para

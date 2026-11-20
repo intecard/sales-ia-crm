@@ -23,6 +23,7 @@ test('sales endpoints enforce administrator session and explicit bank review; pa
       const resource=String(url), body=options.body ? JSON.parse(options.body) : {};
       if(resource.startsWith('https://graph.facebook.com/')) { console.log('TEST_SEND '+body.text.body); return new Response('{}'); }
       if(!resource.startsWith('https://test.supabase.test/')) throw new Error('Unexpected outbound network');
+      if(resource.includes('crm_sales_automation_settings')) return new Response(JSON.stringify([{owner_phone:'18097065502',enabled:true}]));
       if(resource.includes('crm_sales_settings')) { if(options.method==='PATCH') enabled=body.enabled; return new Response(JSON.stringify([{enabled}])); }
       if(resource.includes('crm_whatsapp_memory')) {
         if(options.method==='POST') { const row=Array.isArray(body)?body[0]:body; memory.set(row.conversation_key,row); return new Response('[]'); }
