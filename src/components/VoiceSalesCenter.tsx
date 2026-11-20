@@ -1,3 +1,4 @@
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
 import { BrowserVoiceTrial } from './BrowserVoiceTrial';
 import { VOICE_PROFILE } from '../data/voice-sales';
 import { useEffect,useState } from 'react';
@@ -7,7 +8,7 @@ export function VoiceSalesCenter({organization,onConfigure}:{organization:{id:st
  const [snapshot,setSnapshot]=useState<any>(null),[settings,setSettings]=useState<any>({...initial,company_name:organization.name}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[contact,setContact]=useState({name:'',phone:'',course:'',consent:false,consent_note:''}),[simulation,setSimulation]=useState(''),[course,setCourse]=useState(''),[history,setHistory]=useState<Array<{speaker:'customer'|'agent';text:string}>>([]),[at,setAt]=useState('');
  const base=`/api/advertising/voice/${organization.id}`;
  async function load(updateForm=false){const r=await fetch(base,{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error);setSnapshot(d);if(updateForm)setSettings(d.settings||{...initial,company_name:organization.name});}
- useEffect(()=>{void load(true).catch(e=>setError(e.message));const t=setInterval(()=>void load().catch(()=>{}),30000);return()=>clearInterval(t);},[organization.id]);
+ useEffect(()=>{let first=true;return subscribeSnapshot(signal=>fetchSnapshot(base,signal),d=>{setSnapshot(d);if(first){setSettings(d.settings||{...initial,company_name:organization.name});first=false;}setError('');},e=>setError(e.message),30000);},[base,organization.name]);
  async function action(path:string,body:any={}){setBusy(true);setError('');setNotice('');try{const r=await fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Revisa los datos.');await load();return d;}catch(e){setError((e as Error).message);return null;}finally{setBusy(false);}}
  async function simulate(){const text=simulation.trim();if(!text)return;const result=await action('/simulate',{course,text,history:history.slice(-16)});if(result){setHistory(h=>[...h,{speaker:'customer',text},{speaker:'agent',text:result.reply}]);setSimulation('');}}
  const calls=snapshot?.calls||[];

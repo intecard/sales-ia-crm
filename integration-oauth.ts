@@ -168,6 +168,8 @@ export function createIntegrationOAuth(options: Options) {
           if(p==='meta') {
             console.warn('OAUTH_META_ACCOUNT_CHECK',JSON.stringify({channel,httpStatus:error instanceof ProviderAccessError?error.httpStatus:undefined,providerCode:error instanceof ProviderAccessError?error.providerCode:undefined}));
             if(channel==='meta_ads'){apiPending='Facebook e Instagram se autorizaron y sus accesos se guardaron. Meta Ads no pudo verificarse: revisa META_AD_ACCOUNT_ID, el acceso del usuario y el estado de la cuenta publicitaria. No se activó ningún anuncio.';continue;}
+            // Keep only the channel code, never the credential-bearing provider error.
+            // eslint-disable-next-line preserve-caught-error
             throw Error(channel==='facebook'?'OAUTH_META_VERIFY_FACEBOOK':'OAUTH_META_VERIFY_INSTAGRAM');
           }
           throw error;

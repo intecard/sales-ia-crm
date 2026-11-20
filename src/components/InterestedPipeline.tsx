@@ -1,3 +1,4 @@
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
 import { SalesAutomationPanel } from './SalesAutomationPanel';
 import { useEffect, useState } from 'react';
 import type { SalesOpportunity } from '../../sales-agent';
@@ -30,11 +31,9 @@ export function InterestedPipeline() {
       setError((e as Error).message);
     }
   }
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), 60000);
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => subscribeSnapshot(
+    signal => fetchSnapshot<{rows: SalesOpportunity[]}>('/api/sales/interested-document', signal),
+    data => {setRows(data.rows);setLoaded(true);setError('');}, e=>setError(e.message),60000), []);
   const columns = [
     'Nombre',
     'Teléfono',

@@ -1,3 +1,4 @@
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
 import { useCallback, useEffect, useState } from 'react';
 import type { Enrollment } from '../../enrollment-agent';
 type State = {
@@ -61,7 +62,11 @@ export function EnrollmentCenter() {
         setCourseTitle(data.courses[0]?.title || '');
       })
       .catch((e) => setError(e.message));
-    void verifyCampus();
+    return subscribeSnapshot(async signal=>{
+      const health=await fetchSnapshot<CampusReadiness>('/api/sales/campus-health',signal);
+      const courses=health.authReady&&health.databaseReady?await fetchSnapshot<Array<{id:string;title:string}>>('/api/sales/campus-courses',signal):[];
+      return {health,courses};
+    },result=>{setCampusHealth(result.health);setCatalog(result.courses);},e=>setError(e.message));
   }, []);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const refresh = useCallback(async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CatalogCourse } from '../../whatsapp-catalog';
 function save(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -55,7 +55,7 @@ export function BrandedCreativeStudio() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [ready, setReady] = useState(false);
-  const [photoReady, setPhotoReady] = useState(false), [seats, setSeats] = useState(''), [deadline, setDeadline] = useState(''), [confirmedScarcity, setConfirmedScarcity] = useState(false), [customPhotos, setCustomPhotos] = useState<Record<string,string>>({});
+  const [loadedPhotoKey, setLoadedPhotoKey] = useState(''), [seats, setSeats] = useState(''), [deadline, setDeadline] = useState(''), [confirmedScarcity, setConfirmedScarcity] = useState(false), [customPhotos, setCustomPhotos] = useState<Record<string,string>>({});
   const canvas = useRef<HTMLCanvasElement>(null),
     logo = useRef<HTMLImageElement | null>(null),
     photo = useRef<HTMLImageElement | null>(null),
@@ -90,17 +90,19 @@ export function BrandedCreativeStudio() {
     };
   }, []);
   const visual = courseVisual(selected);
+  const photoSource = customPhotos[selected] || visual.image;
+  const photoKey = selected + '\n' + photoSource;
+  const photoReady = Boolean(selected) && loadedPhotoKey === photoKey;
   useEffect(() => {
     if (!selected) return;
-    let active=true; setPhotoReady(false); photo.current=null;
+    let active=true; photo.current=null;
     const img=new Image();
-    img.onload=()=>{if(active){photo.current=img;setPhotoReady(true);}};
+    img.onload=()=>{if(active){photo.current=img;setLoadedPhotoKey(photoKey);}};
     img.onerror=()=>{if(active)setError('No se pudo cargar la imagen del curso. Selecciona otra imagen antes de exportar.');};
-    img.src=customPhotos[selected] || visual.image;
+    img.src=photoSource;
     return()=>{active=false;};
-  },[selected,customPhotos,visual.image]);
-  useEffect(()=>{setSeats('');setDeadline('');setConfirmedScarcity(false);},[selected]);
-  function draw(scene = -1, progress = 1) {
+  },[selected,photoKey,photoSource]);
+  const draw=useCallback((scene = -1, progress = 1) => {
     const el=canvas.current;
     if(!el || !course || !logo.current || !photo.current || !photoReady)return;
     const compact=format==='banner';const w=compact?1600:1080,h=compact?900:1350;
@@ -130,8 +132,8 @@ export function BrandedCreativeStudio() {
     textBlock(c,opportunity,48,compact?735:1223,textW,30,compact?17:19,'#ffda7b');
     textBlock(c,'inteca.com.do · intecaedu@gmail.com',48,h-15,compact?710:970,26,compact?20:21,'#c9e3ea');
     if(scene>=0){c.fillStyle='#38e2b6';c.fillRect(0,h-5,w*progress,5);}
-  }
-  useEffect(()=>{if(ready&&photoReady)draw();},[selected,format,ready,photoReady,courses,seats,deadline,confirmedScarcity]);
+  },[course,format,visual.hook,visual.benefit,seats,deadline,confirmedScarcity,photoReady]);
+  useEffect(()=>{if(ready&&photoReady)draw();},[ready,photoReady,draw]);
   async function uploadPhoto(file?: File){
     if(!file)return;
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){setError('Usa una imagen JPG, PNG o WebP de hasta 8 MB.');return;}
@@ -204,7 +206,7 @@ export function BrandedCreativeStudio() {
           aria-label="Curso del material"
           disabled={busy}
           value={selected}
-          onChange={(e) => setSelected(e.target.value)}
+          onChange={(e) => {setLoadedPhotoKey('');setSelected(e.target.value);setSeats('');setDeadline('');setConfirmedScarcity(false);}}
           className="bg-slate-800 rounded p-2 max-w-full"
         >
           {courses.map((c) => (
