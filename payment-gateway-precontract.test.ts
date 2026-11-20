@@ -15,7 +15,7 @@ function fixture(order={...sample},setting:any={
  preferred_provider:'unselected',merchant_status:'contract_pending',sandbox_certified:false,
  production_certified:false,checkout_enabled:false
 }){
- let calls:Array<{resource:string;method?:string;body?:any}>=[];
+ const calls:Array<{resource:string;method?:string;body?:any}>=[];
  const store={request:async(resource:string,method?:string,body?:unknown)=>{
    calls.push({resource,method,body});
    if(resource.startsWith('crm_gateway_settings'))return [setting];

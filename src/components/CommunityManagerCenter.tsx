@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
+import { useCallback, useEffect, useState } from 'react';
 import { LocalVideoPanel } from './LocalVideoPanel';
 type Job={id:string;channel:string;scheduled_at:string;state:string;payload:{title:string;courseTitle:string;kind:string;pillar:string;caption:string;slides:string[];editorialDate?:string;campaignMonth?:string;designSeed?:number;script?:{actor:string;duration:number;format:string;scenes:Array<{from:number;to:number;location:string;action:string;camera:string;dialogue:string;subtitle:string;audio:string}>;requirements:string[];state:string}};media_url:string|null;result:{id?:string;url?:string;containerId?:string};last_error:string|null};
 type Growth={leaders?:Array<{jobId:string;title:string;format:string;interactions:number;checkedAt:string}>;channel:string;observedPosts:number;views:number|null;likes:number|null;comments:number|null;shares:number|null;followers:number|null;followersChange:number|null;baselineAt:string|null;checkedAt:string|null;websiteVisits:null;recommendation:string};
@@ -17,8 +18,14 @@ export function CommunityManagerCenter(){
  const [generations,setGenerations]=useState<VideoGeneration[]>([]);
  const [generationStorageReady,setGenerationStorageReady]=useState(false);
  const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[filter,setFilter]=useState('all'),[calendarView,setCalendarView]=useState<'active'|'history'>('active');
- async function load(signal?:AbortSignal){const r=await fetch('/api/advertising/community',{cache:'no-store',signal});if(!r.ok)throw Error('No se pudo consultar Lisa. Comprueba la sesión de administrador.');setData(await r.json());void fetch('/api/advertising/community/video-provider',{cache:'no-store',signal}).then(async x=>{if(x.ok)setProvider(await x.json());}).catch(()=>{});void fetch('/api/advertising/community/video/generations',{cache:'no-store',signal}).then(async x=>{setGenerationStorageReady(x.ok);if(x.ok)setGenerations(await x.json());}).catch(()=>setGenerationStorageReady(false));}
- useEffect(()=>{const c=new AbortController();void load(c.signal).catch(e=>{if(!c.signal.aborted)setError(e.message);});const t=setInterval(()=>{if(document.visibilityState==='visible')void load(c.signal).catch(()=>{});},15000);return()=>{c.abort();clearInterval(t);};},[]);
+ const receive=useCallback(([snapshot,providerResult,generationResult]:any[])=>{setData(snapshot);setProvider(providerResult);setGenerationStorageReady(generationResult!==null);setGenerations(generationResult||[]);setError('');},[]);
+ const read=useCallback((signal?:AbortSignal)=>Promise.all([
+  fetchSnapshot<Snapshot>('/api/advertising/community',signal),
+  fetchSnapshot<VideoProviderStatus>('/api/advertising/community/video-provider',signal).catch(()=>null),
+  fetchSnapshot<VideoGeneration[]>('/api/advertising/community/video/generations',signal).catch(()=>null),
+ ]),[]);
+ const load=(signal?:AbortSignal)=>read(signal).then(receive);
+ useEffect(()=>subscribeSnapshot(read,receive,e=>setError(e.message),15000),[read,receive]);
  async function act(action:string,body:unknown={}){setBusy(true);setError('');try{const r=await fetch('/api/advertising/community/'+action,{method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'advertising'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo ejecutar la solicitud.');await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  async function generateVideo(communityJobId:string){
    if(!approvedSpend){setError('Debes aprobar expresamente el consumo de créditos del proveedor.');return;}

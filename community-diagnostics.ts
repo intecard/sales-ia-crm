@@ -25,7 +25,6 @@ export class CommunityDiagnostics {
   const channels=Object.fromEntries(['facebook','instagram','youtube'].map(k=>[k,Boolean(this.publisher.destination(k as any))]));
   let storageStatus:'configured'|'missing_credentials'|'unreachable'|'available'|'unauthorized'|'bucket_missing'='missing_credentials';
   if(urls?.startsWith('https://')&&this.env.SUPABASE_SERVICE_ROLE_KEY){
-    storageStatus='configured';
     try{
       const base=new URL(urls);
       const r=await this.fetcher(`${base.origin}/storage/v1/bucket/crm-community`,{

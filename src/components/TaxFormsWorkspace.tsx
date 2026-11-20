@@ -1,3 +1,4 @@
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
 import {useCallback,useEffect,useState} from 'react';
 type Form='606'|'607'|'608'|'609'|'IT-1'|'IR-2'|'ACT';
 type Draft={id:string;created_at:string;payload:{
@@ -22,7 +23,7 @@ export function TaxFormsWorkspace({organization,period}:{organization:{id:string
   const json=await response.json();if(!response.ok)throw Error(json.error||'No se pudieron cargar los formularios');
   setData(json);
  },[base,period]);
- useEffect(()=>{setError('');void refresh().catch(e=>setError(e.message));},[refresh]);
+ useEffect(()=>subscribeSnapshot(signal=>fetchSnapshot<Summary>(base+'/tax-forms?period='+period,signal),result=>{setData(result);setError('');},e=>setError(e.message)),[base,period]);
  const prepare=async(form:Form)=>{
    const response=await fetch(base+'/tax-forms/prepare',{
     method:'POST',headers:{'Content-Type':'application/json','X-CRM-Action':'accounting'},

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
+import { useCallback, useEffect, useState } from 'react';
 
 type Creative={id:string;scheduled_at:string;state:string;payload:{title:string;courseTitle:string;kind:string;script?:unknown}};
 type LocalStatus={
@@ -17,19 +18,10 @@ export function LocalVideoPanel({calendar}: {calendar:Creative[]}) {
  const [referenceFile,setReferenceFile]=useState<File|null>(null);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
- async function refresh(signal?:AbortSignal){
-   const r=await fetch('/api/advertising/community/video/local/status',{cache:'no-store',signal});
-   if(!r.ok)throw new Error('No se pudo consultar el motor propio.');
-   setStatus(await r.json());
-   const j=await fetch('/api/advertising/community/video/local/jobs',{cache:'no-store',signal});
-   if(j.ok)setJobs(await j.json());
- }
- useEffect(()=>{
-   const controller=new AbortController();
-   void refresh(controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});
-   const t=setInterval(()=>{if(document.visibilityState==='visible')void refresh(controller.signal).catch(()=>{});},20000);
-   return()=>{controller.abort();clearInterval(t);};
- },[]);
+ const receive=useCallback(([st,js]:[LocalStatus,LocalJob[]])=>{setStatus(st);setJobs(js);setError('');},[]);
+ const read=useCallback((signal?:AbortSignal)=>Promise.all([fetchSnapshot<LocalStatus>('/api/advertising/community/video/local/status',signal),fetchSnapshot<LocalJob[]>('/api/advertising/community/video/local/jobs',signal)]),[]);
+ const refresh=(signal?:AbortSignal)=>read(signal).then(receive);
+ useEffect(()=>subscribeSnapshot(read,receive,e=>setError(e.message),20000),[read,receive]);
  async function post(action:string,payload:unknown){
    setBusy(true);setError('');setMessage('');
    try{

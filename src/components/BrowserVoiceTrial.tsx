@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 type Turn = { speaker: 'customer' | 'agent'; text: string };
 type Recognition = {
@@ -9,29 +9,29 @@ type Recognition = {
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
 
-export function BrowserVoiceTrial({ organizationId, contacts = [] }: { organizationId: string; contacts?: Array<{id:string;name:string;course?:string}> }) {
+function BrowserVoiceSession({ organizationId, contacts = [] }: { organizationId: string; contacts?: Array<{id:string;name:string;course?:string}> }) {
  const [contactId,setContactId]=useState(''),[contextNotice,setContextNotice]=useState('');
  const [turns,setTurns]=useState<Turn[]>([]),[draft,setDraft]=useState(''),[course,setCourse]=useState('');
  const [voices,setVoices]=useState<SpeechSynthesisVoice[]>([]),[voiceId,setVoiceId]=useState(''),[rate,setRate]=useState(1);
  const [listening,setListening]=useState(false),[busy,setBusy]=useState(false),[speaking,setSpeaking]=useState(false),[active,setActive]=useState(false);
- const [error,setError]=useState(''),[supported,setSupported]=useState(false),[audio,setAudio]=useState(false),[continuous,setContinuous]=useState(true);
+ const [error,setError]=useState(''),[supported]=useState(()=>Boolean((window as SpeechWindow).SpeechRecognition||(window as SpeechWindow).webkitSpeechRecognition)),[audio]=useState(()=>'speechSynthesis' in window),[continuous,setContinuous]=useState(true);
  const [mic,setMic]=useState('Sin comprobar'),[level,setLevel]=useState(0),[language,setLanguage]=useState('es-MX');
  const recognition=useRef<Recognition|null>(null),request=useRef<AbortController|null>(null),generation=useRef(0),locked=useRef(false),session=useRef(false);
  const micStream=useRef<MediaStream|null>(null),audioContext=useRef<AudioContext|null>(null),meterFrame=useRef(0);
  const silence=useRef<ReturnType<typeof setTimeout>|null>(null),restart=useRef<ReturnType<typeof setTimeout>|null>(null),emptyTurns=useRef(0),latestText=useRef('');
  const transcript=useRef<HTMLDivElement>(null),utteranceRef=useRef<SpeechSynthesisUtterance|null>(null),speechVersion=useRef(0),micPending=useRef(false);
- const current=useRef({turns,draft,course,voices,voiceId,rate,language,continuous});current.current={turns,draft,course,voices,voiceId,rate,language,continuous};
+ const current=useRef({turns,draft,course,voices,voiceId,rate,language,continuous});useLayoutEffect(()=>{current.current={turns,draft,course,voices,voiceId,rate,language,continuous};},[turns,draft,course,voices,voiceId,rate,language,continuous]);
  const handlers=useRef({listen:()=>{},send:(_text:string)=>{}});
- function clearTimers(){if(silence.current)clearTimeout(silence.current);if(restart.current)clearTimeout(restart.current);silence.current=null;restart.current=null;}
+ const clearTimers=useCallback(()=>{if(silence.current)clearTimeout(silence.current);if(restart.current)clearTimeout(restart.current);silence.current=null;restart.current=null;},[]);
  function stopAudio(){speechVersion.current++;window.speechSynthesis?.cancel();utteranceRef.current=null;setSpeaking(false);}
- function releaseMic(){cancelAnimationFrame(meterFrame.current);micStream.current?.getTracks().forEach(t=>t.stop());micStream.current=null;void audioContext.current?.close().catch(()=>{});audioContext.current=null;}
- function cancelAll(){
+ const releaseMic=useCallback(()=>{cancelAnimationFrame(meterFrame.current);micStream.current?.getTracks().forEach(t=>t.stop());micStream.current=null;void audioContext.current?.close().catch(()=>{});audioContext.current=null;},[]);
+ const cancelAll=useCallback(()=>{
   generation.current++;session.current=false;clearTimers();request.current?.abort();request.current=null;
   const r=recognition.current;recognition.current=null;
   if(r){r.onresult=null;r.onerror=null;r.onend=null;r.abort();}
   speechVersion.current++;window.speechSynthesis?.cancel();utteranceRef.current=null;locked.current=false;releaseMic();latestText.current='';
- }
- function stop(){cancelAll();setActive(false);setListening(false);setBusy(false);setSpeaking(false);setLevel(0);setMic('Micrófono apagado');}
+ },[clearTimers,releaseMic]);
+ const stop=useCallback(()=>{cancelAll();setActive(false);setListening(false);setBusy(false);setSpeaking(false);setLevel(0);setMic('Micrófono apagado');},[cancelAll]);
  function scheduleListen(){if(!session.current)return;if(restart.current)clearTimeout(restart.current);restart.current=setTimeout(()=>{restart.current=null;if(session.current)handlers.current.listen();},350);}
  async function prepareMic(){
   if(micStream.current?.active)return true;
@@ -56,13 +56,11 @@ export function BrowserVoiceTrial({ organizationId, contacts = [] }: { organizat
   finally{micPending.current=false;}
  }
  useEffect(()=>{
-  setSupported(Boolean((window as SpeechWindow).SpeechRecognition||(window as SpeechWindow).webkitSpeechRecognition));setAudio('speechSynthesis' in window);
   function loadVoices(){const list=window.speechSynthesis?.getVoices().filter(v=>/^es(?:-|_)/i.test(v.lang))||[];const score=(v:SpeechSynthesisVoice)=>(/es[-_](MX|US|DO)/i.test(v.lang)?10:0)+(/Sabina|Dalia|Paulina|Paloma|Lupe|female|femenina/i.test(v.name)?20:0)+(/Natural|Neural|Online/i.test(v.name)?15:0);list.sort((a,b)=>score(b)-score(a));setVoices(list);setVoiceId(id=>list.some(v=>v.voiceURI===id)?id:list[0]?.voiceURI||'');}
-  loadVoices();window.speechSynthesis?.addEventListener('voiceschanged',loadVoices);
+  const voiceFrame=requestAnimationFrame(loadVoices);window.speechSynthesis?.addEventListener('voiceschanged',loadVoices);
   const hide=()=>{if(document.hidden)stop();};document.addEventListener('visibilitychange',hide);
-  return()=>{cancelAll();window.speechSynthesis?.removeEventListener('voiceschanged',loadVoices);document.removeEventListener('visibilitychange',hide);};
- },[]);
- useEffect(()=>{stop();setTurns([]);setDraft('');setCourse('');setContactId('');setContextNotice('');setError('');},[organizationId]);
+  return()=>{cancelAnimationFrame(voiceFrame);cancelAll();window.speechSynthesis?.removeEventListener('voiceschanged',loadVoices);document.removeEventListener('visibilitychange',hide);};
+ },[cancelAll,stop]);
  useEffect(()=>{transcript.current?.scrollTo({top:transcript.current.scrollHeight});},[turns,busy,draft]);
  function speak(text:string,resume=false){
   stopAudio();
@@ -128,7 +126,7 @@ export function BrowserVoiceTrial({ organizationId, contacts = [] }: { organizat
   }catch(e){if(version===generation.current){session.current=false;setActive(false);releaseMic();setLevel(0);setError(controller.signal.aborted?'La respuesta tardó demasiado. Tu mensaje sigue disponible para reintentar.':(e as Error).message);}}
   finally{clearTimeout(timeout);if(version===generation.current){locked.current=false;request.current=null;setBusy(false);}}
  }
- handlers.current={listen:()=>void listen(),send:text=>void send(text)};
+ useLayoutEffect(()=>{handlers.current={listen:()=>void listen(),send:text=>void send(text)};});
  const last=[...turns].reverse().find(t=>t.speaker==='agent');
  return <div className="space-y-3 rounded-xl border border-cyan-700 bg-slate-950 p-4 text-slate-100">
   <h3 className="text-lg font-bold">Hablar con Valeria Parkert</h3>
@@ -166,3 +164,5 @@ export function BrowserVoiceTrial({ organizationId, contacts = [] }: { organizat
   {error&&<p role="alert" className="text-amber-200">{error}</p>}
  </div>;
 }
+
+export function BrowserVoiceTrial(props: { organizationId: string; contacts?: Array<{id:string;name:string;course?:string}> }) { return <BrowserVoiceSession key={props.organizationId} {...props} />; }

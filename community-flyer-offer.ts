@@ -21,8 +21,8 @@ export type FlyerOffer = {
 const clean=(s:string)=>s.replace(/\s+/g,' ').trim().replace(/^(?:[-•*]\s*|\d+[.)]\s+)/,'').trim();
 function amountFromInvestment(text:string,kind:'inscripcion'|'mensualidad'):string|null {
   const re=kind==='inscripcion'
-    ? /inscripci[oó]n\s*(?:de\s*)?[:\-]?\s*RD\s*\$?\s*([\d.,]+)/i
-    : /mensualidad\s*(?:de\s*)?[:\-]?\s*RD\s*\$?\s*([\d.,]+)/i;
+    ? /inscripci[oó]n\s*(?:de\s*)?[:-]?\s*RD\s*\$?\s*([\d.,]+)/i
+    : /mensualidad\s*(?:de\s*)?[:-]?\s*RD\s*\$?\s*([\d.,]+)/i;
   const found=text.match(re);
   if(!found)return null;
   const digits=found[1].replace(/[.,](?=\d{3}(?:[.,]|$))/g,'').replace(',','.');

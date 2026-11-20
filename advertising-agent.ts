@@ -135,6 +135,8 @@ export class AdvertisingAgent {
       return await response.json();
     } catch (error) {
       if (error instanceof Error && error.message === 'AD_PROVIDER') throw error;
+      // Do not retain provider errors that can contain credentials.
+      // eslint-disable-next-line preserve-caught-error
       throw new Error(init.method && init.method !== 'GET' ? 'AD_UNKNOWN' : 'AD_PROVIDER');
     }
   }

@@ -1,4 +1,5 @@
-import { useEffect,useState } from 'react';
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
+import { useCallback,useEffect,useState } from 'react';
 
 type Opportunity={contactKey:string;name:string;course:string;amountDop:number;stage:string};
 type PaymentOrder={id:string;contactKey:string;course:string;amountMinor:number;currency:string;preferredProvider:string;state:string;link:string|null;createdAt:string;expiresAt:string};
@@ -15,20 +16,10 @@ export function PaymentGatewayPanel(){
  const [error,setError]=useState('');
  const [notice,setNotice]=useState('');
  const selected=eligible.find(x=>x.contactKey===contactKey);
- async function reload(signal?:AbortSignal){
-   const base='/api/sales/gateway/';
-   const response=await Promise.all(['status','eligible','orders'].map(k=>fetch(base+k,{cache:'no-store',signal})));
-   if(response.some(x=>!x.ok))throw Error('No se pudo consultar el módulo de pago. Comprueba la sesión y la migración de Supabase.');
-   const [st,el,ord]=await Promise.all(response.map(x=>x.json()));
-   if(!signal?.aborted){
-     setStatus(st);setEligible(el.opportunities||[]);setOrders(ord.orders||[]);
-   }
- }
- useEffect(()=>{
-  const controller=new AbortController();
-  void reload(controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});
-  return()=>controller.abort();
- },[]);
+ const read=useCallback((signal?:AbortSignal)=>Promise.all(['status','eligible','orders'].map(k=>fetchSnapshot('/api/sales/gateway/'+k,signal))),[]);
+ const receive=useCallback(([st,el,ord]:any[])=>{setStatus(st);setEligible(el.opportunities||[]);setOrders(ord.orders||[]);setError('');},[]);
+ const reload=(signal?:AbortSignal)=>read(signal).then(receive);
+ useEffect(()=>subscribeSnapshot(read,receive,e=>setError(e.message)),[read,receive]);
  async function prepare(){
   if(!contactKey)return;
   setBusy(true);setError('');setNotice('');

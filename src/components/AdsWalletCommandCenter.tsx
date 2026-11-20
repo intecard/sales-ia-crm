@@ -1,3 +1,4 @@
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
 import React, { useCallback, useEffect, useState } from 'react';
 import type { OrganizationTenant } from '../types';
 import type { AdPlan } from '../../advertising-plans';
@@ -19,7 +20,7 @@ export function AdsWalletCommandCenter({ currentOrg, onOpenAds, onConfigure }: {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const refresh = useCallback(async () => { const result = await api<Snapshot>(); setSnapshot(result); setCourseTitle(old => old || result.courses[0]?.title || ''); }, []);
   const available = currentOrg.id === 'org_inteca_main';
-  useEffect(() => { if (available) void refresh().catch(e => setError(e.message)); }, [available, refresh]);
+  useEffect(() => { if (available) return subscribeSnapshot(signal=>fetchSnapshot<Snapshot>('/api/advertising',signal),result=>{setSnapshot(result);setCourseTitle(old=>old||result.courses[0]?.title||'');setError('');},e=>setError(e.message)); }, [available]);
   async function run(task: () => Promise<unknown>, message: string) { setBusy(true); setError(''); setNotice(''); try { await task(); await refresh(); setNotice(message); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }
   if (!available) return <div className="p-6">La conexión real de publicidad está habilitada para INTECA. Esta empresa requiere su propia configuración.</div>;
   return <main className="mx-auto max-w-6xl space-y-6 p-5 text-white">

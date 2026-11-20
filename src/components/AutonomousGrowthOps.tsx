@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { subscribeSnapshot, fetchSnapshot } from '../lib/snapshot-subscription';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Bot,
@@ -113,39 +114,24 @@ export const AutonomousGrowthOps: React.FC<AutonomousGrowthOpsProps> = ({
    }catch(e){setFlyerTest({ok:false,message:(e as Error).message+'. No se realizó publicación.'});}
    finally{setFlyerTesting(false);}
  };
-  const refresh=async(signal?:AbortSignal)=>{
-    const r=await fetch('/api/integrations/status',{cache:'no-store',signal});
-    if(!r.ok)throw Error('No se pudo consultar la configuración real del CRM.');
-    const data=await r.json();
-    if(!Array.isArray(data.groups))throw Error('Diagnóstico no disponible.');
-    if(!signal?.aborted){setRuntimeStatus(data);setCheckError('');}
-    try{
-      const readiness=await fetch('/api/advertising/operational-readiness',{cache:'no-store',signal});
-      if(readiness.ok){
-        const evidence:OperationalReadiness=await readiness.json();
-        if(!signal?.aborted)setOperational(evidence);
-      }else if(!signal?.aborted)setOperational(null);
-    }catch{if(!signal?.aborted)setOperational(null);}
-    try{
-      const response=await fetch('/api/advertising/activation-audit?org='+encodeURIComponent(organization.id),{cache:'no-store',signal});
-      if(!response.ok)throw Error('No se pudo verificar el estado operativo de las integraciones.');
-      const detail=await response.json();
-      if(!Array.isArray(detail.checks)||detail.checks.length!==5)throw Error('Diagnóstico de integraciones incompleto.');
-      if(!signal?.aborted){setActivation(detail);setActivationError('');}
-    }catch(e){if(!signal?.aborted){setActivation(null);setActivationError((e as Error).message);}}
-    try{
-      const a=await fetch('/api/advertising/shared-connections',{cache:'no-store',signal});
-      if(a.ok){
-        const state=await a.json();
-        if(!signal?.aborted)setReadStates(Object.fromEntries((state.connections||[]).map((x:{channel:string;state:string})=>[x.channel,x.state])));
-      }
-    }catch{/* Las lecturas requieren sesión: nunca declarar acceso verificado sin respuesta. */}
-  };
-  useEffect(()=>{
-    const controller=new AbortController();
-    void refresh(controller.signal).catch(e=>{if(!controller.signal.aborted)setCheckError(e.message);});
-    return ()=>controller.abort();
+  const read=useCallback(async(signal?:AbortSignal)=>{
+    const [runtime,operationalResult,activationResult,shared]=await Promise.all([
+      fetchSnapshot('/api/integrations/status',signal),
+      fetchSnapshot<OperationalReadiness>('/api/advertising/operational-readiness',signal).catch(()=>null),
+      fetchSnapshot('/api/advertising/activation-audit?org='+encodeURIComponent(organization.id),signal).catch(()=>null),
+      fetchSnapshot('/api/advertising/shared-connections',signal).catch(()=>null),
+    ]);
+    if(!Array.isArray(runtime.groups))throw Error('Diagnóstico no disponible.');
+    const activationValid=Array.isArray(activationResult?.checks)&&activationResult.checks.length===5;
+    return {runtime,operationalResult,activation:activationValid?activationResult:null,shared};
   },[organization.id]);
+  const receive=useCallback((d:Awaited<ReturnType<typeof read>>)=>{
+    setRuntimeStatus(d.runtime);setCheckError('');setOperational(d.operationalResult);setActivation(d.activation);
+    setActivationError(d.activation?'':'No se pudo verificar el estado operativo de las integraciones.');
+    setReadStates(Object.fromEntries((d.shared?.connections||[]).map((x:{channel:string;state:string})=>[x.channel,x.state])));
+  },[]);
+  const refresh=(signal?:AbortSignal)=>read(signal).then(receive);
+  useEffect(()=>subscribeSnapshot(read,receive,e=>setCheckError(e.message)),[read,receive]);
   const runtimeFor=(id:string)=>runtimeStatus?.groups.find(x=>x.id===id);
   const dynamicStatus=(item:ExternalIntegration)=>{
     const env=runtimeFor(item.id);

@@ -32,7 +32,7 @@ export async function renderRequest(serviceId: string, apiKey: string, key?: str
 // It reproduces the old empty PUT and always removes the probe afterwards.
 export async function probeRenderPersistence(serviceId: string, apiKey: string, fetcher: typeof fetch = fetch) {
   const key = 'CRM_OAUTH_RENDER_WRITE_PROBE';
-  let emptyPutStatus: number | null = null;
+  let emptyPutStatus: number;
   try {
     await renderRequest(serviceId, apiKey, key, 'diagnostic-only', fetcher);
     const response = await fetcher(`https://api.render.com/v1/services/${encodeURIComponent(serviceId.trim())}/env-vars/${key}`, {
