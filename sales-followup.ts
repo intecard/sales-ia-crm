@@ -1,6 +1,7 @@
 import type { SalesStore, SalesOpportunity } from './sales-agent.ts';
 import { buildWhatsAppTextPayload, type WhatsAppRecipient } from './whatsapp-routing.ts';
 import { USD_OFFER } from './sales-policy.ts';
+import { ownerCase } from './owner-agent.ts';
 
 export interface SalesAutomationSettings {
   id: string;
@@ -87,6 +88,7 @@ export class SalesFollowupAgent {
       ready: !!this.cache && !this.error,
       error: this.error,
       dailyPaidGoal: this.cache?.data.daily_goal ?? 5,
+      ownerCommandsReady: Boolean(this.env.WHATSAPP_APP_SECRET && this.env.WHATSAPP_PHONE_NUMBER_ID && this.store.configured()),
       templateChecks: this.templateChecks,
       readiness: {
         storage: !!this.cache && !this.error,
@@ -141,7 +143,7 @@ export class SalesFollowupAgent {
     await this.enqueue(
       'owner',
       `${sale.contact_key}:${sale.control}:${sale.stage}`,
-      `${kind}. Caso ${sale.contact_key.slice(0, 8)}: ${sale.profile.fullName || sale.profile.profileName || 'Interesado'}, ${sale.profile.course || 'curso por confirmar'}. Revisa Ventas y Cierre en el CRM para atender el caso. No se confirma ningún abono sin validación bancaria.`,
+      `${kind}. ${ownerCase(sale)}. Puedes responder ficha ${sale.contact_key.slice(0,12)}, revisión, pendientes o ayuda. No se confirma ningún abono sin validación bancaria.`,
       sale.contact_key,
     );
   }
@@ -256,6 +258,7 @@ export class SalesFollowupAgent {
         `crm_sales_opportunities?control=neq.opted_out&or=(follow_up_at.lte.${encodeURIComponent(new Date().toISOString())},stage.eq.payment_review,control.eq.human)&order=follow_up_at.asc.nullslast&limit=100`,
       );
       for (const sale of sales) {
+        if (sale.profile.phone === settings.owner_phone) continue;
         await this.notify(sale);
         const eligible = followupEligibility(sale);
         if (!['text', 'template'].includes(eligible)) continue;
@@ -330,6 +333,7 @@ export class SalesFollowupAgent {
       let sale: SalesOpportunity | undefined;
       if (job.kind === 'followup') {
         sale = job.contact_key ? await this.store.get(job.contact_key) : undefined;
+        if (sale?.profile.phone === fresh.owner_phone) { await update({state:'cancelled',last_error:'OWNER_NOT_A_PROSPECT'}); return; }
         mode = sale ? followupEligibility(sale) : 'NO_RECIPIENT';
         if (!sale || !['text', 'template'].includes(mode)) {
           await update({ state: 'cancelled', last_error: mode });

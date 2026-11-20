@@ -145,6 +145,7 @@ export function EnrollmentCenter() {
           transferencia en el agente de Ventas y Cierre. La matrícula se crea únicamente después de
           esa validación y con los datos del estudiante completos.
         </p>
+        <p className="mt-2 text-sm">La bienvenida por correo incluye matrícula, curso, usuario, acceso al campus y un enlace personal de Firebase para establecer la contraseña. Las contraseñas no se guardan en el CRM ni se comparten con el director. Grupo, horario y fecha de inicio requieren confirmación académica.</p>
       </div>
       {error && (
         <p role="alert" className="rounded-lg bg-red-950 p-3 text-sm">

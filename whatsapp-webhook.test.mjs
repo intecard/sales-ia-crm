@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { URL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
@@ -35,7 +36,7 @@ test('compiled webhook replies to BSUID and phone, isolates failures and suppres
   `], {
     cwd: import.meta.dirname,
     env: { ...process.env, NODE_ENV: 'production', PORT: '0', GEMINI_API_KEY: '',
-      WHATSAPP_AUTO_REPLY_ENABLED: 'true', WHATSAPP_ACCESS_TOKEN: 'test-token',
+      WHATSAPP_AUTO_REPLY_ENABLED: 'true', WHATSAPP_ACCESS_TOKEN: 'test-token', WHATSAPP_APP_SECRET: 'test-secret',
       WHATSAPP_PHONE_NUMBER_ID: 'business-test' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -53,9 +54,13 @@ test('compiled webhook replies to BSUID and phone, isolates failures and suppres
     await waitFor(() => /TEST_LISTEN (\d+)/.test(output));
     const port = output.match(/TEST_LISTEN (\d+)/)[1];
     const endpoint = 'http://127.0.0.1:' + port;
+    const unsigned = await globalThis.fetch(endpoint + '/api/webhooks/meta/whatsapp', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    assert.equal(unsigned.status,401);
+    const forged = await globalThis.fetch(endpoint + '/api/webhooks/meta/whatsapp', {method:'POST',headers:{'Content-Type':'application/json','x-hub-signature-256':'sha256='+'0'.repeat(64)},body:'{}'});
+    assert.equal(forged.status,401);
     const message = (id, sender) => ({ id, ...sender, type: 'text', text: { body: 'Hola' } });
     async function post(messages, field = 'messages') {
-      const result = await globalThis.fetch(endpoint + '/api/webhooks/meta/whatsapp', {
+      const result = await signedPost(endpoint + '/api/webhooks/meta/whatsapp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ object: 'whatsapp_business_account', entry: [{ changes: [{ field,
           value: { metadata: { phone_number_id: 'business-test' }, messages },
@@ -125,7 +130,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     GEMINI_API_KEY:'test-key', GEMINI_MODEL:'gemini-3.8-flash', GEMINI_FALLBACK_MODELS:'gemini-3.8-flash',
     SUPABASE_URL:'', SUPABASE_SERVICE_ROLE_KEY:'',
     WHATSAPP_PAYMENT_INSTRUCTIONS:'Banco de prueba: TEST-ONLY. Titular de prueba.',
-    WHATSAPP_AUTO_REPLY_ENABLED:'true', WHATSAPP_ACCESS_TOKEN:'test-token', WHATSAPP_PHONE_NUMBER_ID:'business-test' },
+    WHATSAPP_AUTO_REPLY_ENABLED:'true', WHATSAPP_ACCESS_TOKEN:'test-token', WHATSAPP_APP_SECRET:'test-secret', WHATSAPP_PHONE_NUMBER_ID:'business-test' },
     stdio:['ignore','pipe','pipe'] });
   child.stdout.on('data', chunk => { output += chunk.toString(); });
   child.stderr.on('data', chunk => { output += chunk.toString(); });
@@ -142,7 +147,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     const port = output.match(/TEST_LISTEN (\d+)/)[1];
     let id = 0;
     async function post(text, sender = 'DO.contactA') {
-      const result = await globalThis.fetch('http://127.0.0.1:' + port + '/api/webhooks/meta/whatsapp', {
+      const result = await signedPost('http://127.0.0.1:' + port + '/api/webhooks/meta/whatsapp', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{
           metadata:{phone_number_id:'business-test'},messages:[{id:'msg-' + (++id),from_user_id:sender,type:'text',text:{body:text}}]
@@ -203,3 +208,7 @@ test('compiled webhook gives Gemini ordered history and facts, isolates contacts
     const exited = once(child,'exit'); child.kill('SIGTERM'); await exited;
   }
 });
+
+function signedPost(url, init) {
+  return globalThis.fetch(url, {...init, headers: {...init.headers, 'x-hub-signature-256': 'sha256='+createHmac('sha256','test-secret').update(init.body).digest('hex')}});
+}

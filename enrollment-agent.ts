@@ -32,6 +32,7 @@ export const ENROLLMENT_ERRORS: Record<string, string> = {
   CAMPUS_ROLE_CONFLICT:
     'El correo pertenece a una cuenta no estudiantil o suspendida. Requiere revisión.',
   EMAIL_NOT_CONFIGURED: 'Falta configurar el servicio de correo de salida (Resend o SMTP).',
+  ACCESS_LINK_UNAVAILABLE: 'No se pudo preparar el enlace personal del campus. El correo no se ha enviado.',
   EMAIL_REVIEW_REQUIRED:
     'El envío de correo tuvo un resultado incierto. Revisar antes de reenviar.',
   WHATSAPP_REVIEW_REQUIRED:
@@ -61,6 +62,10 @@ export function welcomeText(row: Enrollment, campusUrl: string) {
   if (row.campus_status !== 'active' || !row.campus_uid || !row.campus_course_id)
     throw Error('PAYMENT_REQUIRED');
   return `Hola, ${row.full_name}. Bienvenido/a a INTECA.\n\nTu pago de inscripción fue validado.\nMatrícula: ${row.registration_code}\nCurso: ${row.course_title}\nCampus: ${campusUrl}\nUsuario: ${row.email}\n\nTu curso ya está asignado en el campus. Si es tu primer acceso, pulsa “Olvidé mi contraseña” para establecerla con ese correo. Si ya tienes cuenta, usa tu acceso habitual.\n\nEl equipo académico confirmará el grupo y la fecha de inicio. Conserva tu número de matrícula.`;
+}
+export function welcomeEmailText(row: Enrollment, campusUrl: string, link: string) {
+  const base = welcomeText(row, campusUrl);
+  return `${base}\n\nPRIMER ACCESO\nCrea tu contraseña personal desde este enlace de Firebase:\n${link}\n\nSi ya tienes contraseña, puedes seguir usando la misma; este enlace solo la cambia si tú completas el proceso. El enlace es personal: no lo compartas. Si caduca, solicita otro desde “Olvidé mi contraseña / Primer acceso”.\n\nEntra al campus con tu correo y abre el curso asignado. Si no aparece o necesitas orientación, responde a este correo o escribe al WhatsApp institucional de INTECA. No envíes tu contraseña. La fecha de inicio, grupo y horario quedan pendientes de confirmación académica cuando no estén comunicados oficialmente.`;
 }
 export function whatsappWelcomePayload(
   row: Enrollment,
@@ -359,12 +364,23 @@ export class EnrollmentAgent {
     });
     return { campus_status: 'active', campus_uid: uid, campus_course_id: mapping.campus_course_id };
   }
+  async accessLink(row: Enrollment) {
+    if (row.campus_status !== 'active' || !row.campus_uid || !row.campus_course_id) throw Error('PAYMENT_REQUIRED');
+    const { auth } = await this.campus();
+    const user = await auth.getUser(row.campus_uid);
+    if (user.disabled || user.email?.toLowerCase() !== row.email.toLowerCase() || user.customClaims?.admin || (user.customClaims?.role && user.customClaims.role !== 'student')) throw Error('CAMPUS_ROLE_CONFLICT');
+    try {
+      const link = new URL(await auth.generatePasswordResetLink(row.email));
+      if (link.protocol !== 'https:' || link.searchParams.get('mode') !== 'resetPassword') throw Error('ACCESS_LINK_UNAVAILABLE');
+      link.searchParams.set('lang', 'es');
+      return link.toString();
+    } catch { throw Error('ACCESS_LINK_UNAVAILABLE'); }
+  }
   private async email(row: Enrollment) {
     if (!this.status().emailConfigured) throw Error('EMAIL_NOT_CONFIGURED');
-    const text = welcomeText(
-      row,
-      this.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do',
-    );
+    // The action link exists only in this email payload, never in logs, CRM or owner reports.
+    const link = await this.accessLink(row);
+    const text = welcomeEmailText(row, this.env.INTECA_CAMPUS_BASE_URL || 'https://campus.inteca.com.do', link);
     if (this.env.RESEND_API_KEY) {
       await this.save(row, { email_status: 'sending' });
       try {
