@@ -1,3 +1,6 @@
+import {diversifyPlan} from './community-editorial-history.ts';
+import {repeatedEditorial} from './community-editorial.ts';
+import {officialCourseEditorial} from './community-course-topics.ts';
 import { growthSummary } from './community-growth.ts';
 import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
@@ -18,11 +21,11 @@ export function shouldMissCampaignSlot(row:Pick<CommunityJob,'scheduled_at'|'pay
   if(row.payload.kind==='flyer')return rdDay(new Date(at))!==rdDay(now)||now.getTime()-at>2*60*60_000;
   return now.getTime()-at>90*60_000;
 }
-/** Only the canonical v6 flyer, auto-rendered MP4 and 21:00 avatar brief
+/** Only the canonical v7 editorial flyer, auto-rendered MP4 and 21:00 avatar brief
  * belong to the current schedule. Older jobs stay auditable, never resurrected.
  */
 export function isCurrentCommunityJob(row:Pick<CommunityJob,'slot'|'payload'>):boolean {
-  return row.slot.startsWith('v6:') && (
+  return row.slot.startsWith('v6:') && row.slot.endsWith(':editorial-v7') && row.payload.creative?.version==='v7' && (
     (row.payload.kind==='flyer' && row.slot.includes(':flyer:')) ||
     (row.payload.kind==='short' && row.slot.includes(':short:') && row.slot.includes(':autorender-20261029')) ||
     (row.payload.kind==='promo_video' && row.slot.includes(':promo_video:') && row.slot.includes(':autorender-20261029')) ||
@@ -38,7 +41,7 @@ export class CommunityManager {
     const since=new Date(Date.now()-24*60*60*1000).toISOString();
     const visibleUntil=new Date(Date.now()+7*24*60*60*1000).toISOString();
     const [upcoming,recent,settings,observations,catalog]=await Promise.all([
-      this.store.request(`crm_community_jobs?slot=like.v6:*&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(visibleUntil)}&order=scheduled_at.asc&limit=650`),
+      this.store.request(`crm_community_jobs?slot=like.*:editorial-v7&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(visibleUntil)}&order=scheduled_at.asc&limit=650`),
       this.store.request('crm_community_jobs?state=in.(published,blocked,review_required,missed)&order=updated_at.desc&limit=120'),
       this.settings(),
       this.store.request('crm_community_observations?order=checked_at.desc&limit=100'),
@@ -60,7 +63,7 @@ export class CommunityManager {
       totalCatalogCourses:catalog?.courses.length||0,
       scope:'org_inteca_main',
       capabilities:{
-        flyers:'Dos flyers premium por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
+        flyers:'8 composiciones y 12 enfoques educativos con control de repetición de los últimos 7 días. Dos flyers por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
         verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
         stories:'Calendario continuo sin caducidad: 1 post, 1 imagen y 8 reels al día en Facebook e Instagram; 1 video estándar en YouTube y 1 guion de INTEQUITO a las 21:00, pendiente de producción profesional',
         longVideo:'1 MP4 diario en YouTube mediante renderizado local, y una segunda cita diaria para INTEQUITO hablando; el segundo video no se publica mientras no exista avatar, voz, derechos y presupuesto aprobado',
@@ -88,41 +91,44 @@ export class CommunityManager {
     const settings=await this.settings();if(!settings)throw Error('CM_SETTINGS');
     const catalog=await this.catalog.get();if(!catalog)throw Error('CM_CATALOG');
     const now=new Date(),today=rdDay(now);
-    // Calendar v6 migration must land before the 9am/5pm plan supersedes unposted v4 tasks.
+    // The v7 RPC must be installed before replacing queued legacy pieces.
     let record:any;
     try{record=(await this.store.request('crm_community_calendar_state?id=eq.inteca&limit=1'))?.[0];}
     catch{if(settings.plan_started_at)return;throw Error('CM_CALENDAR_MIGRATION_MISSING');}
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
     // A calendar is complete only when today's second (speaking avatar) slot exists.
-    // An older runtime could have stamped v6 while producing just the 21 legacy jobs/day.
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v6'){
+    // Require the v7 marker and the daily avatar brief before considering renewal complete.
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v7'){
       const avatarRows=await this.store.request(
-        `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*')}&select=id&limit=1`
+        `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*:editorial-v7')}&select=id&limit=1`
       );
       if(avatarRows?.length)return;
     }
     const destinations=Object.fromEntries(SOCIAL_CHANNELS.map(c=>[c,this.publisher.destination(c)]));
     const autoVideo=process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS==='true';
-    const jobs=planMonth(catalog,today).map(item=>{
+    const since=new Date(now.getTime()-7*86400000).toISOString();
+    const until=new Date(now.getTime()+31*86400000).toISOString();
+    const history=await this.store.request(`crm_community_jobs?slot=like.*:editorial-v7&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(until)}&order=scheduled_at.asc&limit=1000`);
+    const jobs=diversifyPlan(planMonth(catalog,today),history,catalog).map(item=>{
       const incomplete=item.payload.kind==='flyer'&&
         (!item.payload.flyerOffer||!isPublishableFlyer(item.payload.flyerOffer));
       return {
-        ...item,
-        state:incomplete?'blocked':
+        slot:item.slot,channel:item.channel,scheduled_at:item.scheduled_at,payload:item.payload,
+        state:item.repetitionBlocked||incomplete?'blocked':
           (item.payload.kind==='long_brief'||item.payload.kind==='avatar_video')?'brief':
           (item.payload.kind==='short'||item.payload.kind==='promo_video')&&!autoVideo?'brief':
           (item.payload.kind==='flyer'||item.payload.kind==='short'||item.payload.kind==='promo_video')?
             (Date.parse(item.scheduled_at)>now.getTime()?'queued':
               shouldMissCampaignSlot(item,now)?'missed':'queued'):
           new Date(item.scheduled_at)<now?'missed':'queued',
-        ...(incomplete?{last_error:'CM_FLYER_PRICE_OR_CONTENT_MISSING'}:{}),
+        ...(item.repetitionBlocked?{last_error:'CM_CREATIVE_TOO_SIMILAR'}:incomplete?{last_error:'CM_FLYER_PRICE_OR_CONTENT_MISSING'}:{}),
         content_hash:contentHash(item.payload),
       };
     });
     console.info('community_calendar_roll_request',JSON.stringify({
       day:today,planned:jobs.length,avatarPlanned:jobs.filter(j=>j.payload.kind==='avatar_video').length
     }));
-    const inserted=await this.store.request('rpc/crm_community_roll_plan','POST',{
+    const inserted=await this.store.request('rpc/crm_community_roll_plan_v7','POST',{
       p_jobs:jobs,p_destinations:destinations,p_day:today,p_catalog_hash:catalog.hash,
     });
     console.info('community_calendar_roll_result',JSON.stringify({day:today,inserted}));
@@ -132,7 +138,7 @@ export class CommunityManager {
     const rows=await this.store.request(`crm_community_jobs?id=eq.${id}&state=eq.blocked`);
     if(!rows.length)throw Error('CM_STATE');
     const candidate=rows[0] as CommunityJob;
-    if(!candidate.slot.startsWith('v6:')||candidate.result?.id||candidate.result?.containerId)
+    if(!isCurrentCommunityJob(candidate)||candidate.result?.id||candidate.result?.containerId)
       throw Error('CM_LEGACY_OR_UNCERTAIN');
     if(shouldMissCampaignSlot(candidate,new Date()))
       throw Error('CM_SLOT_MISSED');
@@ -158,6 +164,7 @@ export class CommunityManager {
         }
         let claimed=false,external=false;
         try{
+          if(!isCurrentCommunityJob(row))throw Error('CM_LEGACY_OR_UNCERTAIN');
           if(!SOCIAL_CHANNELS.includes(row.channel))throw Error('CM_CHANNEL');
           if(!settings.destinations?.[row.channel]||settings.destinations[row.channel]!==this.publisher.destination(row.channel))throw Error('CM_DESTINATION_CHANGED');
           const catalog=await this.catalog.get();if(!catalog||catalog.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
@@ -181,6 +188,12 @@ export class CommunityManager {
                JSON.stringify(actual.benefits)!==JSON.stringify(expected.benefits))
                throw Error('CM_FLYER_COURSE_MISMATCH');
           }
+          if(!row.payload.creative||!officialCourseEditorial(course).topics.some(t=>t.label===row.payload.creative!.topic))
+            throw Error('CM_CREATIVE_TOPIC_MISMATCH');
+          const recent:CommunityJob[]=await this.store.request(`crm_community_jobs?channel=eq.${row.channel}&state=in.(published,uploaded_private,preparing,executing,review_required)&scheduled_at=gte.${encodeURIComponent(new Date(Date.now()-7*86400000).toISOString())}&order=scheduled_at.desc&limit=100`);
+          const creatives=recent.filter(p=>p.id!==row.id&&p.payload.creative).map(p=>p.payload.creative!);
+          if(repeatedEditorial(row.payload.creative,creatives)||creatives[0]?.layout===row.payload.creative.layout)
+            throw Error('CM_CREATIVE_TOO_SIMILAR');
           // Avatar scripts are never substituted by slideshow MP4s or sent to a paid provider automatically.
           if(row.payload.kind==='avatar_video')throw Error('CM_AVATAR_REQUIRES_PROFESSIONAL_RENDER');
           // Explicit opt-in is required before any autonomous local video is published.
@@ -189,10 +202,10 @@ export class CommunityManager {
           phase='verify';
           await this.publisher.verify(row.channel);
           const locks=await this.store.request(`crm_community_jobs?id=eq.${row.id}&state=eq.queued`,'PATCH',{state:'preparing',updated_at:new Date().toISOString()});if(!locks.length)continue;claimed=true;
-          // Preserve the reviewed v6 payload exactly. Earlier automatic
+          // Preserve the reviewed payload exactly. Earlier automatic
           // rewrites could silently reset afternoon variant 1 to morning 0
           // because slot.split(':')[2] is the literal kind, not the variant.
-          // Every change of catalog or contents requires a fresh v6 plan.
+          // Every change of catalog or contents requires a new immutable piece.
           phase='render';
           let mediaUrl=row.media_url;
           if(!mediaUrl){

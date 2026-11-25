@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import {renderEditorialImage} from './community-editorial-renderer.ts';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import type {CommunityPayload} from './community-plan.ts';
@@ -87,6 +88,7 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  if(!o||!isPublishableFlyer(o))throw Error('CM_FLYER_PRICE_OR_CONTENT_MISSING');
  if(o.course!==p.courseTitle||o.benefits.indexOf(o.focus)<0)throw Error('CM_FLYER_CATALOG_MISMATCH');
  if(p.editorialSlot==='morning'&&o.family!=='authorizations')throw Error('CM_FLYER_WRONG_MORNING_COURSE');
+ if(p.creative?.version==='v7')return renderEditorialImage(p,undefined,assetRoot);
  const seed=p.designSeed??o.dailyVariant;
  const pal=palettes[((seed%palettes.length)+palettes.length)%palettes.length];
  const photoName=photoFor(o.family);

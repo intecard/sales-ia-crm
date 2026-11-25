@@ -20,13 +20,15 @@ test('single-course catalog still schedules a safe daily TAM poster plus video b
  assert.equal(rdDay(new Date('2026-10-26T02:00:00Z')),'2026-10-25');
 });
 function harness(fail=false){
+ const history:any[]=[];
  const payload=makeContent(catalog.courses[0],catalog,rdDay(new Date()),'flyer',0);
  const settings={enabled:true,plan_started_at:'started',destinations:{facebook:'111'}};
- const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
+ const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test:flyer:0:facebook:editorial-v7',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
  const store={request:async(resource:string,method='GET',body?:any)=>{
+  if(resource.startsWith('crm_community_jobs?channel=eq.'))return structuredClone(history);
   if(resource.startsWith('crm_community_jobs?slot=like.'))return [{id:'existing-avatar-plan'}];
   if(resource.startsWith('crm_community_calendar_state'))return [{
-    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v6'
+    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v7'
   }];
   if(resource.startsWith('crm_community_settings')){if(method==='PATCH')Object.assign(settings,body);return [structuredClone(settings)];}
   const q=new URLSearchParams(resource.split('?')[1]);
@@ -37,7 +39,7 @@ function harness(fail=false){
  }};
  const publisher={destination:()=> '111',verify:async()=>({readVerified:true}),publish:async()=>{publishes++;if(fail)throw Error('CM_EXTERNAL_UNKNOWN');return{id:'provider-post',state:'published',url:null};}};
  const create=()=>new CommunityManager(store,{get:async()=>catalog},publisher as any);
- return {row,settings,create,publishes:()=>publishes};
+ return {row,settings,create,history,publishes:()=>publishes};
 }
 test('only canonical v6 jobs are displayed as current, not superseded drafts',()=>{
  const sample=planMonth(catalog,'2028-01-01');
@@ -66,7 +68,8 @@ test('30-day v6 RPC only marks expired TODAY missed; all future 9am/5pm flyers r
  const store={request:async(resource:string,method='GET',body?:any)=>{
   if(resource.startsWith('crm_community_settings'))return[{id:'inteca',enabled:true,destinations:{facebook:'11',instagram:'22',youtube:'33'}}];
   if(resource.startsWith('crm_community_calendar_state'))return[{id:'inteca',last_planned_day:null,catalog_hash:'',creative_version:'v4'}];
-  if(resource==='rpc/crm_community_roll_plan'){jobs=body.p_jobs;return 660;}
+  if(resource==='rpc/crm_community_roll_plan_v7'){jobs=body.p_jobs;return 660;}
+  if(resource.startsWith('crm_community_jobs?slot=like.*:editorial-v7'))return [];
   throw Error('TEST_UNEXPECTED_STORE_RESOURCE:'+resource);
  }};
  const publisher={destination:(x:string)=>({facebook:'11',instagram:'22',youtube:'33'} as any)[x]};
@@ -89,4 +92,10 @@ test('If an attacker recomputes the hash after substituting an unrelated course 
  assert.equal(h.publishes(),0);
  assert.equal(h.row.state,'blocked');
  assert.equal(h.row.last_error,'CM_FLYER_COURSE_MISMATCH');
+});
+
+test('a duplicate of a recent published lesson is stopped before rendering or external publishing',async()=>{
+ const h=harness();h.history.push({...structuredClone(h.row),id:'previous',state:'published'});
+ await h.create().tick();assert.equal(h.publishes(),0);assert.equal(h.row.state,'blocked');
+ assert.equal(h.row.last_error,'CM_CREATIVE_TOO_SIMILAR');
 });

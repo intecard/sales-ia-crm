@@ -1,3 +1,4 @@
+import {EditorialCreativeStudio} from './EditorialCreativeStudio';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CatalogCourse } from '../../whatsapp-catalog';
 function save(blob: Blob, name: string) {
@@ -48,7 +49,7 @@ function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, 
   const sw = w / scale, sh = h / scale;
   ctx.drawImage(img, (img.naturalWidth-sw)/2, (img.naturalHeight-sh)/2, sw, sh, x, y, w, h);
 }
-export function BrandedCreativeStudio() {
+function PhotoCreativeStudio() {
   const [courses, setCourses] = useState<CatalogCourse[]>([]),
     [selected, setSelected] = useState(''),
     [format, setFormat] = useState('flyer'),
@@ -255,4 +256,9 @@ export function BrandedCreativeStudio() {
       </p>
     </section>
   );
+}
+
+export function BrandedCreativeStudio(){
+ const [manual,setManual]=useState(false);
+ return <div className="space-y-5"><EditorialCreativeStudio/><button onClick={()=>setManual(!manual)} className="border rounded p-3">{manual?'Cerrar editor fotográfico':'Abrir editor fotográfico manual y banners'}</button>{manual&&<PhotoCreativeStudio/>}</div>;
 }
