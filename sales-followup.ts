@@ -1,7 +1,7 @@
 import type { SalesStore, SalesOpportunity } from './sales-agent.ts';
 import { buildWhatsAppTextPayload, type WhatsAppRecipient } from './whatsapp-routing.ts';
 import { USD_OFFER } from './sales-policy.ts';
-import { ownerCase } from './owner-agent.ts';
+import { INTECA_CEO_WHATSAPP, ownerCase } from './owner-agent.ts';
 
 export interface SalesAutomationSettings {
   id: string;
@@ -108,6 +108,7 @@ export class SalesFollowupAgent {
     return data as SalesAutomationSettings;
   }
   async ownerInbound(phone: string) {
+    if (phone !== INTECA_CEO_WHATSAPP) return;
     const s = await this.settings();
     if (phone === s.owner_phone) {
       await this.store.request('crm_sales_automation_settings?id=eq.org_inteca_main', 'PATCH', {
@@ -132,6 +133,7 @@ export class SalesFollowupAgent {
     });
   }
   async notify(sale: SalesOpportunity) {
+    if (sale.profile.phone === INTECA_CEO_WHATSAPP) return;
     if (sale.control === 'opted_out' && sale.stage !== 'won') return;
     if (!['payment_review', 'won'].includes(sale.stage) && sale.control !== 'human') return;
     const kind =
@@ -263,12 +265,12 @@ export class SalesFollowupAgent {
       });
       // Recover the alert if a process stopped between bank verification and the outbox enqueue.
       const recentPaid:SalesOpportunity[]=await this.store.request(`crm_sales_opportunities?stage=eq.won&updated_at=gte.${encodeURIComponent(new Date(Date.now()-86400000).toISOString())}&limit=100`);
-      for(const sale of recentPaid)if(sale.profile.phone!==settings.owner_phone)await this.notify(sale);
+      for(const sale of recentPaid)if(sale.profile.phone!==INTECA_CEO_WHATSAPP)await this.notify(sale);
       const sales: SalesOpportunity[] = await this.store.request(
         `crm_sales_opportunities?control=neq.opted_out&or=(follow_up_at.lte.${encodeURIComponent(new Date().toISOString())},stage.eq.payment_review,control.eq.human)&order=follow_up_at.asc.nullslast&limit=100`,
       );
       for (const sale of sales) {
-        if (sale.profile.phone === settings.owner_phone) continue;
+        if (sale.profile.phone === INTECA_CEO_WHATSAPP) continue;
         await this.notify(sale);
         const eligible = followupEligibility(sale);
         if (!['text', 'template'].includes(eligible)) continue;
@@ -334,7 +336,11 @@ export class SalesFollowupAgent {
         });
         return;
       }
-      let recipient: WhatsAppRecipient = { kind: 'phone', id: fresh.owner_phone };
+      if (job.kind === 'owner' && fresh.owner_phone !== INTECA_CEO_WHATSAPP) {
+        await update({ state: 'blocked', last_error: 'OWNER_RECIPIENT_MISMATCH' });
+        return;
+      }
+      let recipient: WhatsAppRecipient = { kind: 'phone', id: INTECA_CEO_WHATSAPP };
       let mode =
         fresh.owner_last_inbound_at &&
         Date.now() - Date.parse(fresh.owner_last_inbound_at) < 23 * 3600000
@@ -343,7 +349,7 @@ export class SalesFollowupAgent {
       let sale: SalesOpportunity | undefined;
       if (job.kind === 'followup') {
         sale = job.contact_key ? await this.store.get(job.contact_key) : undefined;
-        if (sale?.profile.phone === fresh.owner_phone) { await update({state:'cancelled',last_error:'OWNER_NOT_A_PROSPECT'}); return; }
+        if (sale?.profile.phone === INTECA_CEO_WHATSAPP) { await update({state:'cancelled',last_error:'OWNER_NOT_A_PROSPECT'}); return; }
         mode = sale ? followupEligibility(sale) : 'NO_RECIPIENT';
         if (!sale || !['text', 'template'].includes(mode)) {
           await update({ state: 'cancelled', last_error: mode });

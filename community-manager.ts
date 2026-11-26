@@ -6,6 +6,7 @@ import type { CatalogStore } from './whatsapp-catalog.ts';
 import { hasDiscount, hasUnlistedPrice } from './advertising-agent.ts';
 import { makeContent, planMonth, rdDay, sha, COMMUNITY_ROLLING_HORIZON_DAYS, COMMUNITY_SCHEDULE_MODE, contentHash, communityPublicCopy, SOCIAL_CHANNELS, type SocialChannel, type CommunityPayload } from './community-plan.ts';
 import { renderCommunityImage, renderCommunityVideo, storeCommunityAsset } from './community-media.ts';
+import { flyerPhotoStatus, prepareFlyerPhoto } from './community-flyer-photography.ts';
 import { isPublishableFlyer, flyerOffer } from './community-flyer-offer.ts';
 import {courseFamily} from './community-course-topics.ts';
 import type { CommunityPublisher } from './community-publisher.ts';
@@ -54,7 +55,7 @@ export class CommunityManager {
       .sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at)).slice(0,100);
     const day=rdDay(new Date());
     return {
-      settings,jobs,historicalJobs,observations,growth:growthSummary(jobs,observations),
+      settings,jobs,historicalJobs,observations,flyerPhotography:flyerPhotoStatus(),growth:growthSummary(jobs,observations),
       schedule:{mode:COMMUNITY_SCHEDULE_MODE,endsAt:null,horizonDays:COMMUNITY_ROLLING_HORIZON_DAYS,
         dailyJobs:22, standardYouTubeVideos:1, avatarYouTubeBriefs:1,
         avatarAutomaticPublishing:false, localTimeZone:'America/Santo_Domingo'},
@@ -63,7 +64,7 @@ export class CommunityManager {
       totalCatalogCourses:catalog?.courses.length||0,
       scope:'org_inteca_main',
       capabilities:{
-        flyers:'16 composiciones ilustradas, 20 enfoques educativos y 10 llamados a la acción con control de repetición de los últimos 7 días. Dos flyers por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
+        flyers:flyerPhotoStatus().enabled?'Fotografía original por flyer; cada curso alterna escenas, personas, espacios y ángulos. Cada pieza comparte su foto en Facebook e Instagram.':'16 composiciones ilustradas, 20 enfoques educativos y 10 llamados a la acción con control de repetición de los últimos 7 días. Dos flyers por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
         verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
         stories:'Calendario continuo sin caducidad: 1 post, 1 imagen y 8 reels al día en Facebook e Instagram; 1 video estándar en YouTube y 1 guion de INTEQUITO a las 21:00, pendiente de producción profesional',
         longVideo:'1 MP4 diario en YouTube mediante renderizado local, y una segunda cita diaria para INTEQUITO hablando; el segundo video no se publica mientras no exista avatar, voz, derechos y presupuesto aprobado',
@@ -212,6 +213,7 @@ export class CommunityManager {
             // Reuse already produced media for the same original piece across platforms.
             const siblings=await this.store.request(`crm_community_jobs?payload->>assetKey=eq.${row.payload.assetKey}&media_url=not.is.null&limit=1`);
             mediaUrl=siblings[0]?.media_url||null;
+            if(!mediaUrl && row.payload.kind==='flyer' && flyerPhotoStatus().enabled) mediaUrl=await prepareFlyerPhoto(row.payload,this.store);
             if(!mediaUrl){const video=row.payload.kind==='short'||row.payload.kind==='promo_video';const bytes=video?await renderCommunityVideo(row.payload):await renderCommunityImage(row.payload);phase='storage';mediaUrl=await storeCommunityAsset(row.payload.assetKey,bytes,video);}
             await this.update(row.id,{media_url:mediaUrl});
           }

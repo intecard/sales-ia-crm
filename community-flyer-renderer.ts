@@ -83,12 +83,12 @@ function photoFor(family:CourseFamily){
  * photography, large program title, learning outcomes, pricing trio and strong
  * integrated WhatsApp CTA. Never copy the 4-month TYPO from the example.
  */
-export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd()):Promise<Buffer>{
+export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd(),photoOverride?:Buffer):Promise<Buffer>{
  const o=p.flyerOffer;
  if(!o||!isPublishableFlyer(o))throw Error('CM_FLYER_PRICE_OR_CONTENT_MISSING');
  if(o.course!==p.courseTitle||o.benefits.indexOf(o.focus)<0)throw Error('CM_FLYER_CATALOG_MISMATCH');
  if(p.editorialSlot==='morning'&&o.family!=='authorizations')throw Error('CM_FLYER_WRONG_MORNING_COURSE');
- if(p.creative?.version==='v7'||p.creative?.version==='v8')return renderEditorialImage(p,undefined,assetRoot);
+ if(p.creative?.version==='v7'||p.creative?.version==='v8')return renderEditorialImage(p,undefined,assetRoot,photoOverride);
  const seed=p.designSeed??o.dailyVariant;
  const pal=palettes[((seed%palettes.length)+palettes.length)%palettes.length];
  const photoName=photoFor(o.family);

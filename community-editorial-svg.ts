@@ -91,3 +91,43 @@ export function editorialSvg(input:{creative:EditorialCreative;course:string;fac
  </svg>`;
  return svg;
 }
+
+// The photograph is generated separately so copy and exact catalog prices remain typeset.
+export function photographicEditorialSvg(input:{creative:EditorialCreative;course:string;facts:string;logo?:string}, photo:string){
+ const {creative:c,course,facts,logo}=input;
+ const p=EDITORIAL_PALETTES[c.palette%EDITORIAL_PALETTES.length];
+ const accentInk=c.palette===1||c.palette===4?p.bg:'#ffffff';
+ const rect=(x:number,y:number,w:number,h:number,fill:string,r=0)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}"/>`;
+ const tx=(s:string,x:number,y:number,w:number,h:number,size:number,color=p.ink,bold=false)=>editorialText(s,x,y,w,h,color,size,bold);
+ const mode=['editorial','notebook','path','index','steps'].includes(c.layout)?0:
+  ['split','postcard','dispatch','briefing','diagram'].includes(c.layout)?1:2;
+ const geometry=[
+   {x:60,y:320,w:960,h:425,r:18,angle:151,title:196,points:762},
+   {x:0,y:145,w:1080,h:420,r:0,angle:579,title:614,points:768},
+   {x:105,y:323,w:915,h:424,r:52,angle:151,title:196,points:770},
+ ][mode];
+ const g=geometry;
+ const cards = c.points.map((text,i)=>{
+  const y=g.points+i*86, x=mode===2?(i===1?106:60):60, w=1020-x;
+  const fill=mode===2 && i===0?p.accent:p.soft;
+  return rect(x,y,w,77,fill,mode===2?20:4)+
+   tx(String(i+1).padStart(2,'0'),x+18,y+14,57,39,27,fill===p.accent?accentInk:p.accent,true)+
+   tx(text,x+91,y+9,w-115,59,30,fill===p.accent?accentInk:p.ink);
+ }).join('');
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+ ${rect(0,0,1080,1350,p.bg)}
+ ${mode===2?rect(0,319,80,432,p.accent):mode===0?rect(0,0,17,1350,p.accent):''}
+ <defs><clipPath id="hero">${rect(g.x,g.y,g.w,g.h,'#fff',g.r)}</clipPath></defs>
+ <image href="${esc(photo)}" x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#hero)"/>
+ ${logo?`<image href="${esc(logo)}" x="60" y="35" width="85" height="85"/>`:''}
+ ${tx('INTECA',logo?165:60,36,720,54,42,p.ink,true)}
+ ${tx('APRENDE · PRACTICA · CRECE',logo?165:60,91,810,32,23,p.accent,true)}
+ ${tx(c.angle.toLocaleUpperCase('es'),60,g.angle,960,39,25,p.accent,true)}
+ ${tx(c.headline,60,g.title,960,115,49,p.ink,true)}
+ ${cards}
+ ${tx(course,60,1040,960,85,34,p.ink,true)}
+ ${tx(facts,60,1137,960,70,26)}
+ ${rect(55,1222,970,89,p.accent,16)}
+ ${tx(c.cta+' · WhatsApp 809-643-5502',78,1232,925,68,28,accentInk,true)}
+ </svg>`;
+}

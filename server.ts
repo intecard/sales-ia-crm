@@ -1,5 +1,5 @@
 import { generateWithFallback, aiRuntime } from './ai-resilience.ts';
-import { OwnerAgent } from './owner-agent.ts';
+import { OwnerAgent, isDirectorNumber } from './owner-agent.ts';
 import { validWhatsAppSignature } from './whatsapp-auth.ts';
 import { AGENT_PLAYBOOKS } from './team/playbooks.ts';
 import { TEAM_AGENTS } from './team/agents.ts';
@@ -582,7 +582,7 @@ async function processWhatsAppInboundMessages(messages: any[], event: any, signe
       try {
 
         const userMessage = getWhatsAppMessageText(message);
-        if (await ownerAgent.isOwner(recipient)) {
+        if (isDirectorNumber(recipient)) {
           if (!signed) { console.warn('Owner instruction blocked: verified WhatsApp signature required'); return; }
           const ownerConversation = await whatsAppConversations.get(memoryKey);
           if (ownerConversation.turns.some(turn => turn.role === 'assistant' && turn.id === messageId)) return;
@@ -600,7 +600,6 @@ async function processWhatsAppInboundMessages(messages: any[], event: any, signe
         if (previousSale) conversation.facts = { ...previousSale.profile, ...conversation.facts };
         rememberUser(conversation, userMessage, messageId, false);
         rememberSalesPreferences(conversation, userMessage);
-        if (senderPhone) await salesFollowup.ownerInbound(senderPhone).catch(() => {});
         rememberCatalogCourse(await whatsAppCatalog.get(), conversation, userMessage);
         await whatsAppConversations.save(memoryKey, conversation);
         const customerName = conversation.facts.fullName || profileName;

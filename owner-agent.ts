@@ -3,6 +3,10 @@ import type { SalesFollowupAgent } from './sales-followup.ts';
 import type { EnrollmentAgent, Enrollment } from './enrollment-agent.ts';
 import type { WhatsAppRecipient } from './whatsapp-routing.ts';
 
+export const INTECA_CEO_WHATSAPP = '18097065502';
+export const isDirectorNumber = (recipient: WhatsAppRecipient) =>
+  recipient.kind === 'phone' && recipient.id === INTECA_CEO_WHATSAPP;
+
 const clean = (value: unknown, max = 180) => String(value ?? '').replace(/[\r\n\t]/g, ' ').slice(0, max);
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 const HELP = `Sr. Luis Ramírez, soy su asistente de Dirección General de INTECA. Consulto registros reales del CRM.
@@ -40,9 +44,9 @@ export function ownerCommand(text: string) {
 export class OwnerAgent {
   constructor(private store: SalesStore, private followup: SalesFollowupAgent, private enrollment: EnrollmentAgent) {}
   async isOwner(recipient: WhatsAppRecipient) {
-    if (recipient.kind !== 'phone' || !this.store.configured()) return false;
+    if (!isDirectorNumber(recipient) || !this.store.configured()) return false;
     const settings = await this.followup.settings();
-    return /^\d{8,15}$/.test(settings.owner_phone) && recipient.id === settings.owner_phone;
+    return settings.owner_phone === INTECA_CEO_WHATSAPP;
   }
   async respond(recipient: WhatsAppRecipient, messageId: string, text: string, signed = false) {
     if (!signed || !await this.isOwner(recipient)) throw Error('OWNER_UNAUTHORIZED');
