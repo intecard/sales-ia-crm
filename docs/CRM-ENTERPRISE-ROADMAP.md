@@ -14,7 +14,7 @@
 | Email, SMS y llamadas | Correo transaccional y agente de voz tienen integración separada; cartera permite planificar próximos contactos. | Constructor de campañas, segmentos, bajas, eventos de entrega, envío de SMS y llamadas activas requieren conectores probados, consentimiento, presupuesto y reputación de dominio/número. |
 | Analítica y predicción | Embudo de WhatsApp, medición de pagos, publicaciones y cartera con denominadores explícitos. | Antes de predecir compra, fecha, curso, abandono o recompra, instrumentar atribución y obtener suficientes resultados reales. Validar con datos separados en el tiempo y publicar incertidumbre. CAC, LTV y ROI quedan no disponibles si faltan costos, ingresos o atribución. |
 | Documentos | Conservar los flujos existentes de comprobantes y documentos. | Unificar almacenamiento privado por empresa/cliente, URLs firmadas, límites, permisos, conservación y borrado verificable para audio, contratos y grabaciones. |
-| Seguridad y clientes | Web HTTPS, sesiones seguras y acceso por área en el equipo; rutas nuevas con ámbito de empresa y operaciones sensibles a cargo de Dirección. | MFA de la aplicación, auditoría de acceso, restauración de copias con metas verificadas, cifrado de campos elegidos con gestión de claves, revisión de privacidad y prueba integral de aislamiento. Instaladores firmados y apps móviles nativas requieren compilación, firma y pruebas en cada plataforma. |
+| Seguridad y clientes | Web HTTPS instalable en navegadores compatibles, sesiones seguras y acceso por área en el equipo; rutas nuevas con ámbito de empresa y operaciones sensibles a cargo de Dirección. | MFA de la aplicación, auditoría de acceso, restauración de copias con metas verificadas, cifrado de campos elegidos con gestión de claves, revisión de privacidad y prueba integral de aislamiento. Instaladores firmados y apps móviles nativas requieren compilación, firma y pruebas en cada plataforma. |
 
 ## Uso
 
@@ -26,3 +26,8 @@
 ## Despliegue y validación
 
 Aplicar la migración de operación empresarial antes del servidor. El RPC v8 no cambia el calendario hasta que el nuevo servidor lo solicita. En horario de menor tráfico, verificar `/api/health`, la revisión de cuenta, la activación de v8, la ausencia de trabajos antiguos programados y el estado de cada aviso. Las migraciones preservan historiales y derechos de acceso; no modifican credenciales ni cargos. La prueba de base se revierte íntegramente; no deben salir mensajes ni transacciones de prueba por canales reales.
+
+
+## Instalar la aplicación web
+
+En la pantalla de inicio de sesión, usa **Instalar Sales AI CRM** cuando el navegador lo ofrezca, o abre **Cómo instalar el CRM**. En iOS/iPadOS se agrega desde el menú Compartir de Safari. Usa la misma dirección web, el mismo inicio de sesión y el mismo servidor. Requiere conexión; no registra service worker ni guarda fichas, sesiones o respuestas de API para uso sin conexión. Esta opción no es una compilación nativa ni un instalador firmado.

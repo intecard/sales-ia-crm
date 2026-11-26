@@ -77,10 +77,18 @@ index c64f243..47816c8 100644
    
    const overallProgress = studentCourses.length > 0 
 diff --git a/src/firebase.ts b/src/firebase.ts
-index 8dd54fc..69825af 100644
+index 8dd54fc..1ca407d 100644
 --- a/src/firebase.ts
 +++ b/src/firebase.ts
-@@ -178,16 +178,9 @@ export async function seedInitialDatabaseIfEmpty(): Promise<void> {
+@@ -20,7 +20,6 @@ import {
+   where, 
+   getDocs, 
+   updateDoc, 
+-  deleteDoc,
+   addDoc, 
+   orderBy, 
+   limit, 
+@@ -178,16 +177,9 @@ export async function seedInitialDatabaseIfEmpty(): Promise<void> {
      // 1. Check if courses exist
      const coursesCol = collection(db, "courses");
      const coursesSnap = await getDocs(coursesCol);

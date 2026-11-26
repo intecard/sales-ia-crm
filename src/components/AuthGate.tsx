@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { InstallCRM } from './InstallCRM';
 import {
   Loader2,
   LockKeyhole,
@@ -168,6 +169,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ theme, onToggleTheme, onAuth
               <span>{isLoading ? 'Validando acceso...' : 'Iniciar sesión'}</span>
             </button>
           </form>
+          <InstallCRM />
 
 
         </section>
