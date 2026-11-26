@@ -95,11 +95,15 @@ export async function renderCommunityVideo(p:CommunityPayload) {
     return await readFile(output);
   } finally {await rm(dir,{recursive:true,force:true});}
 }
+export function communityAssetUrl(key:string,video:boolean,env=process.env) {
+  const base=new URL(env.SUPABASE_URL||'');if(base.protocol!=='https:')throw Error('CM_STORAGE');
+  return `${base.origin}/storage/v1/object/public/crm-community/${key}.${video?'mp4':'jpg'}`;
+}
 export async function storeCommunityAsset(key:string,data:Buffer,video:boolean,env=process.env,fetcher=fetch) {
   const base=new URL(env.SUPABASE_URL||'');if(base.protocol!=='https:')throw Error('CM_STORAGE');
   const file=`${key}.${video?'mp4':'jpg'}`,bucket='crm-community';
   const response=await fetcher(`${base.origin}/storage/v1/object/${bucket}/${file}`,{method:'POST',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY||'',Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY||''}`,'Content-Type':video?'video/mp4':'image/jpeg','x-upsert':'false'},body:new Uint8Array(data),signal:AbortSignal.timeout(30000)});
   // A deterministic asset may already exist after a process restart or for another channel.
   if(!response.ok&&response.status!==409){const body=await response.json().catch(()=>({}));if(body.statusCode!=='409'&&body.error!=='Duplicate')throw Error(`CM_STORAGE_HTTP_${response.status}`);}
-  return `${base.origin}/storage/v1/object/public/${bucket}/${file}`;
+  return communityAssetUrl(key,video,env);
 }

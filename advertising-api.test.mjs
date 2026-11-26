@@ -21,6 +21,9 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await fetch(base+'/api/auth/session')).status, 401);
     assert.equal((await fetch(base+'/api/auth/session', {headers:{Cookie:'crm_sales_session=forged'}})).status, 401);
     assert.equal((await fetch(base+'/api/advertising')).status, 401);
+    assert.equal((await fetch(base+'/api/advertising/community/photos/local/download')).status,401);
+    assert.equal((await post('/api/advertising/community/photos/local/pair',{})).status,401);
+    assert.equal((await post('/api/local-flyer/worker/claim',{})).status,401);
     assert.equal((await fetch(base+'/api/advertising/shared-connections')).status, 401);
     assert.equal((await fetch(base+'/api/advertising/oauth/configuration')).status, 401);
     assert.equal((await fetch(base+'/api/advertising/google-ads/accounts')).status,401);
@@ -30,6 +33,12 @@ test('API compilada exige sesión de dueño, acción explícita y bloquea descue
     assert.equal((await post('/api/advertising/campaigns', {})).status, 401);
     const login = await post('/api/auth/login', { email: 'owner@example.test', password: 'test-only-password' }); assert.equal(login.status, 200); assert.ok(login.headers.get('set-cookie').includes('SameSite=Strict'));
     const cookie = login.headers.getSetCookie().find(value => value.startsWith('crm_sales_session=')).split(';')[0];
+    assert.equal((await post('/api/advertising/community/photos/local/pair',{},{Cookie:cookie})).status,403);
+    assert.equal((await post('/api/local-flyer/worker/claim',{},{Cookie:cookie})).status,401);
+    const setup = await fetch(base+'/api/advertising/community/photos/local/download',{headers:{Cookie:cookie}});
+    assert.equal(setup.status,200);
+    assert.match(setup.headers.get('content-disposition'),/inteca_fotos.py/);
+    assert.match(await setup.text(),/install_windows/);
     const restored = await fetch(base+'/api/auth/session', {headers:{Cookie:cookie}});
     assert.equal(restored.status,200);
     assert.equal(restored.headers.get('cache-control'),'no-store');
