@@ -24,7 +24,7 @@ test('YouTube metrics are read only and restricted to the configured channel',as
 test('new content rotates meaningful growth calls to action without changing course facts',()=>{
  const course={title:'Atención al Usuario',description:'Aprende atención al afiliado.',text:'',duration:'4 meses',modality:'Virtual',investment:'Inscripción RD$2,500 y mensualidad RD$2,000',schedule:'Sábados'};
  const catalog={courses:[course],hash:'catalog',generalSchedule:'Sábados'} as any;
- const captions=Array.from({length:6},(_,i)=>makeContent(course,catalog,`2026-10-${20+i}`,'short',0).caption);
+ const captions=Array.from({length:10},(_,i)=>makeContent(course,catalog,`2026-10-${20+i}`,'short',0).caption);
  for(const prefix of ['Guarda esta guía','Cuéntanos','Comparte esta idea','¿Qué harías tú','Pide el programa','Escríbenos'])assert.equal(captions.some(c=>c.includes(prefix)),true);
  for(const c of captions){assert.match(c,/4 meses/);assert.match(c,/RD\$2,500/);assert.match(c,/utm_campaign=aprende_con_inteca/);}
 });

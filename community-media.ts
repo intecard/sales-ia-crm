@@ -33,7 +33,7 @@ const colors=[
  */
 export async function renderCommunityImage(p:CommunityPayload,slide?:number,assetRoot=process.cwd()) {
  if(p.kind==='flyer')return renderINTECAFlyer(p,assetRoot);
- if(p.creative?.version==='v7')return renderEditorialImage(p,slide,assetRoot);
+ if(p.creative?.version==='v7'||p.creative?.version==='v8')return renderEditorialImage(p,slide,assetRoot);
  const photoName=/farmac|farmacia|visitador/i.test(p.courseTitle)?'pharmacy':/enfermer|promotor.*salud/i.test(p.courseTitle)?'nursing':'call-center';
  // Missing static assets must not suspend the whole organic content operation.
  // Use vector-only educational branding, never stock people or an invented INTEQUITO.

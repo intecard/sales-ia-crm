@@ -48,3 +48,12 @@ test('reports identify cases and do not invent currency or student enrollment',a
   assert.match(answer,/Matrícula: no creada/);
   assert.doesNotMatch(answer,/Contraseña:/);
 });
+
+test('director looks up a real phone and report never turns an opaque identifier into a number',async()=>{
+ const {agent,calls}=fixture();
+ assert.equal(ownerCommand('cliente (809) 555-0123').key,'18095550123');
+ const answer=await agent.respond({kind:'phone',id:'18097065502'},'m','cliente 8095550123',true);
+ assert.match(answer,/WhatsApp del cliente: \+18095550123/);
+ assert.ok(calls.some(c=>c.path.includes('profile->>phone=eq.18095550123')));
+ assert.match(ownerCase({...contact,profile:{whatsappUserId:'DO.abcdef'}}),/WhatsApp del cliente: número no disponible/);
+});

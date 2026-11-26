@@ -1862,7 +1862,7 @@ app.post('/api/sales/:key/action', async (req, res) => {
     });
     if (parsed.data.action === 'verify_payment') {
       void enrollmentAgent.tick();
-      void salesStore.get(req.params.key).then(sale => sale && salesFollowup.notify(sale)).catch(() => console.warn('Owner payment alert queue unavailable'));
+      await salesStore.get(req.params.key).then(sale => sale && salesFollowup.notify(sale)).catch(() => console.warn('Owner payment alert queue unavailable'));
     }
     return res.json({ success: true, opportunity });
   } catch (error) { return salesError(res, error); }

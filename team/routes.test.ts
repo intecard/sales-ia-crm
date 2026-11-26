@@ -23,6 +23,7 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
     crm_team_messages: [],
     crm_team_notes: [],
     crm_team_tasks: [],
+    crm_agent_lessons: [],
   };
   let modelCalls = 0;
   let lastPrompt = '';
@@ -112,6 +113,9 @@ test('signed-in team permissions, persistent history, shared briefs, and idempot
     assert.ok(state.agents.every((a: any) => a.area === 'Marketing'));
     assert.equal(state.identity.owner, false);
     assert.equal((await call('/api/team/org_other', undefined, cookie)).status, 403);
+    assert.equal((await call('/api/team/org_other/portfolio', undefined, cookie)).status,403);
+    assert.equal((await call('/api/team/org_inteca_main/portfolio', undefined, cookie)).status,403);
+    assert.equal((await call('/api/team/org_inteca_main/tasks/'+crypto.randomUUID()+'/learning',{result:'worked',evidence:'Resultado de prueba',lesson:'Repetir cuando proceda'},cookie)).status,403);
     assert.equal(
       (await call('/api/team/org_inteca_main/messages/agent_accounting', undefined, cookie)).status,
       403,

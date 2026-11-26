@@ -182,3 +182,14 @@ test('ambiguous network outcome is held for reconciliation, never auto retry', a
     globalThis.fetch = original;
   }
 });
+
+test('payment alerts include the customer number and separate reported from validated',async()=>{
+ const jobs:any[]=[];
+ const agent=new SalesFollowupAgent({request:async(_r:string,_m:string,body:unknown)=>{jobs.push(body);}} as unknown as SalesStore);
+ await agent.notify(sale({stage:'payment_review'}));await agent.notify(sale({stage:'won',control:'human'}));
+ assert.equal(jobs.length,2);
+ assert.match(jobs[0].p_text,/Pago reportado; pendiente de revisión bancaria/);
+ assert.match(jobs[1].p_text,/Pago validado/);
+ assert.notEqual(jobs[0].p_dedupe,jobs[1].p_dedupe);
+ assert.ok(jobs.every(j=>j.p_strategy==='owner_payment'&&j.p_kind==='owner'&&j.p_text.includes('+18090000000')));
+});

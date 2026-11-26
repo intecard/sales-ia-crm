@@ -28,7 +28,9 @@ test('sales separates price, instructions, reported transfers and refusal', () =
 test('receipt does not imply paid or enrollment; verified payment is not downgraded', () => {
   const sale = { stage: 'payment_review' } as SalesOpportunity;
   assert.match(salesReply(sale, 'payment_review', 'Ya pagué')!.reply, /aún debe verificarse/);
-  assert.match(salesReply(sale, 'new', 'Estado del pago')!.reply, /todavía no está validado/);
+  assert.match(salesReply(sale, 'new', 'Estado del pago')!.reply, /aún debe verificarse/);
+  assert.match(salesReply(sale, 'payment_review', 'Ya pagué')!.reply, /Sr\. Luis Ramírez.*809-706-5502/);
+  assert.equal(salesReply(sale, 'interested', '¿Qué horarios tienen?'), null);
   sale.stage = 'won';
   assert.match(salesReply(sale, 'payment_review', 'Ya pagué')!.reply, /ya está validado/);
   assert.match(salesReply(sale, 'new', 'Estado del pago')!.reply, /campus siguen pendientes/);
