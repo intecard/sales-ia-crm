@@ -57,3 +57,14 @@ test('director looks up a real phone and report never turns an opaque identifier
  assert.ok(calls.some(c=>c.path.includes('profile->>phone=eq.18095550123')));
  assert.match(ownerCase({...contact,profile:{whatsappUserId:'DO.abcdef'}}),/WhatsApp del cliente: número no disponible/);
 });
+
+test('an invalid owner setting cannot authorize another sender or inspect owner settings for customers',async()=>{
+ let settingsReads=0;
+ const store={configured:()=>true} as SalesStore;
+ const followup={settings:async()=>{settingsReads++;return {owner_phone:'18095550123'};}} as unknown as SalesFollowupAgent;
+ const agent=new OwnerAgent(store,followup,{} as EnrollmentAgent);
+ assert.equal(await agent.isOwner({kind:'phone',id:'18095550123'}),false);
+ assert.equal(settingsReads,0);
+ await assert.rejects(()=>agent.respond({kind:'phone',id:'18097065502'},'m','resumen',true),/OWNER_UNAUTHORIZED/);
+ assert.equal(settingsReads,1);
+});

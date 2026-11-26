@@ -6,7 +6,7 @@ type Growth={leaders?:Array<{jobId:string;title:string;format:string;interaction
 type VideoProviderStatus={providers:{heygen:{provider:string;ready:boolean;apiKeyConfigured:boolean;avatarConfigured:boolean;officialImageConfigured:boolean;voiceConfigured:boolean;reason:string|null};runway:{provider:string;referencePresent:boolean;runwayConfigured:boolean;elevenConfigured:boolean;renderReady:boolean;reason:string|null}};renderReady:boolean;automaticSpending:boolean;note:string};
 type VideoGeneration={id:string;job_id:string;provider:'heygen'|'runway';state:string;provider_job_id:string|null;result:Record<string,unknown>;updated_at:string};
 type Diagnostics={storageStatus:string;assets:Record<string,boolean>;channelsConfigured:Record<string,boolean>;reasons:Record<string,string>};
-type Snapshot={featuredCourse:string|null;campaignMonth:string;totalCatalogCourses:number;growth?:Growth[];settings:{enabled:boolean;plan_started_at:string|null;destinations:Record<string,string>};jobs:Job[];historicalJobs?:Job[];schedule?:{mode:string;endsAt:null;horizonDays:number;dailyJobs:number;standardYouTubeVideos:number;avatarYouTubeBriefs:number;avatarAutomaticPublishing:boolean;localTimeZone:string};observations:Array<{job_id:string;checked_at:string;metrics:Record<string,unknown>;recommendation:string}>;capabilities:Record<string,string|boolean>};
+type Snapshot={flyerPhotography?:{enabled:boolean;credentialConfigured:boolean;requestsPerDay:number};featuredCourse:string|null;campaignMonth:string;totalCatalogCourses:number;growth?:Growth[];settings:{enabled:boolean;plan_started_at:string|null;destinations:Record<string,string>};jobs:Job[];historicalJobs?:Job[];schedule?:{mode:string;endsAt:null;horizonDays:number;dailyJobs:number;standardYouTubeVideos:number;avatarYouTubeBriefs:number;avatarAutomaticPublishing:boolean;localTimeZone:string};observations:Array<{job_id:string;checked_at:string;metrics:Record<string,unknown>;recommendation:string}>;capabilities:Record<string,string|boolean>};
 const states:Record<string,string>={queued:'Programado',preparing:'Produciendo',executing:'Enviando al proveedor',published:'Publicado',uploaded_private:'Subido; revisar visibilidad',blocked:'Bloqueado',review_required:'Revisar resultado antes de repetir',missed:'Horario omitido',brief:'Guion pendiente de producción'};
 export function CommunityManagerCenter(){
  const [provider,setProvider]=useState<VideoProviderStatus|null>(null);
@@ -87,6 +87,11 @@ export function CommunityManagerCenter(){
     <p className="text-lg font-bold text-white">{data?.featuredCourse||'Consultando catálogo académico de INTECA…'}</p>
     <p className="text-xs text-slate-300">Publicación diaria a las 9:00 a. m. de Autorizaciones Médicas. A las 5:00 p. m., un flyer profesional de otro curso del catálogo, rotando sin repetir el mismo curso dos días seguidos. Todos con precios, temas verificados y WhatsApp.</p>
   </div>
+  {data?.flyerPhotography&&<div className="rounded-lg border border-slate-600 p-3 text-sm text-slate-200">
+    <p className="font-semibold">Fotos originales para el calendario</p>
+    <p>{!data.flyerPhotography.enabled?'Pendiente de activar el proveedor de imágenes. El calendario conserva sus ilustraciones.':
+      data.flyerPhotography.credentialConfigured?'Generación habilitada: una foto por pieza, hasta dos solicitudes al día. Consulta el estado de cada publicación.':'Falta conectar la credencial de imagen en el servidor.'}</p>
+  </div>}
   <div className="rounded-lg border border-slate-600 p-3 space-y-2">
     <p className="text-sm text-white font-semibold">Diagnóstico de publicación y almacenamiento</p>
     <div className="flex flex-wrap gap-2">
