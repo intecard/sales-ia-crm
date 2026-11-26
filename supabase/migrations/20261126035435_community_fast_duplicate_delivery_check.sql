@@ -1,0 +1,269 @@
+-- Separate exact timestamp and legacy flyer-day lookups without changing which slots are protected.
+CREATE OR REPLACE FUNCTION public.crm_community_roll_plan_v8(p_jobs jsonb, p_destinations jsonb, p_day text, p_catalog_hash text)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+ request_date date;
+ inserted integer:=0;
+ last_day date;
+ last_hash text;
+ last_version text;
+begin
+ if p_day is null or p_day !~ '^\d{4}-\d{2}-\d{2}$' then
+   raise exception 'CM_DAY_INVALID';
+ end if;
+ request_date:=to_date(p_day,'YYYY-MM-DD');
+ if request_date<>timezone('America/Santo_Domingo',now())::date then
+   raise exception 'CM_DAY_MISMATCH';
+ end if;
+ if p_catalog_hash !~ '^[a-f0-9]{64}$'
+    or jsonb_typeof(p_jobs)<>'array'
+    or jsonb_array_length(p_jobs) not between 20 and 950
+    or jsonb_typeof(p_destinations)<>'object'
+ then raise exception 'CM_PLAN_INVALID'; end if;
+ if not exists(select 1 from public.crm_community_settings where id='inteca' and enabled)
+ then raise exception 'CM_PAUSED'; end if;
+ select last_planned_day,catalog_hash,creative_version
+   into last_day,last_hash,last_version
+ from public.crm_community_calendar_state where id='inteca' for update;
+ if not found then raise exception 'CM_MISSING_STATE'; end if;
+ if last_day=request_date and last_hash=p_catalog_hash and last_version='v8'
+    and exists (
+      select 1 from public.crm_community_jobs j
+      where j.slot like ('v6:' || p_day || ':avatar_video:%:editorial-v8')
+        and j.channel='youtube' and j.state='brief'
+    )
+ then return 0; end if;
+
+ if exists(
+   select 1 from jsonb_to_recordset(p_jobs) as j(
+     slot text,channel text,payload jsonb,content_hash text,
+     scheduled_at timestamptz,state text,last_error text
+   )
+   where j.slot not like 'v6:%:editorial-v8'
+     or j.payload->'creative'->>'version' is distinct from 'v8'
+     or j.channel not in('facebook','instagram','youtube')
+     or j.payload->>'catalogHash' is distinct from p_catalog_hash
+     or j.content_hash !~ '^[a-f0-9]{64}$'
+     or j.state not in('queued','missed','brief','blocked')
+     or j.scheduled_at>now()+interval '32 days'
+     or (
+       j.payload->>'kind'='flyer'
+       and (j.channel='youtube'
+         or j.payload->>'editorialSlot' not in ('morning','afternoon')
+         or (j.payload->>'editorialSlot'='morning'
+             and j.slot not like '%:flyer:0:%')
+         or (j.payload->>'editorialSlot'='afternoon'
+             and j.slot not like '%:flyer:1:%')
+         or (j.payload->>'editorialSlot'='morning'
+             and j.scheduled_at at time zone 'America/Santo_Domingo'
+                 <> date_trunc('day',j.scheduled_at at time zone 'America/Santo_Domingo')+interval '9 hours')
+         or (j.payload->>'editorialSlot'='afternoon'
+             and j.scheduled_at at time zone 'America/Santo_Domingo'
+                 <> date_trunc('day',j.scheduled_at at time zone 'America/Santo_Domingo')+interval '17 hours'))
+     )
+     or (
+        j.payload->>'kind'='flyer' and
+        (j.payload->'flyerOffer' is null
+         or j.payload->'flyerOffer'->>'registration' is null
+         or j.payload->'flyerOffer'->>'monthly' is null
+         or j.payload->'flyerOffer'->'benefits' is null)
+        and j.state<>'blocked'
+     )
+ ) then
+   -- Prevent rows with unfinished prices from reaching published state.
+   -- The operator must correct the source catalog before trying again.
+   raise exception 'CM_CONTENT_REVIEW';
+ end if;
+
+ -- Serialize conditional claims while retiring queued jobs. This prevents a
+ -- concurrent old worker from claiming a replacement's predecessor mid-roll.
+ perform 1 from public.crm_community_jobs where state in('queued','preparing','executing') for update;
+ insert into public.crm_community_jobs(
+   slot,channel,payload,content_hash,scheduled_at,state,last_error
+ )
+ select j.slot,j.channel,j.payload,j.content_hash,j.scheduled_at,
+   case when exists(
+     select 1 from public.crm_community_jobs old
+     where old.channel=j.channel
+       and old.payload->>'kind'=j.payload->>'kind'
+       and old.state in('published','uploaded_private','preparing','executing','review_required')
+       and old.scheduled_at=j.scheduled_at
+   ) or (j.payload->>'kind'='flyer' and exists(
+     select 1 from public.crm_community_jobs old
+     where old.channel=j.channel
+       and old.payload->>'kind'='flyer'
+       and old.state in('published','uploaded_private','preparing','executing','review_required')
+       and (old.scheduled_at at time zone 'America/Santo_Domingo')::date =
+           (j.scheduled_at at time zone 'America/Santo_Domingo')::date
+       and coalesce(old.payload->>'editorialSlot','morning')=j.payload->>'editorialSlot'
+   )) then 'missed'
+   else j.state end,
+   case when j.state='blocked' then coalesce(j.last_error,'CM_CONTENT_REVIEW') else null end
+ from jsonb_to_recordset(p_jobs) as j(
+   slot text,channel text,payload jsonb,content_hash text,
+   scheduled_at timestamptz,state text,last_error text
+ )
+ on conflict(slot) do nothing;
+ get diagnostics inserted=row_count;
+
+ -- Replace only QUEUED old jobs; the immutable guard also protects brief, missed and blocked rows.
+ -- Published and uncertain external results must NEVER be altered.
+ update public.crm_community_jobs
+ set state='missed',last_error='CM_CALENDAR_SUPERSEDED',updated_at=now()
+ where state='queued'
+   and (slot not like 'v6:%:editorial-v8'
+        or payload->>'catalogHash' is distinct from p_catalog_hash);
+
+ update public.crm_community_calendar_state
+ set last_planned_day=request_date,catalog_hash=p_catalog_hash,
+     creative_version='v8',last_generated_at=now(),updated_at=now()
+ where id='inteca';
+
+ update public.crm_community_settings
+ set destinations=p_destinations,updated_at=now() where id='inteca';
+
+ return inserted;
+end $function$;
+
+
+revoke all on function public.crm_community_roll_plan_v8(jsonb,jsonb,text,text) from public,anon,authenticated;
+grant execute on function public.crm_community_roll_plan_v8(jsonb,jsonb,text,text) to service_role;
+
+
+-- New editorial calendar; activate only when the v7 server calls it.
+-- Repair daily rolling renewal when a legacy v6 plan exists but does not
+-- include the 21:00 INTEQUITO avatar slot. Re-run remains atomic/idempotent.
+-- Based on the protected rolling-calendar contract from 2026-10-30.
+CREATE OR REPLACE FUNCTION public.crm_community_roll_plan_v7(p_jobs jsonb, p_destinations jsonb, p_day text, p_catalog_hash text)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+ request_date date;
+ inserted integer:=0;
+ last_day date;
+ last_hash text;
+ last_version text;
+begin
+ if p_day is null or p_day !~ '^\d{4}-\d{2}-\d{2}$' then
+   raise exception 'CM_DAY_INVALID';
+ end if;
+ request_date:=to_date(p_day,'YYYY-MM-DD');
+ if request_date<>timezone('America/Santo_Domingo',now())::date then
+   raise exception 'CM_DAY_MISMATCH';
+ end if;
+ if p_catalog_hash !~ '^[a-f0-9]{64}$'
+    or jsonb_typeof(p_jobs)<>'array'
+    or jsonb_array_length(p_jobs) not between 20 and 950
+    or jsonb_typeof(p_destinations)<>'object'
+ then raise exception 'CM_PLAN_INVALID'; end if;
+ if not exists(select 1 from public.crm_community_settings where id='inteca' and enabled)
+ then raise exception 'CM_PAUSED'; end if;
+ select last_planned_day,catalog_hash,creative_version
+   into last_day,last_hash,last_version
+ from public.crm_community_calendar_state where id='inteca' for update;
+ if not found then raise exception 'CM_MISSING_STATE'; end if;
+ if last_version='v8' then return 0; end if;
+ if last_day=request_date and last_hash=p_catalog_hash and last_version='v7'
+    and exists (
+      select 1 from public.crm_community_jobs j
+      where j.slot like ('v6:' || p_day || ':avatar_video:%:editorial-v7')
+        and j.channel='youtube' and j.state='brief'
+    )
+ then return 0; end if;
+
+ if exists(
+   select 1 from jsonb_to_recordset(p_jobs) as j(
+     slot text,channel text,payload jsonb,content_hash text,
+     scheduled_at timestamptz,state text,last_error text
+   )
+   where j.slot not like 'v6:%:editorial-v7'
+     or j.payload->'creative'->>'version' is distinct from 'v7'
+     or j.channel not in('facebook','instagram','youtube')
+     or j.payload->>'catalogHash' is distinct from p_catalog_hash
+     or j.content_hash !~ '^[a-f0-9]{64}$'
+     or j.state not in('queued','missed','brief','blocked')
+     or j.scheduled_at>now()+interval '32 days'
+     or (
+       j.payload->>'kind'='flyer'
+       and (j.channel='youtube'
+         or j.payload->>'editorialSlot' not in ('morning','afternoon')
+         or (j.payload->>'editorialSlot'='morning'
+             and j.slot not like '%:flyer:0:%')
+         or (j.payload->>'editorialSlot'='afternoon'
+             and j.slot not like '%:flyer:1:%')
+         or (j.payload->>'editorialSlot'='morning'
+             and j.scheduled_at at time zone 'America/Santo_Domingo'
+                 <> date_trunc('day',j.scheduled_at at time zone 'America/Santo_Domingo')+interval '9 hours')
+         or (j.payload->>'editorialSlot'='afternoon'
+             and j.scheduled_at at time zone 'America/Santo_Domingo'
+                 <> date_trunc('day',j.scheduled_at at time zone 'America/Santo_Domingo')+interval '17 hours'))
+     )
+     or (
+        j.payload->>'kind'='flyer' and
+        (j.payload->'flyerOffer' is null
+         or j.payload->'flyerOffer'->>'registration' is null
+         or j.payload->'flyerOffer'->>'monthly' is null
+         or j.payload->'flyerOffer'->'benefits' is null)
+        and j.state<>'blocked'
+     )
+ ) then
+   -- Prevent rows with unfinished prices from reaching published state.
+   -- The operator must correct the source catalog before trying again.
+   raise exception 'CM_CONTENT_REVIEW';
+ end if;
+
+ -- Serialize conditional claims while retiring queued jobs. This prevents a
+ -- concurrent old worker from claiming a replacement's predecessor mid-roll.
+ perform 1 from public.crm_community_jobs where state in('queued','preparing','executing') for update;
+ insert into public.crm_community_jobs(
+   slot,channel,payload,content_hash,scheduled_at,state,last_error
+ )
+ select j.slot,j.channel,j.payload,j.content_hash,j.scheduled_at,
+   case when exists(
+     select 1 from public.crm_community_jobs old
+     where old.channel=j.channel
+       and old.payload->>'kind'=j.payload->>'kind'
+       and old.state in('published','uploaded_private','preparing','executing','review_required')
+       and (old.scheduled_at=j.scheduled_at or (
+         j.payload->>'kind'='flyer'
+         and (old.scheduled_at at time zone 'America/Santo_Domingo')::date =
+             (j.scheduled_at at time zone 'America/Santo_Domingo')::date
+         and coalesce(old.payload->>'editorialSlot','morning')=j.payload->>'editorialSlot'
+       ))
+   ) then 'missed'
+   else j.state end,
+   case when j.state='blocked' then coalesce(j.last_error,'CM_CONTENT_REVIEW') else null end
+ from jsonb_to_recordset(p_jobs) as j(
+   slot text,channel text,payload jsonb,content_hash text,
+   scheduled_at timestamptz,state text,last_error text
+ )
+ on conflict(slot) do nothing;
+ get diagnostics inserted=row_count;
+
+ -- Replace only QUEUED old jobs; the immutable guard also protects brief, missed and blocked rows.
+ -- Published and uncertain external results must NEVER be altered.
+ update public.crm_community_jobs
+ set state='missed',last_error='CM_CALENDAR_SUPERSEDED',updated_at=now()
+ where state='queued'
+   and (slot not like 'v6:%:editorial-v7'
+        or payload->>'catalogHash' is distinct from p_catalog_hash);
+
+ update public.crm_community_calendar_state
+ set last_planned_day=request_date,catalog_hash=p_catalog_hash,
+     creative_version='v7',last_generated_at=now(),updated_at=now()
+ where id='inteca';
+
+ update public.crm_community_settings
+ set destinations=p_destinations,updated_at=now() where id='inteca';
+
+ return inserted;
+end $function$;
+
+
+revoke all on function public.crm_community_roll_plan_v7(jsonb,jsonb,text,text) from public,anon,authenticated;
+grant execute on function public.crm_community_roll_plan_v7(jsonb,jsonb,text,text) to service_role;
