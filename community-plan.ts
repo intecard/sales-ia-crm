@@ -99,7 +99,7 @@ export function makeContent(course: CatalogCourse, catalog: Catalog, date: strin
     script.scenes=script.scenes.map((scene,i)=>({...scene,dialogue:dialogues[Math.min(i,dialogues.length-1)],subtitle:dialogues[Math.min(i,dialogues.length-1)]}));
   }
   return {creative,title:creative.headline.slice(0,95),caption:educationalCaption,courseTitle:course.title,kind,pillar:creative.angle,slides:educationalSlides,
-    assetKey:sha(['inteca-editorial-v7',date,course.title,kind,variant,revision,catalog.hash]).slice(0,32),
+    assetKey:sha(['inteca-editorial-v8',date,course.title,kind,variant,revision,catalog.hash]).slice(0,32),
     catalogHash:catalog.hash,editorialDate:date,campaignMonth:editorialMonth(date),
     designSeed:editorialNumber*37+variant*111,
     ...(editorialSlot?{editorialSlot}:{}),
@@ -141,7 +141,7 @@ export function planMonth(catalog:Catalog,start:string){
      const payload=makeContent(course,catalog,d,kind,variant);
      const channels:SocialChannel[]=(kind==='promo_video'||kind==='avatar_video')?['youtube']:['facebook','instagram'];
      for(const channel of channels)result.push({
-       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12)+(kind==='short'||kind==='promo_video'?':autorender-20261029':kind==='avatar_video'?':avatar-brief-20261030':'')+':editorial-v7',
+       slot:'v6:'+d+':'+kind+':'+variant+':'+channel+':'+catalog.hash.slice(0,12)+(kind==='short'||kind==='promo_video'?':autorender-20261029':kind==='avatar_video'?':avatar-brief-20261030':'')+':editorial-v8',
        channel,
        scheduled_at:new Date(
          d+'T'+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00-04:00'

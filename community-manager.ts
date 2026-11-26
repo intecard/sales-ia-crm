@@ -21,11 +21,11 @@ export function shouldMissCampaignSlot(row:Pick<CommunityJob,'scheduled_at'|'pay
   if(row.payload.kind==='flyer')return rdDay(new Date(at))!==rdDay(now)||now.getTime()-at>2*60*60_000;
   return now.getTime()-at>90*60_000;
 }
-/** Only the canonical v7 editorial flyer, auto-rendered MP4 and 21:00 avatar brief
+/** Only the canonical v8 editorial flyer, auto-rendered MP4 and 21:00 avatar brief
  * belong to the current schedule. Older jobs stay auditable, never resurrected.
  */
 export function isCurrentCommunityJob(row:Pick<CommunityJob,'slot'|'payload'>):boolean {
-  return row.slot.startsWith('v6:') && row.slot.endsWith(':editorial-v7') && row.payload.creative?.version==='v7' && (
+  return row.slot.startsWith('v6:') && row.slot.endsWith(':editorial-v8') && row.payload.creative?.version==='v8' && (
     (row.payload.kind==='flyer' && row.slot.includes(':flyer:')) ||
     (row.payload.kind==='short' && row.slot.includes(':short:') && row.slot.includes(':autorender-20261029')) ||
     (row.payload.kind==='promo_video' && row.slot.includes(':promo_video:') && row.slot.includes(':autorender-20261029')) ||
@@ -41,7 +41,7 @@ export class CommunityManager {
     const since=new Date(Date.now()-24*60*60*1000).toISOString();
     const visibleUntil=new Date(Date.now()+7*24*60*60*1000).toISOString();
     const [upcoming,recent,settings,observations,catalog]=await Promise.all([
-      this.store.request(`crm_community_jobs?slot=like.*:editorial-v7&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(visibleUntil)}&order=scheduled_at.asc&limit=650`),
+      this.store.request(`crm_community_jobs?slot=like.*:editorial-v8&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(visibleUntil)}&order=scheduled_at.asc&limit=650`),
       this.store.request('crm_community_jobs?state=in.(published,blocked,review_required,missed)&order=updated_at.desc&limit=120'),
       this.settings(),
       this.store.request('crm_community_observations?order=checked_at.desc&limit=100'),
@@ -63,7 +63,7 @@ export class CommunityManager {
       totalCatalogCourses:catalog?.courses.length||0,
       scope:'org_inteca_main',
       capabilities:{
-        flyers:'8 composiciones y 12 enfoques educativos con control de repetición de los últimos 7 días. Dos flyers por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
+        flyers:'16 composiciones ilustradas, 20 enfoques educativos y 10 llamados a la acción con control de repetición de los últimos 7 días. Dos flyers por día: Autorizaciones Médicas a las 09:00 y otro curso del catálogo a las 17:00, ambos con contenido y arte diferentes',
         verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
         stories:'Calendario continuo sin caducidad: 1 post, 1 imagen y 8 reels al día en Facebook e Instagram; 1 video estándar en YouTube y 1 guion de INTEQUITO a las 21:00, pendiente de producción profesional',
         longVideo:'1 MP4 diario en YouTube mediante renderizado local, y una segunda cita diaria para INTEQUITO hablando; el segundo video no se publica mientras no exista avatar, voz, derechos y presupuesto aprobado',
@@ -91,16 +91,16 @@ export class CommunityManager {
     const settings=await this.settings();if(!settings)throw Error('CM_SETTINGS');
     const catalog=await this.catalog.get();if(!catalog)throw Error('CM_CATALOG');
     const now=new Date(),today=rdDay(now);
-    // The v7 RPC must be installed before replacing queued legacy pieces.
+    // The v8 RPC must be installed before replacing queued legacy pieces.
     let record:any;
     try{record=(await this.store.request('crm_community_calendar_state?id=eq.inteca&limit=1'))?.[0];}
     catch{if(settings.plan_started_at)return;throw Error('CM_CALENDAR_MIGRATION_MISSING');}
     if(!record)throw Error('CM_CALENDAR_MIGRATION_MISSING');
     // A calendar is complete only when today's second (speaking avatar) slot exists.
-    // Require the v7 marker and the daily avatar brief before considering renewal complete.
-    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v7'){
+    // Require the v8 marker and the daily avatar brief before considering renewal complete.
+    if(record.last_planned_day===today&&record.catalog_hash===catalog.hash&&record.creative_version==='v8'){
       const avatarRows=await this.store.request(
-        `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*:editorial-v7')}&select=id&limit=1`
+        `crm_community_jobs?slot=like.${encodeURIComponent('v6:'+today+':avatar_video:*:editorial-v8')}&select=id&limit=1`
       );
       if(avatarRows?.length)return;
     }
@@ -108,7 +108,7 @@ export class CommunityManager {
     const autoVideo=process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS==='true';
     const since=new Date(now.getTime()-7*86400000).toISOString();
     const until=new Date(now.getTime()+31*86400000).toISOString();
-    const history=await this.store.request(`crm_community_jobs?slot=like.*:editorial-v7&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(until)}&order=scheduled_at.asc&limit=1000`);
+    const history=await this.store.request(`crm_community_jobs?or=(slot.like.*:editorial-v8,and(slot.like.*:editorial-v7,state.in.(published,uploaded_private,preparing,executing,review_required)))&scheduled_at=gte.${encodeURIComponent(since)}&scheduled_at=lte.${encodeURIComponent(until)}&order=scheduled_at.asc&limit=1000`);
     const jobs=diversifyPlan(planMonth(catalog,today),history,catalog).map(item=>{
       const incomplete=item.payload.kind==='flyer'&&
         (!item.payload.flyerOffer||!isPublishableFlyer(item.payload.flyerOffer));
@@ -128,7 +128,7 @@ export class CommunityManager {
     console.info('community_calendar_roll_request',JSON.stringify({
       day:today,planned:jobs.length,avatarPlanned:jobs.filter(j=>j.payload.kind==='avatar_video').length
     }));
-    const inserted=await this.store.request('rpc/crm_community_roll_plan_v7','POST',{
+    const inserted=await this.store.request('rpc/crm_community_roll_plan_v8','POST',{
       p_jobs:jobs,p_destinations:destinations,p_day:today,p_catalog_hash:catalog.hash,
     });
     console.info('community_calendar_roll_result',JSON.stringify({day:today,inserted}));

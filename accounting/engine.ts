@@ -4,9 +4,9 @@ export const ACCOUNTS = {
   '1101': ['Caja y bancos','asset'], '1102': ['Cuentas por cobrar','asset'],
   '1103': ['Inventario','asset'], '1104': ['ITBIS por evaluar / recuperar','asset'],
   '1201': ['Activos fijos','asset'], '2101': ['Cuentas por pagar','liability'],
-  '2102': ['ITBIS por pagar','liability'], '2103': ['Retenciones por pagar','liability'],
+  '2102': ['ITBIS por pagar','liability'], '2103': ['Retenciones por pagar','liability'], '2104': ['Nómina por pagar','liability'],
   '3101': ['Capital y patrimonio','equity'], '4101': ['Ingresos','income'],
-  '5101': ['Costo de ventas','expense'], '6101': ['Gastos operativos','expense'],
+  '5101': ['Costo de ventas','expense'], '6101': ['Gastos operativos','expense'], '6102': ['Gastos de nómina','expense'],
 } as const;
 export const money = z.string().regex(/^(0|[1-9]\d{0,11})(\.\d{1,2})?$/);
 export const cents = (v: string) => { const [a,b='']=v.split('.'); return BigInt(a)*100n+BigInt(b.padEnd(2,'0')); };

@@ -27,7 +27,7 @@ test('rolling renewal retains persisted payloads and uses seven days of real cop
  for(const row of renewed)if(saved.has(row.slot))assert.equal(contentHash(row.payload),contentHash(saved.get(row.slot)!));
  assert.ok(eligible.every(p=>p.payload.caption.includes('809-643-5502')&&p.payload.caption.includes('RD$2,500')));
 });
-test('all eight geometries render both sizes with long official Spanish headlines and escaped text',async()=>{
+test('all editorial geometries render both sizes with long official Spanish headlines and escaped text',async()=>{
  const creative=createEditorial(catalog.courses[0],'2026-11-25','flyer',0);
  const digests=new Set();
  for(const layout of EDITORIAL_LAYOUTS){for(const vertical of [false,true]){
@@ -35,7 +35,7 @@ test('all eight geometries render both sizes with long official Spanish headline
   assert.ok(!svg.includes('call-center.webp'));const bytes=await sharp(Buffer.from(svg)).png().toBuffer();
   const meta=await sharp(bytes).metadata();assert.equal(meta.width,1080);assert.equal(meta.height,vertical?1920:1350);digests.add(bytes.toString('base64'));
  }}
- assert.equal(digests.size,16);
+ assert.equal(digests.size,EDITORIAL_LAYOUTS.length*2);
  const escaped=editorialSvg({creative:{...creative,headline:'<script> & "texto"'},course:'INTECA',facts:'Datos confirmados'});
  assert.ok(escaped.includes('&lt;script&gt;'));assert.ok(!escaped.includes('<script>'));
 });

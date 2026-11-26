@@ -1,3 +1,4 @@
+import {editorialIllustration} from './community-illustration.ts';
 import type {EditorialCreative} from './community-editorial.ts';
 export const EDITORIAL_PALETTES=[
  {bg:'#f5f1e8',ink:'#142c35',accent:'#007f72',soft:'#d7ece6'},
@@ -55,20 +56,38 @@ export function editorialSvg(input:{creative:EditorialCreative;course:string;fac
   art+=rect(45,bodyTop,990,bodyH,p.soft,12)+`<path d="M140 ${bodyTop} V${bottom}" stroke="${p.accent}" stroke-width="3"/>`;
   for(let y=bodyTop+45;y<bottom;y+=55)art+=`<path d="M160 ${y} H1000" stroke="${p.accent}" opacity=".12"/>`;
   points.forEach((v,i)=>{const h=(bodyH-40)/points.length,y=bodyTop+18+i*h;art+=tx('•',82,y,45,80,58,p.accent)+tx(v,175,y,815,h-20,44);});
- }else{
+ }else if(c.layout==='question'){
   art+=rect(0,bodyTop,1080,bodyH,p.accent)+tx('?',820,bodyTop-25,200,220,170,accentInk,true);
   art+=tx(points[0],65,bodyTop+40,740,bodyH*.45,48,accentInk,true)+rect(55,bodyTop+bodyH*.52,970,bodyH*.44,p.bg,24)+tx(points.slice(1).join(' '),85,bodyTop+bodyH*.52+20,910,bodyH*.44-40,42);
  }
+ // Illustrated layouts change the geometry, spacing and hierarchy, not just the colors.
+ if(['columns','dispatch','briefing','diagram','index','steps','postcard','flashcard'].includes(c.layout)){
+  const mode=['columns','dispatch','briefing','diagram','index','steps','postcard','flashcard'].indexOf(c.layout);
+  const cellHeight=(bodyH-42)/points.length;
+  points.forEach((v,i)=>{
+   const y=bodyTop+i*cellHeight;
+   const x=[62,70+i*90,mode%2?80:115,i%2?245:55,74,95+i*80,100,70][mode];
+   const w=[950,930-i*90,830,i%2?775:780,930,875-i*80,880,940][mode];
+   const fill=[p.soft,i%2?p.bg:p.soft,p.bg,i%2?p.accent:p.soft,i%2?p.bg:p.soft,p.soft,p.accent,i===0?p.accent:p.soft][mode];
+   const color=fill===p.accent?accentInk:p.ink;
+   art+=rect(x,y,w,cellHeight-13,fill,[1,30,8,65,0,20,30,40][mode]);
+   const tag=[`0${i+1}`,`IDEA ${i+1}`,i===0?'ABRE':'APLICA',`${i+1}`,`CLAVE ${i+1}`,`PASO ${i+1}`,'NOTA',i===0?'PREGUNTA':'RESPUESTA'][mode];
+   art+=tx(tag,x+25,y+12,w-50,44,26,fill===p.accent?color:p.accent,true)+tx(v,x+25,y+63,w-50,cellHeight-83,41,color,mode===7&&i===0);
+  });
+ }
+ const image=c.illustration?editorialIllustration(c.illustration,p,785,63,234):'';
+ const headingWidth=c.illustration?710:960;
+ const cta=c.illustration?c.cta+' · WhatsApp 809-643-5502':'ORIENTACIÓN · WHATSAPP 809-643-5502';
  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="${H}" viewBox="0 0 1080 ${H}">
- ${rect(0,0,1080,H,p.bg)}${art}
+ ${rect(0,0,1080,H,p.bg)}${art}${image}
  ${logo?`<image href="${esc(logo)}" x="60" y="35" width="85" height="85"/>`:''}
  ${tx('INTECA',logo?165:60,36,570,62,42,p.ink,true)}
  ${tx('APRENDE · PRACTICA · CRECE',logo?165:60,94,760,40,23,p.accent,true)}
  ${tx(c.angle.toLocaleUpperCase('es'),60,156,960,50,28,p.accent,true)}
- ${tx(headline,60,218,960,bodyTop-240,input.vertical?68:54,p.ink,true)}
+ ${tx(headline,60,218,headingWidth,bodyTop-240,input.vertical?68:54,p.ink,true)}
  ${tx(course,60,H-278,960,92,34,p.ink,true)}
  ${tx(facts,60,H-180,960,65,26)}
- ${rect(55,H-96,970,65,p.accent,14)}${tx('ORIENTACIÓN · WHATSAPP 809-643-5502',80,H-84,925,50,32,accentInk,true)}
+ ${rect(55,H-96,970,65,p.accent,14)}${tx(cta,80,H-87,925,52,28,accentInk,true)}
  </svg>`;
  return svg;
 }

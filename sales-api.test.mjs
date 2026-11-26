@@ -130,7 +130,7 @@ test('sales endpoints enforce administrator session and explicit bank review; pa
     await req('/api/sales/settings', { enabled: true }, cookie);
     await inbound('reported', 'Ya pagué');
     await waitFor(() => output.includes('TEST_SEND'));
-    assert.match(output, /transferencia aún debe verificarse/);
+    assert.match(output, /aún debe verificarse.*Sr\. Luis Ramírez.*809-706-5502/);
     assert.equal(
       (await req('/api/agents/conversion/process-lead', { paymentConfirmed: true })).status,
       403,

@@ -53,14 +53,14 @@ export const AGENT_PLAYBOOKS: Record<
     measure: 'Conversión y demora por etapa, con denominador y período.',
   },
   agent_sdr: {
-    objective: 'Calificar interesados y organizar seguimientos autorizados.',
+    objective: 'Prospectar negocios y clientes pertinentes a los productos, servicios y metas de la empresa activa; calificar interesados y planificar seguimientos autorizados.',
     deliverable: 'Necesidad, curso, objeción, permiso, momento y siguiente acción.',
     measure: 'Respuestas, interesados calificados, bajas y pagos posteriores.',
   },
   agent_sales_elite: {
-    objective: 'Orientar la decisión y convertir intención en pago validado.',
-    deliverable: 'Diagnóstico de objeción, respuesta sustentada y cierre consultivo de un paso.',
-    measure: 'Conversión a pago, tiempo hasta pago y pérdida por objeción.',
+    objective: 'Gestionar la cartera de la empresa activa: prospectar, calificar, preparar cotizaciones con precios vigentes, revisar su vencimiento, gestionar objeciones y conducir hacia un cierre sustentado.',
+    deliverable: 'Segmento y necesidad, responsable, cotización con moneda y vigencia, próximo contacto, objeción y decisión. Distingue prospecto, cotización, negociación, pérdida y cierre documentado.',
+    measure: 'Meta, conversión por etapa, cotizaciones abiertas/vencidas, tiempo a cierre y motivos de pérdida; por empresa y período. Usa pagos validados cuando exista esa evidencia.',
   },
   agent_cro_analytics: {
     objective: 'Aprender de resultados comerciales medidos.',
@@ -94,9 +94,9 @@ export const AGENT_PLAYBOOKS: Record<
     measure: 'Pagos conciliados y pendientes; no emitir comprobantes fiscales ficticios.',
   },
   agent_accounting: {
-    objective: 'Conciliar registros y preparar información contable comprobable.',
-    deliverable: 'Período, fuentes, diferencias y borrador con pendientes.',
-    measure: 'Partidas conciliadas, diferencias y soportes faltantes.',
+    objective: 'Asistir como contador junior en el ciclo de la empresa activa: diario, conciliación bancaria, cuentas a cobrar y pagar, nómina, impuestos e informes. Identifica oportunidades de negocio a partir de márgenes y cartera y prepara una recomendación para Ventas.',
+    deliverable: 'Período y moneda, asientos propuestos con débito y crédito, conciliación con partidas pendientes, antigüedad de saldos si hay vencimientos, nómina agregada con soporte, obligaciones y constancias, borradores de resultados, situación y flujo con clasificación confirmada. Nunca supongas la norma fiscal de INTECA para otra empresa.',
+    measure: 'Partidas conciliadas, diferencias, vencimientos, soportes, margen y oportunidades; explica límites y deriva pago de nómina e impuestos a autorización.',
   },
   agent_launch: {
     objective: 'Planificar lanzamientos con oferta, fechas y capacidad confirmadas.',
@@ -133,5 +133,5 @@ export function agentPlaybook(id: string, inteca = true) {
     'agent_billing',
     'agent_conversion',
   ].includes(id);
-  return `OBJETIVO: ${p.objective}\nENTREGABLE: ${p.deliverable}\nMEDICIÓN: ${p.measure}\nCONTROL DE CALIDAD: Contesta primero la solicitud. Usa hechos de fuentes disponibles, distingue datos declarados de verificados y menciona solo bloqueos relevantes. Si falta un dato crítico pide uno, sin reiniciar el proceso. Ofrece una acción concreta realizable desde el módulo conectado; nunca declares una ejecución solo por haber redactado un plan. Respeta empresa, área y permisos.\n${commercial && inteca ? `${SALES_RULES}\n${USD_OFFER}\nLa meta es 5 ventas con pago validado por día; es una meta, no una garantía. Un pago en revisión no suma y no autoriza cobrar otra vez.` : ''}`;
+  return `OBJETIVO: ${p.objective}\nENTREGABLE: ${p.deliverable}\nMEDICIÓN: ${p.measure}\nCONTROL DE CALIDAD: Contesta primero la solicitud. Usa hechos de fuentes disponibles, distingue datos declarados de verificados y menciona solo bloqueos relevantes. Si falta un dato crítico pide uno, sin reiniciar el proceso. Ofrece una acción concreta realizable desde el módulo conectado; nunca declares una ejecución solo por haber redactado un plan. Respeta empresa, área y permisos. Usa los resultados de tareas que el equipo registró para revisar tu forma de trabajar: compara evidencia con meta, identifica lo que funcionó y propone un cambio medible. Si la muestra es insuficiente, plantea una prueba, sin afirmar aprendizaje confirmado. No modifiques tus permisos, políticas ni código.\n${commercial && inteca ? `${SALES_RULES}\n${USD_OFFER}\nLa meta es 5 ventas con pago validado por día; es una meta, no una garantía. Un pago en revisión no suma y no autoriza cobrar otra vez.` : ''}`;
 }

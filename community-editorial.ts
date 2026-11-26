@@ -1,10 +1,11 @@
+import {illustrationMotif,type EditorialArt} from './community-illustration.ts';
 import type {CatalogCourse} from './whatsapp-catalog.ts';
 import {officialCourseEditorial} from './community-course-topics.ts';
 
-export const CREATIVE_VERSION='v7';
-export const EDITORIAL_LAYOUTS=['editorial','checklist','split','path','cards','spotlight','notebook','question'] as const;
-export const EDITORIAL_ANGLES=['Idea clave','Error y solución','Caso ilustrativo','Lista práctica','Compara','Mini ejercicio','Pregunta resuelta','Paso a paso','Explica con claridad','Antes de actuar','Reto de aprendizaje','Guía para guardar'] as const;
-export type EditorialCreative={version:'v7';layout:typeof EDITORIAL_LAYOUTS[number];palette:number;angle:string;topic:string;headline:string;points:string[];takeaway:string;question:string;cta:string;lessonKey:string;visualKey:string};
+export const CREATIVE_VERSION='v8';
+export const EDITORIAL_LAYOUTS=['editorial','checklist','split','path','cards','spotlight','notebook','question','columns','dispatch','briefing','diagram','index','steps','postcard','flashcard'] as const;
+export const EDITORIAL_ANGLES=['Idea clave','Error y solución','Caso ilustrativo','Lista práctica','Compara','Mini ejercicio','Pregunta resuelta','Paso a paso','Explica con claridad','Antes de actuar','Reto de aprendizaje','Guía para guardar','Decisión práctica','Claves para revisar','Verdadero o falso','Microclase','Prueba de criterio','Lo que cambia','Conversación guiada','Preparación de práctica'] as const;
+export type EditorialCreative={version:'v7'|'v8';illustration?:EditorialArt;layout:typeof EDITORIAL_LAYOUTS[number];palette:number;angle:string;topic:string;headline:string;points:string[];takeaway:string;question:string;cta:string;lessonKey:string;visualKey:string};
 const mod=(n:number,d:number)=>((n%d)+d)%d;
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 type Lesson={match:RegExp;meaning:string;check:string;mistake:string;action:string;example:string};
@@ -40,11 +41,11 @@ export function createEditorial(course:CatalogCourse,date:string,kind:string,var
  if(!Number.isFinite(day))throw Error('CM_DATE_OR_CATALOG');
  const ordinal=publicationOrdinal(kind,variant)+revision*13;
  const topics=officialCourseEditorial(course).topics;
- const index=mod(day*5+ordinal+Math.floor(revision/12),Math.max(1,topics.length));
+ const index=mod(day*5+ordinal+Math.floor(revision/20),Math.max(1,topics.length));
  const topic=topics[index]?.label||'Cómo estudiar este programa';
  const question=topics[index]?.question||'¿Qué concepto te gustaría practicar?';
  const lesson=lessons.find(l=>l.match.test(norm(topic)))||fallback;
- const angleIndex=mod(day+ordinal,12);
+ const angleIndex=mod(day+ordinal,EDITORIAL_ANGLES.length);
  const hookTopic=topic.replace(/^./,c=>c.toLocaleLowerCase('es'));
  const variants=[
   {headline:`Una idea clave sobre ${hookTopic}`,points:[lesson.meaning,lesson.check],takeaway:lesson.action},
@@ -59,12 +60,22 @@ export function createEditorial(course:CatalogCourse,date:string,kind:string,var
   {headline:`Una pausa útil en ${hookTopic}`,points:['Revisa: '+lesson.check,'No supongas: '+lesson.mistake],takeaway:lesson.action},
   {headline:`Reto: detecta el problema en ${hookTopic}`,points:[lesson.example,'Busca este riesgo: '+lesson.mistake],takeaway:'Propón una mejora: '+lesson.action},
   {headline:`Guarda esta guía de ${hookTopic}`,points:[lesson.meaning,lesson.check,lesson.action],takeaway:'Vuelve a esta guía cuando repases el tema.'},
+  {headline:`¿Qué harías primero en ${hookTopic}?`,points:[lesson.example,'Antes de decidir: '+lesson.check],takeaway:lesson.action},
+  {headline:`Dos claves para revisar ${hookTopic}`,points:[lesson.check,lesson.action],takeaway:lesson.meaning},
+  {headline:`Verdadero o falso: ¿basta con memorizar ${hookTopic}?`,points:[lesson.mistake,'Comprueba tu respuesta: '+lesson.check],takeaway:lesson.meaning},
+  {headline:`Microclase: ${hookTopic}`,points:[lesson.meaning,'Llévalo a la práctica: '+lesson.example],takeaway:lesson.check},
+  {headline:`¿Qué dato cambiaría tu decisión sobre ${hookTopic}?`,points:[lesson.example,lesson.action],takeaway:lesson.check},
+  {headline:`Lo que cambia cuando verificas ${hookTopic}`,points:[lesson.mistake,lesson.check],takeaway:'Separa lo que sabes de lo que queda por confirmar.'},
+  {headline:`Así puedes explicar ${hookTopic} a otra persona`,points:[lesson.meaning,lesson.action],takeaway:lesson.example},
+  {headline:`Una práctica breve sobre ${hookTopic}`,points:[lesson.example,'Antes de entregar: '+lesson.check],takeaway:'Explica qué corregirías y por qué.'},
  ];
  const selected=variants[angleIndex];
  const layout=EDITORIAL_LAYOUTS[mod(day*5+ordinal*3,EDITORIAL_LAYOUTS.length)];
  const palette=mod(day+ordinal*5,6);
- const ctas=['Guarda esta guía para tu próxima práctica.','Cuéntanos qué paso te gustaría aprender.','Comparte esta idea con alguien que esté estudiando.','¿Qué harías tú en este ejercicio?','Pide el programa y compara sus contenidos.','Escríbenos para recibir orientación sobre el curso.'];
- return {version:'v7',layout,palette,angle:EDITORIAL_ANGLES[angleIndex],topic,...selected,question,cta:ctas[mod(day+ordinal,ctas.length)],lessonKey:`${norm(topic)}:${angleIndex}`,visualKey:`${layout}:${palette}:${index}:${day}:${ordinal}`};
+ const ctas=['Guarda esta guía para tu próxima práctica.','Cuéntanos qué paso te gustaría aprender.','Comparte esta idea con alguien que esté estudiando.','¿Qué harías tú en este ejercicio?','Pide el programa y compara sus contenidos.','Escríbenos para recibir orientación sobre el curso.', 'Pide el temario y decide qué habilidad quieres practicar primero.', 'Si este es tu próximo paso, consulta horarios y opciones de inscripción.', 'Resuelve el caso y contrasta tu respuesta con la guía del programa.', 'Envíanos tu pregunta y revisamos contigo cuál programa encaja.'];
+ const artSeed=(Math.imul(day,2654435761)^Math.imul(ordinal+1,1597334677)^Math.imul(index+1,2246822519))>>>0;
+ const illustration={motif:illustrationMotif(topic,artSeed),seed:artSeed,frame:mod(day*3+ordinal,4)};
+ return {version:'v8',illustration,layout,palette,angle:EDITORIAL_ANGLES[angleIndex],topic,...selected,question,cta:ctas[mod(day+ordinal,ctas.length)],lessonKey:`${norm(topic)}:${angleIndex}`,visualKey:`${layout}:${palette}:${index}:${day}:${ordinal}`};
 }
 /** Compare viewer-facing teaching content only, not dates, hashes, prices or brand boilerplate. */
 export function editorialSimilarity(a:EditorialCreative,b:EditorialCreative){

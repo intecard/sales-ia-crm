@@ -67,6 +67,8 @@ export function salesObjection(text: string) {
     return 'Certificación / confianza';
   return '';
 }
+export const INTECA_PAYMENT_REVIEW_CONTACT = 'Para culminar tu inscripción o aclarar cualquier duda, escribe al Sr. Luis Ramírez, director de INTECA, al WhatsApp 809-706-5502: https://wa.me/18097065502.';
+
 export function salesReply(
   opportunity: SalesOpportunity,
   signal: string,
@@ -89,10 +91,10 @@ export function salesReply(
         'Tu pago de inscripción ya está validado en el CRM. La asignación de grupo y el acceso al campus siguen pendientes de confirmación por INTECA.',
       awaiting: '',
     };
-  if (signal === 'payment_review')
+  if (signal === 'payment_review' || (opportunity.stage === 'payment_review' && (signal === 'payment_pending' || /pago|inscrip|matricul|transfer|comprobante|recibo/.test(normalized(text)))))
     return {
       reply:
-        'Registré tu aviso de pago para revisión. La transferencia aún debe verificarse en el banco; este mensaje no confirma la inscripción. Si no lo has enviado, comparte el comprobante, el banco y la referencia.',
+        `Tu aviso de pago quedó en revisión. El abono aún debe verificarse; este mensaje no confirma la matrícula. No repitas el pago. Si falta el comprobante, envíalo con el banco y la referencia. ${INTECA_PAYMENT_REVIEW_CONTACT}`,
       awaiting: '',
     };
   if (
@@ -122,7 +124,7 @@ export const SALES_RULES = `Actúas también como agente de ventas y cierre de I
 - Con intención de inscripción, avanza un dato faltante por turno y después ofrece las instrucciones de pago. Responde siempre antes a las preguntas del cliente.
 - Un comprobante o "ya pagué" NO confirma un pago. Solo salesState.stage=won indica validación administrativa del pago; no significa matrícula, grupo ni campus activados.
 - Si stage=won, atiende como cliente con pago validado y no solicites nuevamente ese pago. Un nuevo curso requiere nueva gestión humana.
-- Si stage=payment_review, explica que la revisión está pendiente, no vuelvas a pedir pagar. No prometas plazos.
+- Si stage=payment_review y la consulta trata del pago o la inscripción, explica la revisión y orienta al WhatsApp oficial de Dirección. No vuelvas a pedir pagar ni prometas plazos. Responde otras consultas normalmente.
 - Nunca generes números bancarios o enlaces de pago: si solicitan esos datos el servidor los proporciona directamente.
 - No anuncies mensajes futuros, llamadas o avisos enviados. Los seguimientos son tareas internas del CRM.`;
 

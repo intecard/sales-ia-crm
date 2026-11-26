@@ -23,12 +23,12 @@ function harness(fail=false){
  const history:any[]=[];
  const payload=makeContent(catalog.courses[0],catalog,rdDay(new Date()),'flyer',0);
  const settings={enabled:true,plan_started_at:'started',destinations:{facebook:'111'}};
- const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test:flyer:0:facebook:editorial-v7',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
+ const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test:flyer:0:facebook:editorial-v8',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
  const store={request:async(resource:string,method='GET',body?:any)=>{
   if(resource.startsWith('crm_community_jobs?channel=eq.'))return structuredClone(history);
   if(resource.startsWith('crm_community_jobs?slot=like.'))return [{id:'existing-avatar-plan'}];
   if(resource.startsWith('crm_community_calendar_state'))return [{
-    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v7'
+    id:'inteca',last_planned_day:rdDay(new Date()),catalog_hash:catalog.hash,creative_version:'v8'
   }];
   if(resource.startsWith('crm_community_settings')){if(method==='PATCH')Object.assign(settings,body);return [structuredClone(settings)];}
   const q=new URLSearchParams(resource.split('?')[1]);
@@ -68,8 +68,8 @@ test('30-day v6 RPC only marks expired TODAY missed; all future 9am/5pm flyers r
  const store={request:async(resource:string,method='GET',body?:any)=>{
   if(resource.startsWith('crm_community_settings'))return[{id:'inteca',enabled:true,destinations:{facebook:'11',instagram:'22',youtube:'33'}}];
   if(resource.startsWith('crm_community_calendar_state'))return[{id:'inteca',last_planned_day:null,catalog_hash:'',creative_version:'v4'}];
-  if(resource==='rpc/crm_community_roll_plan_v7'){jobs=body.p_jobs;return 660;}
-  if(resource.startsWith('crm_community_jobs?slot=like.*:editorial-v7'))return [];
+  if(resource==='rpc/crm_community_roll_plan_v8'){jobs=body.p_jobs;return 660;}
+  if(resource.startsWith('crm_community_jobs?or=(slot.like.*:editorial-v8'))return [];
   throw Error('TEST_UNEXPECTED_STORE_RESOURCE:'+resource);
  }};
  const publisher={destination:(x:string)=>({facebook:'11',instagram:'22',youtube:'33'} as any)[x]};

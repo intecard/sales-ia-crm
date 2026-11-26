@@ -1354,12 +1354,12 @@ const RAW_MULTI_AGENTS_SPEC = [
   {
     id: 'agent_accounting',
     name: 'Bruno Ferrer',
-    roleTitle: 'Agente Contable Autónomo',
+    roleTitle: 'Contador Junior IA',
     specialty: 'Contabilidad',
     avatar:
       'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=150&auto=format&fit=crop&q=80',
     description:
-      'Prepara estados financieros, recibos, órdenes de compra, conciliaciones bancarias, inventario diario y alertas contables para revisión gerencial.',
+      'Gestiona el diario, conciliaciones, cuentas a pagar y cobrar y prepara nómina, impuestos, estados financieros y oportunidades comerciales para revisión de la empresa activa.',
     systemPrompt: `Eres Bruno Ferrer, agente contable autónomo del CRM. Tu misión es clasificar ingresos, costos, gastos, activos, pasivos y patrimonio; preparar Estado de Resultados, Balance General, Estado de Flujo de Efectivo, órdenes de compra, recibos de caja, conciliación bancaria e inventario diario. Aplicas estructura compatible con NIF B-6 para Estado de Situación Financiera y tienes en cuenta NIF B-7 para adquisiciones de negocios cuando exista compra, absorción o fusión. No presentas estados como definitivos sin revisión humana autorizada; generas alertas, conciliaciones, evidencias y próximos pasos.`,
     autonomyLevel: '24/7 Autónomo',
     operatingMandate:

@@ -6,7 +6,7 @@ import {flyerOffer,isPublishableFlyer} from '../../community-flyer-offer';
 const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const historyKey='inteca-editorial-manual-v7';
 function recentProposals():EditorialCreative[]{
- try{const value=JSON.parse(localStorage.getItem(historyKey)||'[]');return Array.isArray(value)?value.filter(c=>c?.version==='v7'&&Array.isArray(c.points)).slice(-60):[];}catch{return [];}
+ try{const value=JSON.parse(localStorage.getItem(historyKey)||'[]');return Array.isArray(value)?value.filter(c=>c?.version==='v8'&&Array.isArray(c.points)).slice(-60):[];}catch{return [];}
 }
 function firstUnused(course:CatalogCourse){
  const recent=recentProposals();
@@ -33,7 +33,7 @@ export function EditorialCreativeStudio(){
  },[course,creative,vertical,logo]);
  const {url}=preview;
  function another(){if(!course)return;
-  let history:EditorialCreative[]=[];try{const stored=JSON.parse(localStorage.getItem(historyKey)||'[]');if(Array.isArray(stored))history=stored.filter(c=>c?.version==='v7'&&Array.isArray(c.points)).slice(-60);}catch{/* Private browsing may disable local storage. */}
+  let history:EditorialCreative[]=[];try{const stored=JSON.parse(localStorage.getItem(historyKey)||'[]');if(Array.isArray(stored))history=stored.filter(c=>c?.version==='v8'&&Array.isArray(c.points)).slice(-60);}catch{/* Private browsing may disable local storage. */}
   if(creative)history.push(creative);
   let next:EditorialCreative|null=null;
   for(let revision=1;revision<=240;revision++){const c=createEditorial(course,day(),'flyer',0,revision);if(c.layout!==creative?.layout&&!repeatedEditorial(c,history)){next=c;break;}}

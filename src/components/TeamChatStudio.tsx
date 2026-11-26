@@ -1,3 +1,4 @@
+import {CommercialPortfolio} from './CommercialPortfolio';
 import { useCallback, useEffect, useRef, useState } from 'react';
 type Agent = { id: string; name: string; title: string; area: string; playbook?: {objective: string; deliverable: string; measure: string} };
 const field = 'w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100';
@@ -244,6 +245,7 @@ function TeamChatWorkspace({
               </form>
             </section>
           </div>
+          {(data.identity.owner||data.identity.area==='Ventas')&&<CommercialPortfolio key={organization.id} org={organization.id} owner={data.identity.owner}/>}
           <section className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3">
             <h2 className="font-bold">Información compartida para planificar</h2>
             <p className="text-sm text-slate-400">
@@ -365,6 +367,15 @@ function TeamChatWorkspace({
                         : 'Solicitada'}{' '}
                     · {t.evidence}
                   </p>
+                  {data.identity.owner && t.status==='completed' && <details className="border border-slate-600 rounded p-2">
+                    <summary className="cursor-pointer">Aprobar aprendizaje para el agente</summary>
+                    <form className="grid md:grid-cols-3 gap-2 mt-2" onSubmit={e=>{e.preventDefault();const form=e.currentTarget,d=new FormData(form);void act(async()=>{await api('/tasks/'+t.id+'/learning',{result:d.get('result'),evidence:d.get('evidence'),lesson:d.get('lesson')});form.reset();form.querySelector('output')!.textContent='Aprendizaje guardado para futuras consultas.';});}}>
+                      <label>Resultado<select className={field} name="result"><option value="worked">Funcionó</option><option value="failed">No funcionó</option><option value="inconclusive">No concluyente</option></select></label>
+                      <label>Evidencia o métrica<input className={field} name="evidence" required minLength={8} maxLength={400}/></label>
+                      <label>Lección / siguiente prueba<input className={field} name="lesson" required minLength={8} maxLength={500}/></label>
+                      <button className={button} disabled={busy}>Guardar aprendizaje</button><output className="text-sm self-center" aria-live="polite"/>
+                    </form>
+                  </details>}
                   {['in_progress', 'completed'].map((status) => (
                     <button
                       disabled={busy}

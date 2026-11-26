@@ -132,19 +132,17 @@ export class SalesFollowupAgent {
     });
   }
   async notify(sale: SalesOpportunity) {
-    if (sale.control === 'opted_out') return;
+    if (sale.control === 'opted_out' && sale.stage !== 'won') return;
     if (!['payment_review', 'won'].includes(sale.stage) && sale.control !== 'human') return;
     const kind =
-      sale.control === 'human'
-        ? 'Atención humana solicitada'
-        : sale.stage === 'won'
-          ? 'Pago validado'
-          : 'Pago pendiente de revisión bancaria';
+      sale.stage === 'won' ? 'Pago validado' : sale.stage === 'payment_review'
+        ? 'Pago reportado; pendiente de revisión bancaria' : 'Atención humana solicitada';
     await this.enqueue(
       'owner',
       `${sale.contact_key}:${sale.control}:${sale.stage}`,
       `${kind}. ${ownerCase(sale)}. Puedes responder ficha ${sale.contact_key.slice(0,12)}, revisión, pendientes o ayuda. No se confirma ningún abono sin validación bancaria.`,
       sale.contact_key,
+      ['won','payment_review'].includes(sale.stage) ? 'owner_payment' : '',
     );
   }
   async operationalAlert(module: string, entity: string) {
@@ -246,7 +244,16 @@ export class SalesFollowupAgent {
           hourCycle: 'h23',
         }).format(new Date()),
       );
-      if (hour < 9 || hour >= 20) return;
+      const contactHours = hour >= 9 && hour < 20;
+      if (!contactHours) {
+        // Payment events belong to the director; customer outreach remains subject to contact hours.
+        for(let i=0;i<5;i++){
+          const rows=await this.store.request('rpc/crm_claim_director_payment_message','POST',{});
+          if(!rows?.[0])break;
+          await this.deliver(rows[0],settings);
+        }
+        return;
+      }
       const metrics = await this.store.request('rpc/crm_sales_followup_metrics', 'POST', {});
       this.learningSummary = JSON.stringify({
         dailyPaidGoal: settings.daily_goal,
@@ -254,6 +261,9 @@ export class SalesFollowupAgent {
         strategies: metrics.strategies,
         interpretation: metrics.measurement,
       });
+      // Recover the alert if a process stopped between bank verification and the outbox enqueue.
+      const recentPaid:SalesOpportunity[]=await this.store.request(`crm_sales_opportunities?stage=eq.won&updated_at=gte.${encodeURIComponent(new Date(Date.now()-86400000).toISOString())}&limit=100`);
+      for(const sale of recentPaid)if(sale.profile.phone!==settings.owner_phone)await this.notify(sale);
       const sales: SalesOpportunity[] = await this.store.request(
         `crm_sales_opportunities?control=neq.opted_out&or=(follow_up_at.lte.${encodeURIComponent(new Date().toISOString())},stage.eq.payment_review,control.eq.human)&order=follow_up_at.asc.nullslast&limit=100`,
       );
