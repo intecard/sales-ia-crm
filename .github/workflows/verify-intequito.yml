@@ -23,3 +23,5 @@ jobs:
         run: node --test advertising-api.test.mjs sales-api.test.mjs whatsapp-webhook.test.mjs fiscal/api.test.mjs fiscal/reference.test.mjs
       - name: Test local GPU worker (no models downloaded)
         run: python3 -m unittest discover -s workers/intequito_local_video -p 'test_*.py'
+      - name: Test local flyer image worker (no weights downloaded)
+        run: python3 -m unittest discover -s workers/inteca_flyer_images -p 'test_*.py'

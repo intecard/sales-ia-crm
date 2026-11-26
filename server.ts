@@ -19,6 +19,8 @@ import { LocalVideoEngine } from './local-video-engine';
 import { integratedReadiness } from './advertising-operational-readiness';
 import {activationAudit} from './integration-activation-audit';
 import { localVideoAdminRouter, localVideoWorkerRouter } from './local-video-routes';
+import { NativeFlyerEngine } from './native-flyer-engine.ts';
+import { nativeFlyerAdminRouter, nativeFlyerWorkerRouter } from './native-flyer-routes.ts';
 import { IntequitoVideoProvider } from './intequito-video-provider';
 import { HeyGenVideoProvider } from './heygen-video-provider';
 import { contentHash } from './community-plan';
@@ -69,7 +71,8 @@ const advertisingAgent = new AdvertisingAgent(salesStore, whatsAppCatalog);
 const agentConnections = new AgentConnections(advertisingAgent);
 agentConnections.startMonitoring();
 const communityPublisher = new CommunityPublisher(advertisingAgent);
-const communityManager = new CommunityManager(salesStore, whatsAppCatalog, communityPublisher);
+const nativeFlyerEngine = new NativeFlyerEngine(salesStore, whatsAppCatalog);
+const communityManager = new CommunityManager(salesStore, whatsAppCatalog, communityPublisher, nativeFlyerEngine);
 const communityDiagnostics = new CommunityDiagnostics(whatsAppCatalog,communityPublisher);
 const localVideoEngine = new LocalVideoEngine(salesStore, whatsAppCatalog);
 const intequitoVideoProvider = new IntequitoVideoProvider();
@@ -1412,6 +1415,8 @@ app.use('/api/advertising/voice',voiceAdminRouter(voiceSalesAgent));
 app.use('/api/advertising/community/video/local',localVideoAdminRouter(localVideoEngine));
 // GPU worker uses a separate constant-time checked bearer token (never a CRM user cookie).
 app.use('/api/local-video/worker',localVideoWorkerRouter(localVideoEngine));
+app.use('/api/advertising/community/photos/local',nativeFlyerAdminRouter(nativeFlyerEngine));
+app.use('/api/local-flyer/worker',nativeFlyerWorkerRouter(nativeFlyerEngine));
 app.get('/api/advertising/community/video-provider', async (_req,res)=>{
   try {
     const runway=await intequitoVideoProvider.status();

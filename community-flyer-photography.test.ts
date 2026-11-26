@@ -1,8 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { planMonth } from './community-plan.ts';
-import { flyerPhotoPrompt, prepareFlyerPhoto, photoFingerprint } from './community-flyer-photography.ts';
+import { contentHash, planMonth } from './community-plan.ts';
+import {NativeFlyerEngine,workerCredential} from './native-flyer-engine.ts';
+import { flyerPhotoPrompt, photoFingerprint } from './community-flyer-photography.ts';
 import { renderINTECAFlyer } from './community-flyer-renderer.ts';
 import type {Catalog,CatalogCourse} from './whatsapp-catalog.ts';
 
@@ -20,7 +21,7 @@ const catalog:Catalog={text:'source', hash:'9'.repeat(64), generalSchedule:'Sáb
   investment:'Inscripción RD$2,500; mensualidad RD$2,000',description:'Programa técnico'}))};
 const jobs=planMonth(catalog,'2026-01-01').filter(j=>j.payload.kind==='flyer');
 const unique=jobs.filter(j=>j.channel==='facebook');
-const env={SUPABASE_URL:'https://crm-storage.example.test',CM_FLYER_PHOTOGRAPHY_ENABLED:'true',GEMINI_API_KEY:'fake'};
+const env={SUPABASE_URL:'https://crm-storage.example.test',SUPABASE_SERVICE_ROLE_KEY:'storage-test-only'};
 const image=await sharp(Buffer.from(`<svg width="800" height="450"><rect width="800" height="450" fill="#fb8"/><circle cx="420" cy="220" r="140" fill="#27a"/></svg>`)).jpeg().toBuffer();
 
 test('morning authorization scenes alternate workers, empty office and another team',()=>{
@@ -43,33 +44,62 @@ test('generated imagery renders with canonical pricing across one month of cours
    assert.equal(meta.height,1350);
  }
 });
-test('single photo request per piece, shared by both channels and rejected if too similar',async()=>{
- const job=unique[0];
- let reservations=0,requests=0,uploads=0;
- const fetcher:typeof fetch=async(url,init)=>{
-  if(String(url).startsWith('https://generativelanguage.googleapis.com/')){
-    requests++;
-    const body=JSON.parse(String(init?.body));
-    assert.deepEqual(body.generationConfig.responseModalities,['IMAGE']);
-    return Response.json({candidates:[{content:{parts:[{inlineData:{mimeType:'image/jpeg',data:image.toString('base64')}}]}}]});
+test('pairing stores only a hash and never exposes a credential in status',async()=>{
+ let settings:Record<string,unknown>={enabled:true};
+ const store={request:async(route:string,method?:string,body?:unknown)=>{
+  assert.match(route,/crm_flyer_engine_/);
+  if(method==='PATCH') settings=body as Record<string,unknown>;
+  return route.includes('jobs')?[]:[settings];
+ }};
+ const engine=new NativeFlyerEngine(store,{get:async()=>catalog});
+ const {token}=await engine.pair();
+ assert.equal(workerCredential('Bearer '+token),token);
+ assert.equal(workerCredential('Bearer bad'),undefined);
+ assert.match(String(settings.token_hash),/^[a-f0-9]{64}$/);
+ assert.notEqual(token,settings.token_hash);
+ assert.doesNotMatch(JSON.stringify(await engine.status()),/token|[a-f0-9]{64}/);
+ await engine.disconnect();
+ assert.equal(settings.enabled,false);
+});
+
+test('local worker assembles one ready photo for both channels, with no image API call',async()=>{
+ const j=unique[0];
+ const p=j.payload;
+ const asset=p.assetKey, lease='0ab03c8e-3ee0-4a0b-8a95-2ad83e132fcd',token='b'.repeat(43);
+ const deadline=new Date('2099-01-01T00:00:00Z').toISOString();
+ let phase='unique',uploads=0,mediaKey='';
+ const store={request:async(route:string,_method?:string,body?:unknown)=>{
+  if(route.endsWith('crm_claim_native_flyer')) return {authorized:true,payload:p,assetKey:asset,lease,attempt:1,expiresAt:deadline};
+  if(route.startsWith('crm_flyer_engine_settings?')) return [{id:'inteca'}];
+  if(route.includes('state=eq.rendering')) return [{expires_at:deadline}];
+  if(route.endsWith('crm_lock_native_flyer_upload')){
+   assert.equal((body as {p_fingerprint:string}).p_fingerprint, await photoFingerprint(image));
+   return phase==='unique'?'locked':'similar';
   }
+  if(route.startsWith('crm_community_jobs?')) return [{payload:p,content_hash:contentHash(p)}];
+  if(route.endsWith('crm_finish_native_flyer')) {
+   mediaKey=(body as {p_media:string}).p_media;
+   return true;
+  }
+  if(route.includes('state=eq.ready')) return mediaKey?[{media_key:mediaKey}]:[];
+  throw Error(route);
+ }};
+ const fetcher:typeof fetch=async(url,init)=>{
+  assert.match(String(url),/^https:\/\/crm-storage\.example\.test\/storage\/v1\/object\/crm-community\/[a-f0-9]{32}\.jpg$/);
+  assert.equal((await sharp(Buffer.from(init?.body as Uint8Array)).metadata()).height,1350);
   uploads++;
-  assert.match(String(url),/\/storage\/v1\/object\/crm-community\/[a-f0-9]{32}\.jpg$/);
   return Response.json({ok:true});
  };
- const store={request:async(route:string,_method:string,body:unknown)=>{
-   if (route.endsWith('crm_reserve_flyer_photo')) return ++reservations===1?'reserved':'ready';
-   if (route.endsWith('crm_record_flyer_photo')) {
-     assert.equal((body as {p_hash:string}).p_hash, await photoFingerprint(image));
-     return 'unique';
-   }
-   return [{state:'ready'}];
- }};
- const first=await prepareFlyerPhoto(job.payload,store,env,fetcher);
- const sibling=jobs.find(j=>j.channel==='instagram'&&j.payload.assetKey===job.payload.assetKey)!;
- assert.equal(await prepareFlyerPhoto(sibling.payload,store,env,fetcher),first);
- assert.equal(requests,1);assert.equal(uploads,1);
- const similar={request:async(route:string)=>route.endsWith('crm_reserve_flyer_photo')?'reserved':'similar'};
- await assert.rejects(prepareFlyerPhoto(job.payload,similar,env,fetcher),/CM_FLYER_PHOTO_TOO_SIMILAR/);
+ const engine=new NativeFlyerEngine(store,{get:async()=>catalog},env,fetcher);
+ const claim=await engine.claim(token);
+ assert.equal(claim?.asset,p.assetKey);
+ assert.match(claim?.prompt||'',/healthcare authorizations call center/);
+ assert.equal(await engine.media(p,j.scheduled_at),null);
+ assert.deepEqual(await engine.upload(token,{asset,lease},image),{state:'ready'});
+ const sibling=jobs.find(candidate=>candidate.channel==='instagram'&&candidate.payload.assetKey===asset)!;
+ assert.equal(await engine.media(p,j.scheduled_at),await engine.media(sibling.payload,sibling.scheduled_at));
+ assert.equal(uploads,1);
+ phase='similar';
+ await assert.rejects(engine.upload(token,{asset,lease},image),/NATIVE_FLYER_TOO_SIMILAR/);
  assert.equal(uploads,1);
 });
