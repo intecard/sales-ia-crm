@@ -1,3 +1,4 @@
+import {brandedMediaKey, brandedMediaMatches, publicationVideo} from './community-publication-assets.ts';
 import {diversifyPlan} from './community-editorial-history.ts';
 import {repeatedEditorial} from './community-editorial.ts';
 import {officialCourseEditorial} from './community-course-topics.ts';
@@ -64,7 +65,7 @@ export class CommunityManager {
       totalCatalogCourses:catalog?.courses.length||0,
       scope:'org_inteca_main',
       capabilities:{
-        flyers:'Fotografía generada en el equipo de INTECA por pieza cuando esté disponible. Dos flyers por día de cursos del catálogo, con contenido educativo original y precios verificados.',
+        flyers:'Logo oficial, imagen del curso, nombre completo, inscripción y mensualidad visibles. Usa foto original del generador local si está lista; si no, una ilustración del curso.',
         verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
         stories:'Calendario continuo sin caducidad: 1 post, 1 imagen y 8 reels al día en Facebook e Instagram; 1 video estándar en YouTube y 1 guion de INTEQUITO a las 21:00, pendiente de producción profesional',
         longVideo:'1 MP4 diario en YouTube mediante renderizado local, y una segunda cita diaria para INTEQUITO hablando; el segundo video no se publica mientras no exista avatar, voz, derechos y presupuesto aprobado',
@@ -171,6 +172,10 @@ export class CommunityManager {
           const catalog=await this.catalog.get();if(!catalog||catalog.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
           const course=catalog.courses.find(c=>c.title===row.payload.courseTitle);
           if(!course||contentHash(row.payload)!==row.content_hash||hasDiscount(communityPublicCopy(row.payload))||hasUnlistedPrice(communityPublicCopy(row.payload),course.investment))throw Error('CM_CONTENT_REVIEW');
+          const publicationOffer=flyerOffer(course,row.payload.editorialDate||rdDay(new Date(row.scheduled_at)),
+            row.payload.editorialSlot==='afternoon'?1:0);
+          if(!isPublishableFlyer(publicationOffer))throw Error('CM_PUBLICATION_PRICE_MISSING');
+          const publication:CommunityPayload={...row.payload,flyerOffer:publicationOffer};
           if(row.payload.kind==='flyer'){
             const slot=row.payload.editorialSlot;
             const type=courseFamily(course.title);
@@ -179,8 +184,7 @@ export class CommunityManager {
                (slot==='afternoon'&&type==='authorizations')||
                !row.payload.flyerOffer||!isPublishableFlyer(row.payload.flyerOffer))
                throw Error('CM_FLYER_COURSE_MISMATCH');
-            const expected=flyerOffer(course,row.payload.editorialDate||rdDay(new Date(row.scheduled_at)),
-              slot==='afternoon'?1:0);
+            const expected=publicationOffer;
             const actual=row.payload.flyerOffer;
             if(actual.course!==course.title||actual.family!==expected.family||
                actual.focus!==expected.focus||actual.hook!==expected.hook||
@@ -208,21 +212,29 @@ export class CommunityManager {
           // because slot.split(':')[2] is the literal kind, not the variant.
           // Every change of catalog or contents requires a new immutable piece.
           phase='render';
-          let mediaUrl=row.media_url;
+          let mediaUrl=brandedMediaMatches(publication,row.media_url)?row.media_url:null;
           if(!mediaUrl){
-            // Reuse already produced media for the same original piece across platforms.
-            const siblings=await this.store.request(`crm_community_jobs?payload->>assetKey=eq.${row.payload.assetKey}&media_url=not.is.null&limit=1`);
-            mediaUrl=siblings[0]?.media_url||null;
-            if(!mediaUrl && row.payload.kind==='flyer' && this.nativeFlyers)
-              mediaUrl=await this.nativeFlyers.media(row.payload,row.scheduled_at).catch(()=>null);
-            if(!mediaUrl){const video=row.payload.kind==='short'||row.payload.kind==='promo_video';const bytes=video?await renderCommunityVideo(row.payload):await renderCommunityImage(row.payload);phase='storage';mediaUrl=await storeCommunityAsset(row.payload.assetKey,bytes,video);}
+            // Only reuse the new visual version. Pre-rendered, unpublished assets may lack prices or logo.
+            const siblings:Pick<CommunityJob,'media_url'>[]=await this.store.request(
+              `crm_community_jobs?payload->>assetKey=eq.${row.payload.assetKey}&media_url=not.is.null&select=media_url&limit=8`);
+            mediaUrl=siblings.find(s=>brandedMediaMatches(publication,s.media_url))?.media_url||null;
+            if(!mediaUrl && publication.kind==='flyer' && this.nativeFlyers){
+              const native=await this.nativeFlyers.media(publication,row.scheduled_at).catch(()=>null);
+              if(brandedMediaMatches(publication,native))mediaUrl=native;
+            }
+            if(!mediaUrl){
+              const video=publicationVideo(publication);
+              const bytes=video?await renderCommunityVideo(publication):await renderCommunityImage(publication);
+              phase='storage';
+              mediaUrl=await storeCommunityAsset(brandedMediaKey(publication),bytes,video);
+            }
             await this.update(row.id,{media_url:mediaUrl});
           }
           const active=await this.settings();if(!active.enabled||sha(active.destinations)!==sha(settings.destinations))throw Error('CM_PAUSED');
           const fresh=await this.catalog.get();if(fresh?.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
           phase='publish';
           await this.update(row.id,{state:'executing'});external=true;
-          const result=await this.publisher.publish(row.channel,row.payload,mediaUrl!,async id=>{await this.update(row.id,{result:{containerId:id}});});
+          const result=await this.publisher.publish(row.channel,publication,mediaUrl!,async id=>{await this.update(row.id,{result:{containerId:id}});});
           await this.update(row.id,{state:result.state,result,last_error:null});
         }catch(e){
           const raw=e instanceof Error?e.message:'';

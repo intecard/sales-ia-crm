@@ -42,6 +42,9 @@ export class CommunityDiagnostics {
     channelsConfigured:channels,
     reasons:{
       CM_CONNECTION_OR_STORAGE:'Error antiguo genérico; no permite distinguir renderizado, storage o conexión.',
+      CM_PUBLICATION_PRICE_MISSING:'El catálogo requiere duración, inscripción y mensualidad verificadas para publicar.',
+      CM_OFFICIAL_LOGO_MISSING:'Falta el logo oficial de INTECA requerido para publicar.',
+      CM_UNBRANDED_MEDIA:'El archivo debe volver a generarse con la marca y los precios.',
       CM_MEDIA_ASSET_MISSING:'Falta un archivo en el despliegue de Render.',
       CM_IMAGE_RENDER_FAILED:'Fallo al crear el JPEG del flyer.',
       CM_RENDER_FAILED:'Fallo de composición multimedia o FFmpeg.',

@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import type {CatalogCourse} from '../../whatsapp-catalog';
 import {createEditorial,repeatedEditorial,type EditorialCreative} from '../../community-editorial';
-import {editorialSvg} from '../../community-editorial-svg';
+import {publicationSvg} from '../../community-publication-art';
 import {flyerOffer,isPublishableFlyer} from '../../community-flyer-offer';
 const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const historyKey='inteca-editorial-manual-v7';
@@ -22,12 +22,12 @@ export function EditorialCreativeStudio(){
  const [vertical,setVertical]=useState(false),[logo,setLogo]=useState('');
  const course=courses.find(c=>c.title===selected);
  useEffect(()=>{let live=true;void fetch('/api/sales/catalog').then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo cargar el catálogo.');if(live){setCourses(d.courses);setSelected(d.courses[0]?.title||'');if(d.courses[0])setCreative(firstUnused(d.courses[0]));}}).catch(e=>{if(live)setError(e.message);});
-  void fetch('/inteca-logo.webp').then(r=>{if(!r.ok)throw Error();return r.blob();}).then(blob=>new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(blob);})).then(v=>{if(live)setLogo(v);}).catch(()=>{});
+  void fetch('/inteca-logo.webp').then(r=>{if(!r.ok)throw Error();return r.blob();}).then(blob=>new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(blob);})).then(v=>{if(live)setLogo(v);}).catch(()=>{if(live)setError('No se pudo cargar el logo oficial de INTECA.');});
   return()=>{live=false;};},[]);
  const creative=useMemo(()=>proposal||(course?createEditorial(course,day(),'flyer',0):null),[proposal,course]);
- const preview=useMemo(()=>{if(!course||!creative)return {url:'',error:''};
+ const preview=useMemo(()=>{if(!course||!creative||!logo)return {url:'',error:''};
   try{const offer=flyerOffer(course,day());if(!isPublishableFlyer(offer))throw Error('Este curso necesita contenido, duración y precios confirmados en el catálogo.');
-   const svg=editorialSvg({creative,course:course.title,vertical,logo,facts:`${offer.duration} · Inscripción ${offer.registration} · Mensualidad ${offer.monthly}`});
+   const svg=publicationSvg({creative,courseTitle:course.title,kind:vertical?'story':'flyer',flyerOffer:offer},logo);
    return {url:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg),error:''};
   }catch(e){return {url:'',error:(e as Error).message};}
  },[course,creative,vertical,logo]);

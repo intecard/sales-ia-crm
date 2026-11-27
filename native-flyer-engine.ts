@@ -1,3 +1,4 @@
+import {brandedMediaKey, brandedMediaMatches} from './community-publication-assets.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { flyerPhotoPrompt, photoFingerprint } from './community-flyer-photography.ts';
@@ -83,7 +84,7 @@ export class NativeFlyerEngine {
     const [row]=await this.store.request(`crm_community_jobs?organization_id=eq.org_inteca_main&payload->>assetKey=eq.${data.asset}&state=eq.queued&scheduled_at=gt.${date}&select=payload,content_hash&limit=1`);
     const p=row?.payload as CommunityPayload|undefined;
     if(!p||contentHash(p)!==row.content_hash||!await this.currentCatalog(p))throw Error('NATIVE_FLYER_STALE');
-    const key=hash('native-flyer-v1:'+data.asset+':'+data.lease).slice(0,32);
+    const key=brandedMediaKey(p,'local:'+data.lease);
     const jpeg=await renderINTECAFlyer(p,process.cwd(),photo);
     await storeCommunityAsset(key,jpeg,false,this.env,this.fetcher);
     if(!await this.finish(token,data,key,null))throw Error('NATIVE_FLYER_EXPIRED');
@@ -97,6 +98,7 @@ export class NativeFlyerEngine {
   if(p.kind!=='flyer'||!assetId.test(p.assetKey))return null;
   const rows=await this.store.request(`crm_flyer_engine_jobs?asset_key=eq.${p.assetKey}&state=eq.ready&completed_at=lt.${encodeURIComponent(scheduledAt)}&select=media_key`);
   const key=rows[0]?.media_key;
-  return typeof key==='string'&&assetId.test(key)?communityAssetUrl(key,false,this.env):null;
+  const url=typeof key==='string'&&assetId.test(key)?communityAssetUrl(key,false,this.env):null;
+  return brandedMediaMatches(p,url)?url:null;
  }
 }
