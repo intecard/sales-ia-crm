@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import {renderEditorialImage} from './community-editorial-renderer.ts';
+import {officialPublicationLogo,renderEditorialImage} from './community-editorial-renderer.ts';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import type {CommunityPayload} from './community-plan.ts';
@@ -88,13 +88,13 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  if(!o||!isPublishableFlyer(o))throw Error('CM_FLYER_PRICE_OR_CONTENT_MISSING');
  if(o.course!==p.courseTitle||o.benefits.indexOf(o.focus)<0)throw Error('CM_FLYER_CATALOG_MISMATCH');
  if(p.editorialSlot==='morning'&&o.family!=='authorizations')throw Error('CM_FLYER_WRONG_MORNING_COURSE');
- if(p.creative?.version==='v7'||p.creative?.version==='v8')return renderEditorialImage(p,undefined,assetRoot,photoOverride);
+ if(p.creative?.version==='v7'||p.creative?.version==='v8')return renderEditorialImage(p,0,photoOverride);
  const seed=p.designSeed??o.dailyVariant;
  const pal=palettes[((seed%palettes.length)+palettes.length)%palettes.length];
  const photoName=photoFor(o.family);
  const [photo,logo]=await Promise.all([
    photoName?files(assetRoot,'public/creative/'+photoName+'.webp'):Promise.resolve(null),
-   files(assetRoot,'public/inteca-logo.webp'),
+   officialPublicationLogo(),
  ]);
  const title=fitFlyerText(o.course,500,4,53,33);
  const theme=fitFlyerText(o.hook,940,2,30,22);
@@ -102,7 +102,7 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  const topicLines=topics.map(t=>fitFlyerText(t,810,1,31,23));
  const cta=fitFlyerText(o.cta,890,1,29,21);
  const note=fitFlyerText(o.context,500,2,24,20);
- const logoPng=logo?await sharp(logo).resize(120,102,{fit:'contain'}).png().toBuffer():null;
+ const logoPng=await sharp(logo).resize(120,102,{fit:'contain',background:'#ffffff'}).png().toBuffer();
  const photoPng=photo?await containFlyerPhoto(photo,470,356):null;
  const issue=p.editorialDate&&/^\d{4}-\d{2}-\d{2}$/.test(p.editorialDate)
   ?new Intl.DateTimeFormat('es-DO',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
@@ -133,8 +133,7 @@ export async function renderINTECAFlyer(p:CommunityPayload,assetRoot=process.cwd
  '<rect width="'+W+'" height="'+H+'" fill="#ffffff"/>'+
  '<rect width="'+W+'" height="550" fill="url(#hero)"/>'+
  '<rect x="0" y="0" width="'+W+'" height="9" fill="'+pal.green+'"/>'+
- (logoPng?'<image x="36" y="24" width="120" height="102" href="data:image/png;base64,'+logoPng.toString('base64')+'"/>'
-   :txt('INTECA',42,89,45,pal.navy,true))+
+ '<image x="36" y="24" width="120" height="102" href="data:image/png;base64,'+logoPng.toString('base64')+'"/>'+
  txt('INTECA',171,73,41,pal.navy,true)+
  txt('INSTITUTO TÉCNICO DEL CARIBE',172,111,20,pal.green,true)+
  txt(issueTag,740,110,17,pal.green,true)+

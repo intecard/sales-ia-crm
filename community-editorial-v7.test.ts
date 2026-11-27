@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {createEditorial,EDITORIAL_LAYOUTS,repeatedEditorial} from './community-editorial.ts';
-import {editorialSvg} from './community-editorial-svg.ts';
+import {publicationSvg} from './community-publication-art.ts';
+import {officialPublicationLogo} from './community-editorial-renderer.ts';
+import {flyerOffer} from './community-flyer-offer.ts';
 import {diversifyPlan} from './community-editorial-history.ts';
 import {contentHash,planMonth,makeContent} from './community-plan.ts';
 import type {Catalog} from './whatsapp-catalog.ts';
@@ -28,16 +30,23 @@ test('rolling renewal retains persisted payloads and uses seven days of real cop
  assert.ok(eligible.every(p=>p.payload.caption.includes('809-643-5502')&&p.payload.caption.includes('RD$2,500')));
 });
 test('all editorial geometries render both sizes with long official Spanish headlines and escaped text',async()=>{
- const creative=createEditorial(catalog.courses[0],'2026-11-25','flyer',0);
+ const p=makeContent(catalog.courses[0],catalog,'2026-11-25','flyer',0);
+ const creative=p.creative!;
+ const logo='data:image/png;base64,'+(await officialPublicationLogo()).toString('base64');
  const digests=new Set();
- for(const layout of EDITORIAL_LAYOUTS){for(const vertical of [false,true]){
-  const svg=editorialSvg({creative:{...creative,layout,headline:'¿Puedes explicar la gestión de autorizaciones médicas y sus procesos sin tecnicismos?',points:[...creative.points,'Consulta el procedimiento y comunica el siguiente paso.']},course:catalog.courses[0].title,facts:'5 meses · Inscripción RD$2,500 · Mensualidad RD$2,000',vertical});
-  assert.ok(!svg.includes('call-center.webp'));const bytes=await sharp(Buffer.from(svg)).png().toBuffer();
-  const meta=await sharp(bytes).metadata();assert.equal(meta.width,1080);assert.equal(meta.height,vertical?1920:1350);digests.add(bytes.toString('base64'));
+ for(const layout of EDITORIAL_LAYOUTS){for(const kind of ['flyer','story'] as const){
+  const svg=publicationSvg({...p,kind,creative:{...creative,layout,headline:'¿Puedes explicar la gestión de autorizaciones médicas y sus procesos sin tecnicismos?'}},logo);
+  assert.ok(svg.includes('id="institutional-logo"'));assert.ok(svg.includes('id="course-image-content"'));
+  assert.ok(svg.includes('RD$2,500')&&svg.includes('RD$2,000'));assert.ok(svg.includes('Autorizaciones Médicas'));
+  const bytes=await sharp(Buffer.from(svg)).png().toBuffer();
+  const meta=await sharp(bytes).metadata();assert.equal(meta.width,1080);assert.equal(meta.height,kind==='story'?1920:1350);digests.add(bytes.toString('base64'));
  }}
  assert.equal(digests.size,EDITORIAL_LAYOUTS.length*2);
- const escaped=editorialSvg({creative:{...creative,headline:'<script> & "texto"'},course:'INTECA',facts:'Datos confirmados'});
+ const escaped=publicationSvg({...p,creative:{...creative,headline:'<script> & "texto"'}},logo);
  assert.ok(escaped.includes('&lt;script&gt;'));assert.ok(!escaped.includes('<script>'));
+ const incomplete={...p,flyerOffer:{...flyerOffer(catalog.courses[0],'2026-11-25'),monthly:null}};
+ assert.throws(()=>publicationSvg(incomplete,logo),/CM_PUBLICATION_PRICE_MISSING/);
+ assert.throws(()=>publicationSvg(p,''),/CM_OFFICIAL_LOGO_MISSING/);
 });
 test('meaningfully duplicated teaching text is rejected despite a different date, color, CTA or filename',()=>{
  const a=createEditorial(catalog.courses[0],'2026-11-25','flyer',0);

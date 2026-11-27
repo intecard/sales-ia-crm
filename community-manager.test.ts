@@ -1,3 +1,4 @@
+import {brandedMediaKey} from './community-publication-assets.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommunityManager, isCurrentCommunityJob } from './community-manager.ts';
@@ -23,7 +24,7 @@ function harness(fail=false){
  const history:any[]=[];
  const payload=makeContent(catalog.courses[0],catalog,rdDay(new Date()),'flyer',0);
  const settings={enabled:true,plan_started_at:'started',destinations:{facebook:'111'}};
- const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test:flyer:0:facebook:editorial-v8',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:'https://example.supabase.co/storage/v1/object/public/crm-community/a.jpg',result:{},updated_at:new Date().toISOString()};let publishes=0;
+ const row:any={id:'00000000-0000-4000-8000-000000000001',slot:'v6:test:flyer:0:facebook:editorial-v8',channel:'facebook',state:'queued',scheduled_at:new Date().toISOString(),payload,content_hash:contentHash(payload),media_url:`https://example.supabase.co/storage/v1/object/public/crm-community/${brandedMediaKey(payload)}.jpg`,result:{},updated_at:new Date().toISOString()};let publishes=0;
  const store={request:async(resource:string,method='GET',body?:any)=>{
   if(resource.startsWith('crm_community_jobs?channel=eq.'))return structuredClone(history);
   if(resource.startsWith('crm_community_jobs?slot=like.'))return [{id:'existing-avatar-plan'}];
@@ -38,7 +39,7 @@ function harness(fail=false){
   if(method==='PATCH')Object.assign(row,body);return [structuredClone(row)];
  }};
  const publisher={destination:()=> '111',verify:async()=>({readVerified:true}),publish:async()=>{publishes++;if(fail)throw Error('CM_EXTERNAL_UNKNOWN');return{id:'provider-post',state:'published',url:null};}};
- const create=()=>new CommunityManager(store,{get:async()=>catalog},publisher as any);
+ const create=(source=catalog)=>new CommunityManager(store,{get:async()=>source},publisher as any);
  return {row,settings,create,history,publishes:()=>publishes};
 }
 test('only canonical v6 jobs are displayed as current, not superseded drafts',()=>{
@@ -98,4 +99,17 @@ test('a duplicate of a recent published lesson is stopped before rendering or ex
  const h=harness();h.history.push({...structuredClone(h.row),id:'previous',state:'published'});
  await h.create().tick();assert.equal(h.publishes(),0);assert.equal(h.row.state,'blocked');
  assert.equal(h.row.last_error,'CM_CREATIVE_TOO_SIMILAR');
+});
+
+test('a scheduled reel cannot send a cached MP4 when the catalog lacks a monthly price',async()=>{
+ const h=harness();
+ const missing={...catalog,courses:[{...catalog.courses[0],investment:'Inscripción RD$2,500'}]};
+ const p=makeContent(missing.courses[0],missing,rdDay(new Date()),'short',0);
+ // Model an already scheduled reel whose approved catalog source is incomplete.
+ h.row.payload=p;h.row.content_hash=contentHash(p);
+ h.row.slot='v6:test:short:0:facebook:x:autorender-20261029:editorial-v8';
+ h.row.media_url=`https://example.supabase.co/storage/v1/object/public/crm-community/${brandedMediaKey(p)}.mp4`;
+ await h.create(missing).tick();
+ assert.equal(h.publishes(),0);
+ assert.equal(h.row.last_error,'CM_PUBLICATION_PRICE_MISSING');
 });

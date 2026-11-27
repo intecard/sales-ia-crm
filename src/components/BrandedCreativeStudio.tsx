@@ -1,6 +1,8 @@
 import {EditorialCreativeStudio} from './EditorialCreativeStudio';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogCourse } from '../../whatsapp-catalog';
+import {flyerOffer,isPublishableFlyer} from '../../community-flyer-offer';
+import {courseFamily} from '../../community-course-topics';
 function save(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -39,10 +41,11 @@ function textBlock(
     .forEach((line, i) => ctx.fillText(line, x, y + i * size * 1.3));
 }
 function courseVisual(title: string) {
-  const t = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  if (/farmac|visita.*medic/.test(t)) return { image: '/creative/pharmacy.webp', hook: 'CONOCIMIENTO QUE FORTALECE TU PERFIL', benefit: 'Da el siguiente paso en tu formación en el sector salud.' };
-  if (/enfermer|promotor.*salud/.test(t)) return { image: '/creative/nursing.webp', hook: 'TRANSFORMA TU VOCACIÓN EN PREPARACIÓN', benefit: 'Aprende habilidades para una atención más humana y profesional.' };
-  return { image: '/creative/call-center.webp', hook: 'PREPÁRATE PARA TU PRÓXIMA OPORTUNIDAD', benefit: 'Fortalece tu perfil para los procesos administrativos del sector salud.' };
+  const family=courseFamily(title);
+  if (family==='pharmacology'||family==='pharmacy') return { image: '/creative/pharmacy.webp', hook: 'CONOCIMIENTO QUE FORTALECE TU PERFIL', benefit: 'Da el siguiente paso en tu formación en el sector salud.' };
+  if (family==='nursing') return { image: '/creative/nursing.webp', hook: 'TRANSFORMA TU VOCACIÓN EN PREPARACIÓN', benefit: 'Aprende habilidades para una atención más humana y profesional.' };
+  const office=['authorizations','master_authorizations','precertification','medical_billing','patient_service'].includes(family);
+  return { image: office?'/creative/call-center.webp':'', hook: 'PREPÁRATE PARA TU PRÓXIMA OPORTUNIDAD', benefit: 'Da el siguiente paso en tu formación profesional.' };
 }
 function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
   const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
@@ -62,6 +65,10 @@ function PhotoCreativeStudio() {
     photo = useRef<HTMLImageElement | null>(null),
     recorder = useRef<MediaRecorder | null>(null);
   const course = courses.find((c) => c.title === selected);
+  const offer=useMemo(()=>course?flyerOffer(course,new Intl.DateTimeFormat('en-CA',{
+    timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'
+  }).format(new Date())):null,[course]);
+  const catalogReady=!!offer&&isPublishableFlyer(offer);
   useEffect(() => {
     let active = true;
     void fetch('/api/sales/catalog')
@@ -95,7 +102,7 @@ function PhotoCreativeStudio() {
   const photoKey = selected + '\n' + photoSource;
   const photoReady = Boolean(selected) && loadedPhotoKey === photoKey;
   useEffect(() => {
-    if (!selected) return;
+    if (!selected||!photoSource) return;
     let active=true; photo.current=null;
     const img=new Image();
     img.onload=()=>{if(active){photo.current=img;setLoadedPhotoKey(photoKey);}};
@@ -105,14 +112,17 @@ function PhotoCreativeStudio() {
   },[selected,photoKey,photoSource]);
   const draw=useCallback((scene = -1, progress = 1) => {
     const el=canvas.current;
-    if(!el || !course || !logo.current || !photo.current || !photoReady)return;
+    if(!el || !course || !offer || !catalogReady || !logo.current || !photo.current || !photoReady)return;
     const compact=format==='banner';const w=compact?1600:1080,h=compact?900:1350;
     if(el.width!==w)el.width=w;if(el.height!==h)el.height=h;
     const c=el.getContext('2d')!;c.resetTransform();c.fillStyle='#071e30';c.fillRect(0,0,w,h);
     // Photograph remains a real raster asset, while all catalog data stays editable and exact.
     if(compact){cover(c,photo.current,760,0,840,h);const fade=c.createLinearGradient(650,0,1200,0);fade.addColorStop(0,'#071e30');fade.addColorStop(1,'rgba(7,30,48,0)');c.fillStyle=fade;c.fillRect(650,0,550,h);}
     else {cover(c,photo.current,0,320,1080,570);const fade=c.createLinearGradient(0,650,0,910);fade.addColorStop(0,'rgba(7,30,48,0)');fade.addColorStop(1,'#071e30');c.fillStyle=fade;c.fillRect(0,650,1080,260);}
-    c.drawImage(logo.current,40,24,108,108);
+    const scale=Math.min(108/logo.current.naturalWidth,108/logo.current.naturalHeight);
+    const lw=logo.current.naturalWidth*scale,lh=logo.current.naturalHeight*scale;
+    c.fillStyle='#ffffff';c.fillRect(40,24,108,108);
+    c.drawImage(logo.current,40+(108-lw)/2,24+(108-lh)/2,lw,lh);
     textBlock(c,'INTECA',168,70,550,44,38);
     textBlock(c,'INSTITUTO TÉCNICO DEL CARIBE',168,103,620,28,18,'#70efcf');
     const textW=compact?720:970;
@@ -125,15 +135,17 @@ function PhotoCreativeStudio() {
     const detail=scene===0?visual.benefit:scene===3?'Pregunta por el grupo disponible y conoce cómo iniciar tu inscripción.':course.description||course.text;
     textBlock(c,detail,48,compact?427:887,textW,compact?100:96,compact?27:28,'#dcebf0');
     c.fillStyle='#123c4f';c.fillRect(40,compact?542:1000,compact?710:1000,compact?176:177);
-    textBlock(c,`${course.duration} · ${course.modality}`,58,compact?580:1037,compact?675:960,40,compact?24:27,'#77f1d0');
-    textBlock(c,course.investment,58,compact?622:1080,compact?675:960,compact?84:72,compact?25:28);
+    textBlock(c,`Duración: ${offer.duration}${offer.modality?' · '+offer.modality:''}`,58,compact?580:1037,compact?675:960,40,compact?24:27,'#77f1d0');
+    const priceY=compact?625:1087;
+    textBlock(c,`Inscripción: ${offer.registration}`,58,priceY,compact?675:960,38,28);
+    textBlock(c,`Mensualidad: ${offer.monthly}`,58,priceY+42,compact?675:960,38,28);
     if(!compact)textBlock(c,course.schedule||'Consulta los grupos y horarios disponibles',48,1196,970,42,19,'#c8dbe5');
     const cy=compact?750:1240;c.fillStyle='#ffc94d';c.fillRect(40,cy,compact?710:1000,64);
     textBlock(c,'ESCRÍBENOS HOY · QUIERO INSCRIBIRME',58,cy+41,compact?675:960,46,compact?25:28,'#082638');
     textBlock(c,opportunity,48,compact?735:1223,textW,30,compact?17:19,'#ffda7b');
     textBlock(c,'inteca.com.do · intecaedu@gmail.com',48,h-15,compact?710:970,26,compact?20:21,'#c9e3ea');
     if(scene>=0){c.fillStyle='#38e2b6';c.fillRect(0,h-5,w*progress,5);}
-  },[course,format,visual.hook,visual.benefit,seats,deadline,confirmedScarcity,photoReady]);
+  },[course,offer,catalogReady,format,visual.hook,visual.benefit,seats,deadline,confirmedScarcity,photoReady]);
   useEffect(()=>{if(ready&&photoReady)draw();},[ready,photoReady,draw]);
   async function uploadPhoto(file?: File){
     if(!file)return;
@@ -141,13 +153,14 @@ function PhotoCreativeStudio() {
     const reader=new FileReader();reader.onload=()=>{setError('');setCustomPhotos(old=>({...old,[selected]:String(reader.result)}));};reader.readAsDataURL(file);
   }
   async function imageDownload() {
+    if(!catalogReady||!photoReady||!ready)return;
     draw();
     canvas.current?.toBlob((blob) => {
       if (blob) save(blob, `INTECA-${format}.png`);
     }, 'image/png');
   }
   async function videoDownload() {
-    if (!canvas.current || !course) return;
+    if (!canvas.current || !course || !catalogReady || !ready || !photoReady) return;
     if (typeof MediaRecorder === 'undefined' || !canvas.current.captureStream) {
       setError('Este navegador no admite exportación de video. Usa Chrome o Edge actualizado.');
       return;
@@ -232,18 +245,19 @@ function PhotoCreativeStudio() {
       </div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={confirmedScarcity} disabled={busy} onChange={e=>setConfirmedScarcity(e.target.checked)} />Confirmo que los cupos y la fecha indicados son reales para este curso y autorizo mostrarlos.</label>
       <p className="text-xs text-slate-400">Las escenas predeterminadas son ilustraciones generadas con IA. No representan personal ni instalaciones reales de INTECA. Sin cupos o fecha confirmados se utiliza un mensaje de oportunidad, sin escasez inventada.</p>
-      {!photoReady && <p role="status">Cargando imagen del curso…</p>}
+      {course&&!catalogReady&&<p role="alert">Confirma la duración, la inscripción y la mensualidad en el catálogo antes de exportar.</p>}
+      {!photoReady && <p role="status">{photoSource?'Cargando imagen del curso…':'Selecciona una imagen que represente este curso para exportarlo.'}</p>}
       <canvas ref={canvas} className="max-w-full max-h-[600px] rounded-xl" />
       <div className="flex gap-3">
         <button
-          disabled={!ready || !photoReady || !course || busy}
+          disabled={!ready || !photoReady || !catalogReady || busy}
           onClick={() => void imageDownload()}
           className="bg-cyan-700 rounded p-3 disabled:opacity-40"
         >
           Descargar {format === 'banner' ? 'banner' : 'flyer'} PNG
         </button>
         <button
-          disabled={!ready || !photoReady || !course || busy}
+          disabled={!ready || !photoReady || !catalogReady || busy}
           onClick={() => void videoDownload()}
           className="bg-blue-700 rounded p-3 disabled:opacity-40"
         >
