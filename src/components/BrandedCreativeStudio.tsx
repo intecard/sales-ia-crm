@@ -55,7 +55,7 @@ function cover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, 
 function PhotoCreativeStudio() {
   const [courses, setCourses] = useState<CatalogCourse[]>([]),
     [selected, setSelected] = useState(''),
-    [format, setFormat] = useState('flyer'),
+    [format, setFormat] = useState('banner'),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [ready, setReady] = useState(false);
@@ -205,7 +205,7 @@ function PhotoCreativeStudio() {
   }
   return (
     <section className="rounded-2xl border border-cyan-700 bg-slate-900 p-5 space-y-4 text-slate-200">
-      <h2 className="text-xl font-bold">Estudio INTECA · Flyers, banners y videos</h2>
+      <h2 className="text-xl font-bold">Estudio INTECA · Banners y videos</h2>
       <p className="text-sm">
         Fotografía relacionada con el curso, logo institucional, gancho, datos del catálogo y llamado a la acción. PNG de alta resolución y
         video informativo WebM de 30 segundos con texto en pantalla, sin audio.
@@ -234,7 +234,7 @@ function PhotoCreativeStudio() {
           onChange={(e) => setFormat(e.target.value)}
           className="bg-slate-800 rounded p-2"
         >
-          <option value="flyer">Flyer vertical 1080 × 1350</option>
+          <option value="video">Video vertical 1080 × 1350</option>
           <option value="banner">Banner 1600 × 900</option>
         </select>
       </div>
@@ -250,11 +250,11 @@ function PhotoCreativeStudio() {
       <canvas ref={canvas} className="max-w-full max-h-[600px] rounded-xl" />
       <div className="flex gap-3">
         <button
-          disabled={!ready || !photoReady || !catalogReady || busy}
+          disabled={!ready || !photoReady || !catalogReady || busy || format!=='banner'}
           onClick={() => void imageDownload()}
           className="bg-cyan-700 rounded p-3 disabled:opacity-40"
         >
-          Descargar {format === 'banner' ? 'banner' : 'flyer'} PNG
+          Descargar banner PNG
         </button>
         <button
           disabled={!ready || !photoReady || !catalogReady || busy}

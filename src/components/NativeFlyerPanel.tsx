@@ -36,7 +36,7 @@ export function NativeFlyerPanel(){
    <p className="font-semibold">Generador local de fotos</p>
    <span className="rounded-full bg-slate-800 px-3 py-1 text-cyan-200">{status}</span>
   </div>
-  <p>El equipo de INTECA genera una foto nueva por pieza sin pagar por imagen. Si el motor está apagado y no hay una foto lista, el calendario publica con ilustración.</p>
+  <p>El equipo de INTECA genera una foto nueva por pieza sin pagar por imagen. Si no hay foto lista, el flyer espera dentro de su horario; el calendario no lo sustituye por un icono.</p>
   <div className="flex flex-wrap gap-2">
    <a href={base+'/download'} className="rounded border border-slate-600 px-3 py-2 text-white">Descargar generador</a>
    <button type="button" onClick={()=>void action('pair')} disabled={busy||!engine}

@@ -21,8 +21,10 @@ Para generar una muestra sin conectar al CRM usa `py -3 .\inteca_fotos.py --prev
 ## Operación
 
 - La estación consulta el CRM por HTTPS y prepara los flyers de las próximas 42 horas. No necesita puertos entrantes. El código solo permite recibir instrucciones de imagen para el calendario y devolverlas; no sirve para iniciar sesión ni para operar redes sociales o acceder a contactos.
-- Si una foto llega tarde, el calendario publica la ilustración programada. No se vuelve a publicar lo que ya salió. No se vuelve a usar una foto casi idéntica; quedan hasta dos intentos locales antes de que salga la ilustración.
+- Si una foto llega tarde, el calendario espera solo dentro de la ventana de dos horas. Si falta la foto, no publica el flyer con un icono. No se vuelve a publicar lo que ya salió. No se vuelve a usar una foto casi idéntica; quedan hasta dos intentos locales antes de omitir el flyer sin foto.
 - La función no llama a Gemini, OpenAI u otro proveedor de pago. El costo de cómputo es el consumo propio del equipo. La aplicación de Render arma el flyer y publica la pieza, sin cargar el modelo.
 - **Desconectar equipo** invalida su código. Las fotos ya preparadas se conservan. Para mover el generador a otra máquina crea un código nuevo.
 
-El arte se arma en el CRM, con logo oficial de INTECA y foto o ilustración alusiva al curso. El nombre completo, la duración, la inscripción y la mensualidad se imprimen en la imagen y en cada escena de los reels y videos automáticos. Los precios provienen del catálogo publicado. Si no se pueden verificar o falta el logo oficial, el calendario no envía la pieza incompleta. Los archivos de una composición anterior no se reutilizan para piezas pendientes.
+El arte se arma en el CRM, con logo oficial de INTECA y una foto alusiva al curso en los flyers. El nombre completo, la duración, la inscripción y la mensualidad se imprimen en la imagen y en cada escena de los reels y videos automáticos. Los precios provienen del catálogo publicado. Si no se pueden verificar o falta el logo oficial, el calendario no envía la pieza incompleta. Los archivos de una composición anterior no se reutilizan para piezas pendientes.
+
+En **IA Marketing & Ads → Estudio de flyers fotográficos**, selecciona curso y formato y pulsa **Generar foto nueva**. Requiere la PC enlazada. También puedes cargar una foto propia de al menos 640 × 360 y hasta 4 MB. La detección de similitud se comparte con el calendario; los resultados del estudio se guardan como borradores privados para descargar y nunca se publican solos.

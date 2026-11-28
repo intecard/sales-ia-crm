@@ -113,3 +113,16 @@ test('a scheduled reel cannot send a cached MP4 when the catalog lacks a monthly
  assert.equal(h.publishes(),0);
  assert.equal(h.row.last_error,'CM_PUBLICATION_PRICE_MISSING');
 });
+
+test('a flyer without a fresh photograph remains queued; a prior illustration never publishes',async()=>{
+ const h=harness();
+ h.row.media_url=h.row.media_url.replace('/f2','/b1');
+ await h.create().tick();
+ assert.equal(h.publishes(),0);
+ assert.equal(h.row.state,'queued');
+ assert.equal(h.row.last_error,'CM_PHOTO_PENDING');
+ h.row.media_url=`https://example.supabase.co/storage/v1/object/public/crm-community/${brandedMediaKey(h.row.payload,'new photo')}.jpg`;
+ await h.create().tick();
+ assert.equal(h.publishes(),1);
+ assert.equal(h.row.last_error,null);
+});

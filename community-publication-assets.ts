@@ -1,7 +1,7 @@
 import {sha, type CommunityPayload} from './community-plan.ts';
 
 export const publicationVideo = (p: CommunityPayload) => ['short','promo_video'].includes(p.kind);
-const brandedStem = (p: CommunityPayload) => 'b1' + sha(['visible-brand-v1',p.assetKey]).slice(0,16);
+const brandedStem = (p: CommunityPayload) => (p.kind==='flyer'?'f2':'b1') + sha(['visible-brand-v1',p.assetKey]).slice(0,16);
 export const brandedMediaKey = (p: CommunityPayload, version = 'standard') =>
   brandedStem(p) + sha(version).slice(0,14);
 
