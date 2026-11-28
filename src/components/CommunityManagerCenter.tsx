@@ -74,6 +74,8 @@ export function CommunityManagerCenter(){
    CM_STORAGE_FAILED:'Error al subir el flyer a Supabase; revisar conexión y permisos.',
    CM_PUBLICATION_PRICE_MISSING:'El catálogo requiere duración, inscripción y mensualidad verificadas para publicar.',
    CM_OFFICIAL_LOGO_MISSING:'Falta el logo oficial de INTECA requerido para publicar.',
+   CM_PHOTO_PENDING:'Esperando la foto única del curso. Conecta el equipo del generador local.',
+   CM_PHOTO_WINDOW_MISSED:'El horario del flyer terminó sin una foto lista. No se publicó.',
    CM_UNBRANDED_MEDIA:'El archivo debe volver a generarse con la marca y los precios.',
    CM_MEDIA_ASSET_MISSING:'Falta una imagen o el logo en los archivos de Render.',
    CM_IMAGE_RENDER_FAILED:'Fallo al crear el JPEG.',

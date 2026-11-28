@@ -21,15 +21,16 @@ export function publicationSvg(p:Pick<CommunityPayload,'kind'|'courseTitle'|'cre
  // Keep critical material in the centre, above social app controls and left of action icons.
  const x=portrait?64:62, width=portrait?880:956;
  const start=portrait?300:60, logoSize=portrait?108:94;
- const titleY=start+logoSize+27;
- const imageY=titleY+153, imageH=portrait?420:388;
+ const titleY=start+logoSize+(photoJpeg&&!portrait?16:27);
+ const imageY=titleY+(photoJpeg&&!portrait?144:153), imageH=photoJpeg?(portrait?466:465):(portrait?420:388);
  const lessonY=imageY+imageH+31;
  const factsY=portrait?1266:1000;
  const details=o.modality?`Duración: ${o.duration} · Modalidad: ${o.modality}`:`Duración: ${o.duration}`;
  const headline=slide===1?c.topic:slide===2?'Ponlo en práctica':c.headline;
  const body=slide===1?(c.points[1]||c.points[0]):slide===2?c.takeaway:c.points[0];
  const inset=Math.floor(position/4)*13;
- const ax=x+(mode%2?26+inset:0), aw=width-(26+inset)+(mode%2?0:26);
+ const full=Boolean(photoJpeg&&mode===2&&!portrait);
+ const ax=full?0:x+(mode%2?26+inset:0), aw=full?1080:width-(26+inset)+(mode%2?0:26);
  const image=photoJpeg?
   `<image x="${ax}" y="${imageY}" width="${aw}" height="${imageH}" href="${xml(photoJpeg)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#course-image)"/>`:
   rect(ax,imageY,aw,imageH,pal.soft,mode===0?8:28)+
@@ -62,6 +63,6 @@ export function publicationSvg(p:Pick<CommunityPayload,'kind'|'courseTitle'|'cre
  ${tx(o.monthly!,x+width/2+22,factsY+114,width/2-42,67,46,pal.ink,true)}
  </g>
  ${rect(x,factsY+209,width,70,pal.ink,14)}
- ${tx('INFORMACIÓN · WHATSAPP 809-643-5502',x+18,factsY+225,width-36,44,29,pal.bg,true)}
+ ${tx((photoJpeg?'INSCRÍBETE':'INFORMACIÓN')+' · WHATSAPP 809-643-5502',x+18,factsY+225,width-36,44,29,pal.bg,true)}
  </svg>`;
 }

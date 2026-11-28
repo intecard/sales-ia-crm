@@ -19,6 +19,43 @@ export function nativeFlyerAdminRouter(engine:NativeFlyerEngine){
  router.post('/disconnect',async(_req,res)=>{
    try{await engine.disconnect();return res.json({ok:true});}catch{return reply(res,503,'No se pudo desconectar el equipo.');}
  });
+ const studioSpec=z.object({course:z.string().min(4).max(180),format:z.enum(['flyer','story'])}).strict();
+ const failStudio=(res:express.Response,e:unknown)=>{
+   const code=e instanceof Error?e.message:'';
+   const messages:Record<string,string>={
+    NATIVE_FLYER_OFFLINE:'El generador de fotos está desconectado. Enlaza la PC desde el Community Manager o usa una foto propia.',
+    NATIVE_FLYER_BUSY:'Hay un flyer del estudio en preparación. Espera a que termine.',
+    NATIVE_FLYER_LIMIT:'Se alcanzó el límite de piezas del estudio para las últimas 24 horas.',
+    NATIVE_FLYER_TOO_SIMILAR:'Esta foto se parece demasiado a otra ya utilizada. Selecciona una distinta.',
+    NATIVE_FLYER_INVALID_IMAGE:'Usa una foto horizontal JPG, WebP o PNG nítida, de al menos 640 × 360 y hasta 4 MB.',
+    NATIVE_FLYER_COURSE:'Elige un curso con duración y precios verificados en el catálogo.',
+    NATIVE_FLYER_NOT_FOUND:'Esta pieza no está disponible.',
+   };
+   return reply(res,code==='NATIVE_FLYER_NOT_FOUND'?404:409,messages[code]||'No se pudo preparar la fotografía. Revisa la conexión y el almacenamiento.');
+ };
+ router.post('/studio',async(req,res)=>{
+   const spec=studioSpec.safeParse(req.body);
+   if(!spec.success)return reply(res,400,'Selecciona el curso y el formato.');
+   try{return res.status(202).json(await engine.createStudio(spec.data.course,spec.data.format));}
+   catch(e){return failStudio(res,e);}
+ });
+ router.post('/studio/photo',express.raw({type:['image/png','image/jpeg','image/webp'],limit:'4mb'}),async(req,res)=>{
+   const spec=studioSpec.safeParse(req.query);
+   if(!spec.success||!Buffer.isBuffer(req.body))return reply(res,400,'Selecciona el curso y adjunta una foto JPG, WebP o PNG.');
+   try{return res.status(201).json(await engine.createStudio(spec.data.course,spec.data.format,req.body));}
+   catch(e){return failStudio(res,e);}
+ });
+ router.get('/studio/:asset',async(req,res)=>{
+   try{return res.json(await engine.studioStatus(req.params.asset));}
+   catch(e){return failStudio(res,e);}
+ });
+ router.get('/studio/:asset/image',async(req,res)=>{
+   try{
+    const bytes=await engine.studioImage(req.params.asset);
+    res.set('Content-Type','image/jpeg');
+    return res.send(bytes);
+   }catch(e){return failStudio(res,e);}
+ });
  router.get('/download',(_req,res)=>res.download(path.resolve('workers/inteca_flyer_images/inteca_fotos.py'),'inteca_fotos.py'));
  return router;
 }

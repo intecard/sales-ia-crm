@@ -65,7 +65,7 @@ export class CommunityManager {
       totalCatalogCourses:catalog?.courses.length||0,
       scope:'org_inteca_main',
       capabilities:{
-        flyers:'Logo oficial, imagen del curso, nombre completo, inscripción y mensualidad visibles. Usa foto original del generador local si está lista; si no, una ilustración del curso.',
+        flyers:'Logo oficial, imagen del curso, nombre completo, inscripción y mensualidad visibles. Cada flyer espera una foto original del generador local. No se publica una ilustración en su lugar.',
         verticalVideo:'8 reels diarios (Facebook e Instagram); el modo autónomo produce MP4 de diapositivas con FFmpeg sin usar proveedores de pago',
         stories:'Calendario continuo sin caducidad: 1 post, 1 imagen y 8 reels al día en Facebook e Instagram; 1 video estándar en YouTube y 1 guion de INTEQUITO a las 21:00, pendiente de producción profesional',
         longVideo:'1 MP4 diario en YouTube mediante renderizado local, y una segunda cita diaria para INTEQUITO hablando; el segundo video no se publica mientras no exista avatar, voz, derechos y presupuesto aprobado',
@@ -161,7 +161,8 @@ export class CommunityManager {
         // For a daily flyer, preserve the opportunity to publish later on the SAME
         // Dominican calendar day after Render Free wakes up. Never flood past days.
         if(shouldMissCampaignSlot(row,new Date())){
-          await this.update(row.id,{state:'missed',last_error:'CM_SLOT_MISSED'});
+          const reason=row.last_error==='CM_PHOTO_PENDING'?'CM_PHOTO_WINDOW_MISSED':'CM_SLOT_MISSED';
+          await this.update(row.id,{state:'missed',last_error:reason});
           continue;
         }
         let claimed=false,external=false;
@@ -203,6 +204,18 @@ export class CommunityManager {
           if(row.payload.kind==='avatar_video')throw Error('CM_AVATAR_REQUIRES_PROFESSIONAL_RENDER');
           // Explicit opt-in is required before any autonomous local video is published.
           if(['short','promo_video'].includes(row.payload.kind)&&process.env.CM_AUTOPUBLISH_RENDERED_VIDEOS!=='true')throw Error('CM_VIDEO_AUTOPUBLISH_DISABLED');
+          // A flyer may wait inside its normal window, but never publish a vector placeholder.
+          let requiredPhoto:string|null=null;
+          if(publication.kind==='flyer'){
+            const native=brandedMediaMatches(publication,row.media_url)?row.media_url:
+              await this.nativeFlyers?.media(publication,row.scheduled_at);
+            if(!brandedMediaMatches(publication,native)){
+              if(row.last_error!=='CM_PHOTO_PENDING')await this.store.request(
+                `crm_community_jobs?id=eq.${row.id}&state=eq.queued`,'PATCH',{last_error:'CM_PHOTO_PENDING'});
+              continue;
+            }
+            requiredPhoto=native??null;
+          }
           // Identity must be valid before generating or sending anything to this channel.
           phase='verify';
           await this.publisher.verify(row.channel);
@@ -212,24 +225,20 @@ export class CommunityManager {
           // because slot.split(':')[2] is the literal kind, not the variant.
           // Every change of catalog or contents requires a new immutable piece.
           phase='render';
-          let mediaUrl=brandedMediaMatches(publication,row.media_url)?row.media_url:null;
+          let mediaUrl=requiredPhoto||(brandedMediaMatches(publication,row.media_url)?row.media_url:null);
           if(!mediaUrl){
             // Only reuse the new visual version. Pre-rendered, unpublished assets may lack prices or logo.
             const siblings:Pick<CommunityJob,'media_url'>[]=await this.store.request(
               `crm_community_jobs?payload->>assetKey=eq.${row.payload.assetKey}&media_url=not.is.null&select=media_url&limit=8`);
             mediaUrl=siblings.find(s=>brandedMediaMatches(publication,s.media_url))?.media_url||null;
-            if(!mediaUrl && publication.kind==='flyer' && this.nativeFlyers){
-              const native=await this.nativeFlyers.media(publication,row.scheduled_at).catch(()=>null);
-              if(brandedMediaMatches(publication,native))mediaUrl=native;
-            }
             if(!mediaUrl){
               const video=publicationVideo(publication);
               const bytes=video?await renderCommunityVideo(publication):await renderCommunityImage(publication);
               phase='storage';
               mediaUrl=await storeCommunityAsset(brandedMediaKey(publication),bytes,video);
             }
-            await this.update(row.id,{media_url:mediaUrl});
           }
+          if(mediaUrl!==row.media_url)await this.update(row.id,{media_url:mediaUrl});
           const active=await this.settings();if(!active.enabled||sha(active.destinations)!==sha(settings.destinations))throw Error('CM_PAUSED');
           const fresh=await this.catalog.get();if(fresh?.hash!==row.payload.catalogHash)throw Error('CM_CATALOG_CHANGED');
           phase='publish';

@@ -103,3 +103,66 @@ test('local worker assembles one ready photo for both channels, with no image AP
  await assert.rejects(engine.upload(token,{asset,lease},image),/NATIVE_FLYER_TOO_SIMILAR/);
  assert.equal(uploads,1);
 });
+
+test('the studio assembles an uploaded original photo privately and blocks repeated photos',async()=>{
+  let row:any=null;
+  let pending:any=null;
+  let jpg:Buffer|null=null;
+  let previous='';
+  const store={request:async(route:string,method?:string,body?:any)=>{
+    if(route==='rpc/crm_create_studio_flyer'){
+      if(body.p_fingerprint&&body.p_fingerprint===previous)return 'similar';
+      pending=body.p_payload;
+      previous=body.p_fingerprint;
+      row={state:previous?'uploading':'queued',scheduled_at:new Date(Date.now()+7200000).toISOString()};
+      assert.equal(body.p_asset,pending.assetKey);
+      return 'created';
+    }
+    if(method==='PATCH')Object.assign(row,body);
+    assert.match(route,/studio_payload=not.is.null/);
+    return row?[row]:[];
+  }};
+  const fetcher:typeof fetch=async(url,options)=>{
+    assert.match(String(url),/\/storage\/v1\/object\/(?:authenticated\/)?crm-studio-flyers\/[a-f0-9]{32}\.jpg$/);
+    if(options?.method==='POST') {
+      jpg=Buffer.from(options.body as Uint8Array);
+      const picture=await sharp(jpg).metadata();
+      assert.equal(picture.width,1080);assert.equal(picture.height,1350);
+      return Response.json({ok:true});
+    }
+    assert.ok(jpg);
+    return new Response(new Uint8Array(jpg),{headers:{'Content-Type':'image/jpeg'}});
+  };
+  const engine=new NativeFlyerEngine(store,{get:async()=>catalog},env,fetcher);
+  const course=catalog.courses[0].title;
+  const result=await engine.createStudio(course,'flyer',image);
+  assert.equal(result.state,'ready');
+  assert.equal((await engine.studioImage(result.asset)).length,jpg!.length);
+  await assert.rejects(()=>engine.createStudio(course,'flyer',image),/NATIVE_FLYER_TOO_SIMILAR/);
+  const future=await engine.createStudio(course,'story');
+  assert.equal(future.state,'queued');
+  assert.equal(pending.kind,'story');
+  assert.notEqual(future.asset,result.asset);
+});
+
+test('every course family has its own photoreal workplace and a different retry scene',()=>{
+ const targets=[
+  [/Oficial de Autorizaciones Médicas$/, /healthcare authorizations call center/],
+  [/Pre-Certificaciones/,/precertification administrative desk/],
+  [/Atención al Usuario/,/clinic reception/],
+  [/Farmacología/,/medical representative training room/],
+  [/Enfermería/,/nursing simulation classroom/],
+  [/Seguros/,/health insurance orientation office/],
+  [/Promotor de Salud/,/community health education workshop/],
+  [/^Máster/,/authorization escalation team/],
+ ] as const;
+ for(const [name,setting] of targets){
+  const item=unique.find(j=>name.test(j.payload.courseTitle))!;
+  assert.ok(item);
+  const first=flyerPhotoPrompt(item.payload,{studio:true,attempt:1});
+  const second=flyerPhotoPrompt(item.payload,{studio:true,attempt:2});
+  assert.match(first,/Photorealistic documentary photograph/);
+  assert.match(first,setting);assert.match(second,setting);
+  assert.notEqual(first,second);
+ }
+});
